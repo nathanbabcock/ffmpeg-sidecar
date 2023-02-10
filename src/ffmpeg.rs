@@ -1,6 +1,6 @@
 use std::{
   io,
-  process::{Child, ChildStderr, ChildStdin, ChildStdout, Command, Stdio},
+  process::{Child, ChildStderr, ChildStdin, ChildStdout, Command, ExitStatus, Stdio},
 };
 
 /// Check if the ffmpeg command exists. Uses system-wide scope by default (e.g.
@@ -36,12 +36,18 @@ impl FfmpegSidecar {
   /// Spawn a command to print the version and configuration of ffmpeg,
   /// consuming the instance.
   pub fn run_version(mut self) -> io::Result<Self> {
-    self.args.push("-version".to_string());
-    self.run()
+    self.add_args(&["-version"]);
+    self.spawn()
+  }
+
+  /// Generate a procedural test video. Equivalent to `ffmpeg -i lavfi -f testsrc`
+  pub fn testsrc(mut self) -> Self {
+    self.add_args(&["-f", "lavfi", "-i", "testsrc"]);
+    self
   }
 
   /// Run the ffmpeg command with the configured parameters
-  pub fn run(mut self) -> io::Result<Self> {
+  pub fn spawn(mut self) -> io::Result<Self> {
     let mut child = Command::new(&self.ffmpeg_exe)
       .args(&self.args)
       .stdin(Stdio::piped())
@@ -55,12 +61,19 @@ impl FfmpegSidecar {
     Ok(self)
   }
 
-  /// Print the metadata about a particular
-  pub fn metadata() {}
+  /// Wait for the ffmpeg process to exit and return the exit status.
+  pub fn wait(&mut self) -> io::Result<ExitStatus> {
+    self.child.take().unwrap().wait()
+  }
 
   //// Setters
   pub fn set_ffmpeg_exe(&mut self, ffmpeg_exe: &str) -> &mut Self {
     self.ffmpeg_exe = ffmpeg_exe.to_string();
+    self
+  }
+
+  pub fn add_args(&mut self, args: &[&str]) -> &mut Self {
+    self.args.extend(args.iter().map(|s| s.to_string()));
     self
   }
 
@@ -90,5 +103,11 @@ mod tests {
   #[test]
   fn test_check_ffmpeg() {
     assert!(check_ffmpeg());
+  }
+
+  #[test]
+  fn testsrc() -> io::Result<()> {
+    assert!(FfmpegSidecar::new().testsrc().spawn()?.wait()?.success());
+    (Ok(()))
   }
 }
