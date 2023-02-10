@@ -1,5 +1,5 @@
 use std::{
-  io,
+  io::{self, BufRead, BufReader},
   process::{Child, ChildStderr, ChildStdin, ChildStdout, Command, ExitStatus, Stdio},
 };
 
@@ -35,19 +35,27 @@ impl FfmpegSidecar {
   ///
   /// Spawn a command to print the version and configuration of ffmpeg,
   /// consuming the instance.
-  pub fn run_version(mut self) -> io::Result<Self> {
-    self.add_args(&["-version"]);
+  pub fn run_version(&mut self) -> io::Result<()> {
+    self.args(&["-version"]);
     self.spawn()
   }
 
-  /// Generate a procedural test video. Equivalent to `ffmpeg -i lavfi -f testsrc`
+  /// Generate a procedural test video.
+  /// Equivalent to `ffmpeg -i lavfi -f testsrc`
   pub fn testsrc(mut self) -> Self {
-    self.add_args(&["-f", "lavfi", "-i", "testsrc"]);
+    self.args(&["-f", "lavfi", "-i", "testsrc"]);
+    self
+  }
+
+  /// Configure the ffmpeg command to produce output on stdout.
+  /// Equivalent to `ffmpeg ... -` or `ffmpeg ... pipe:1`
+  pub fn pipe_stdout(mut self) -> Self {
+    self.args(&["-"]);
     self
   }
 
   /// Run the ffmpeg command with the configured parameters
-  pub fn spawn(mut self) -> io::Result<Self> {
+  pub fn spawn(&mut self) -> io::Result<()> {
     let mut child = Command::new(&self.ffmpeg_exe)
       .args(&self.args)
       .stdin(Stdio::piped())
@@ -58,7 +66,37 @@ impl FfmpegSidecar {
     self.stderr = child.stderr.take();
     self.stdin = child.stdin.take();
     self.child = Some(child);
-    Ok(self)
+    Ok(())
+  }
+
+  /// Run the command and wait for it to finish. If a fatal error occurs,
+  /// returns the error message.
+  pub fn run(mut self) -> Result<(), String> {
+    self.spawn().map_err(|e| e.to_string())?;
+
+    let stderr = self.stderr.unwrap();
+    let mut reader = BufReader::new(stderr);
+    let mut line = String::new();
+    loop {
+      let bytes_read = reader.read_line(&mut line);
+
+      match bytes_read {
+        Ok(0) => break, // EOF
+        Ok(_) => {
+          println!("{}", line.trim_end());
+          line.clear();
+        }
+        Err(e) => return Err(e.to_string()),
+      }
+    }
+
+    // stateful; parsing from stderr as you go along
+    // - prelude (config + metadata)
+    // - progress messages
+    // - warnings
+    // - fatal errors
+
+    Ok(())
   }
 
   /// Wait for the ffmpeg process to exit and return the exit status.
@@ -67,14 +105,13 @@ impl FfmpegSidecar {
   }
 
   //// Setters
-  pub fn set_ffmpeg_exe(&mut self, ffmpeg_exe: &str) -> &mut Self {
+  pub fn set_ffmpeg_exe(mut self, ffmpeg_exe: &str) -> Self {
     self.ffmpeg_exe = ffmpeg_exe.to_string();
     self
   }
 
-  pub fn add_args(&mut self, args: &[&str]) -> &mut Self {
+  pub fn args(&mut self, args: &[&str]) {
     self.args.extend(args.iter().map(|s| s.to_string()));
-    self
   }
 
   //// Constructor
@@ -106,8 +143,7 @@ mod tests {
   }
 
   #[test]
-  fn testsrc() -> io::Result<()> {
-    assert!(FfmpegSidecar::new().testsrc().spawn()?.wait()?.success());
-    (Ok(()))
+  fn testsrc() {
+    assert!(FfmpegSidecar::new().testsrc().pipe_stdout().run().is_ok());
   }
 }
