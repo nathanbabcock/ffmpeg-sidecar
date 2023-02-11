@@ -1,3 +1,5 @@
+pub mod command;
+
 use ffmpeg_sidecar::stderr_parser::StderrParser;
 use std::process::{Command, Stdio};
 

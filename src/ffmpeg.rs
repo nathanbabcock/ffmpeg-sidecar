@@ -1,6 +1,7 @@
 use std::{
   io::{self, BufRead, BufReader},
-  process::{Child, ChildStderr, ChildStdin, ChildStdout, Command, ExitStatus, Stdio},
+  process::{Child, ChildStderr, ChildStdin, ChildStdout, Command, Stdio},
+  sync::mpsc::{sync_channel, Receiver},
 };
 
 /// Check if the ffmpeg command exists. Uses system-wide scope by default (e.g.
@@ -20,6 +21,34 @@ pub fn check_ffmpeg_with_path(ffmpeg_exe: &str) -> bool {
     .unwrap_or(false)
 }
 
+pub struct OutputVideoFrame {
+  pub width: u32,
+  pub height: u32,
+  pub pix_fmt: String,
+  pub data: Vec<u8>,
+}
+
+pub struct FfmpegProgress {
+  frame: u32,
+  fps: f32,
+  q: f32,
+  size_kb: u32,
+  time: String,
+  bitrate_kbps: f32,
+  speed: f32,
+  raw_log_message: String,
+}
+
+/// Represents any raw or parsed log message, or outputted video frame
+pub enum FfmpegEvent {
+  LogInfo(String),
+  LogWarning(String),
+  LogError(String),
+  LogUnknown(String),
+  Progress(FfmpegProgress),
+  OutputFrame(OutputVideoFrame),
+}
+
 pub struct FfmpegSidecar {
   /// The path to the ffmpeg executable
   ffmpeg_exe: String,
@@ -35,9 +64,9 @@ impl FfmpegSidecar {
   ///
   /// Spawn a command to print the version and configuration of ffmpeg,
   /// consuming the instance.
-  pub fn run_version(&mut self) -> io::Result<()> {
+  pub fn run_version(mut self) -> io::Result<Receiver<FfmpegEvent>> {
     self.args(&["-version"]);
-    self.spawn()
+    self.start()
   }
 
   /// Generate a procedural test video.
@@ -54,8 +83,9 @@ impl FfmpegSidecar {
     self
   }
 
-  /// Run the ffmpeg command with the configured parameters
-  pub fn spawn(&mut self) -> io::Result<()> {
+  /// Run the ffmpeg command with the configured parameters.
+  /// Consumes the instance and returns a receiver for events during processing.
+  pub fn start(&mut self) -> io::Result<Receiver<FfmpegEvent>> {
     let mut child = Command::new(&self.ffmpeg_exe)
       .args(&self.args)
       .stdin(Stdio::piped())
@@ -66,42 +96,51 @@ impl FfmpegSidecar {
     self.stderr = child.stderr.take();
     self.stdin = child.stdin.take();
     self.child = Some(child);
-    Ok(())
-  }
 
-  /// Run the command and wait for it to finish. If a fatal error occurs,
-  /// returns the error message.
-  pub fn run(mut self) -> Result<(), String> {
-    self.spawn().map_err(|e| e.to_string())?;
+    let (tx, rx) = sync_channel::<FfmpegEvent>(0);
 
-    let stderr = self.stderr.unwrap();
-    let mut reader = BufReader::new(stderr);
-    let mut line = String::new();
-    loop {
-      let bytes_read = reader.read_line(&mut line);
+    let stdout = self.stdout.take().unwrap();
+    let stderr = self.stderr.take().unwrap();
 
-      match bytes_read {
-        Ok(0) => break, // EOF
-        Ok(_) => {
-          println!("{}", line.trim_end());
-          line.clear();
+    let stderr_thread = std::thread::spawn(move || {
+      let reader = BufReader::new(stderr);
+      for line in reader.lines() {
+        let line = line.unwrap();
+        if line.starts_with("[info]") {
+          // if line.starts_with("[info] frame=") ... // parse progress
+          tx.send(FfmpegEvent::LogInfo(line)).unwrap();
+        } else if line.starts_with("[warning]") {
+          tx.send(FfmpegEvent::LogWarning(line)).unwrap();
+        } else if line.starts_with("[error]") || line.starts_with("[fatal]") {
+          tx.send(FfmpegEvent::LogError(line)).unwrap();
+        } else {
+          tx.send(FfmpegEvent::LogUnknown(line)).unwrap();
         }
-        Err(e) => return Err(e.to_string()),
       }
-    }
+    });
 
-    // stateful; parsing from stderr as you go along
-    // - prelude (config + metadata)
-    // - progress messages
-    // - warnings
-    // - fatal errors
+    // TODO: parse output until all metadata has been read
+    // Add messages types:
+    // - ParsedVersion
+    // - ParsedConfiguration
+    // - ParsedInputs (1+, each with 1+ streams)
+    // - ParsedOutputs (1+, each with 1+ streams)
+    let mut output_width: u32;
+    let mut output_height: u32;
+    let mut output_pix_fmt: u32;
+    while let Ok(event) = rx.recv() {}
 
-    Ok(())
-  }
+    // Save these parsed values to a struct field (stateful)
+    // ...or re-forward them onto the receiver a second time?
+    // ...or both?
 
-  /// Wait for the ffmpeg process to exit and return the exit status.
-  pub fn wait(&mut self) -> io::Result<ExitStatus> {
-    self.child.take().unwrap().wait()
+    // Then handle stdout
+    let stdout_thread = std::thread::spawn(move || {
+      let reader = BufReader::new(stdout);
+      let buf = &mut [0u8; 4096]; // TODO determine buffer size from pix_fmt, width, and height
+    });
+
+    Ok(rx)
   }
 
   //// Setters
@@ -144,6 +183,11 @@ mod tests {
 
   #[test]
   fn testsrc() {
-    assert!(FfmpegSidecar::new().testsrc().pipe_stdout().run().is_ok());
+    let rx = FfmpegSidecar::new()
+      .testsrc()
+      .pipe_stdout()
+      .start()
+      .unwrap();
+    while let Ok(event) = rx.recv() {}
   }
 }
