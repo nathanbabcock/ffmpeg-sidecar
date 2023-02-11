@@ -1,8 +1,10 @@
 use std::{
   ffi::OsStr,
-  fmt,
+  fmt, io,
   process::{Command, CommandArgs, Stdio},
 };
+
+use crate::child::FfmpegChild;
 
 /// A wrapper around [`std::process::Command`] with some convenient preset argument
 /// sets and customization for ffmpeg specifically.
@@ -80,6 +82,14 @@ impl FfmpegCommand {
   /// Identical to `get_args` in [`std::process::Command`].
   pub fn get_args(&self) -> CommandArgs<'_> {
     self.inner.get_args()
+  }
+
+  /// Spawn the ffmpeg command as a child process, wrapping it in a
+  /// `FfmpegChild` interface.
+  ///
+  /// Identical to `spawn` in [`std::process::Command`].
+  pub fn spawn(&mut self) -> io::Result<FfmpegChild> {
+    self.inner.spawn().map(FfmpegChild::from_inner)
   }
 
   pub fn new<S: AsRef<OsStr>>(exe: S) -> Self {
