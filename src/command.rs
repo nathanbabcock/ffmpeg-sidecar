@@ -122,7 +122,7 @@ impl fmt::Debug for FfmpegCommand {
 
 impl From<Command> for FfmpegCommand {
   /// Convert a `Command` into a `FfmpegCommand`, making no guarantees about the
-  /// validity of it's configured arguments and stdio. For example,
+  /// validity of its configured arguments and stdio. For example,
   /// `set_expected_loglevel()` is not automatically applied, which can have
   /// unexpected effects on log parsing.
   fn from(inner: Command) -> Self {
