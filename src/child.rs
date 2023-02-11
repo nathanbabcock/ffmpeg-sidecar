@@ -1,7 +1,11 @@
 use std::{
-  io::{self, Write},
+  io::{self, BufRead, BufReader, Write},
   process::{Child, ChildStdin},
+  sync::mpsc::{sync_channel, Receiver, SyncSender},
+  thread::JoinHandle,
 };
+
+use crate::event::{FfmpegEvent, FfmpegOutputs};
 
 /// A wrapper around [`std::process::Child`] containing a spawned FFmpeg command.
 /// Provides interfaces for reading parsed metadata, progress updates, warnings and errors, and
@@ -12,6 +16,74 @@ pub struct FfmpegChild {
 }
 
 impl FfmpegChild {
+  /// Creates a receiver for events emitted by ffmpeg.
+  pub(crate) fn events_rx(&mut self) -> Receiver<FfmpegEvent> {
+    let (tx, rx) = sync_channel::<FfmpegEvent>(0);
+    self.spawn_stderr_thread(tx.clone());
+
+    // Await the output metadata
+    let mut outputs: Option<FfmpegOutputs> = None;
+    let mut event_queue: Vec<FfmpegEvent> = Vec::new();
+    while let Ok(event) = rx.recv() {
+      match event {
+        FfmpegEvent::ParsedOutputs(_outputs) => {
+          outputs = Some(_outputs);
+          break;
+        }
+        FfmpegEvent::Progress(progress) => {
+          panic!("unexpected progress event before output metadata")
+        }
+        _ => {}
+      }
+      event_queue.push(event);
+    }
+
+    // Once processing has started, make sure we have the output metadata
+    let output_stream = outputs.unwrap().streams.first().unwrap();
+    todo!("handle 0 or >1 output streams");
+    let width = output_stream.width;
+    let height = output_stream.height;
+    let pix_fmt = output_stream.pix_fmt;
+    let bytes_per_pixel: u32 = todo!("retrieve bytes per pixel from pix_fmt.rs");
+    let frame_size = width * height * bytes_per_pixel;
+    let buffer = vec![0; frame_size as usize];
+    todo!("spawn a thread to read stdout into buffer");
+
+    rx
+  }
+
+  fn spawn_stderr_thread(&mut self, tx: SyncSender<FfmpegEvent>) -> JoinHandle<()> {
+    let stderr = self.inner.stderr.take().unwrap();
+    let stderr_thread = std::thread::spawn(move || {
+      let reader = BufReader::new(stderr);
+      for line in reader.lines() {
+        let line = line.unwrap();
+        if line.starts_with("[info]") {
+          tx.send(FfmpegEvent::LogInfo(line)).unwrap();
+        } else if line.starts_with("[warning]") {
+          tx.send(FfmpegEvent::LogWarning(line)).unwrap();
+        } else if line.starts_with("[error]") || line.starts_with("[fatal]") {
+          tx.send(FfmpegEvent::LogError(line)).unwrap();
+        } else {
+          tx.send(FfmpegEvent::LogUnknown(line)).unwrap();
+        }
+      }
+    });
+    stderr_thread
+  }
+
+  /// Creates an iterator over events emitted by ffmpeg. Functions similarly to
+  /// `Lines` from [`std::io::BufReader`], but providing a variety of parsed
+  /// events:
+  /// - Log messages
+  /// - Parsed metadata
+  /// - Progress updates
+  /// - Errors and warnings
+  /// - Raw output frames
+  pub fn events_iter() {
+    todo!()
+  }
+
   /// Send a command to ffmpeg over stdin, used during interactive mode.
   ///
   /// This method does not validate that the command is expected or handled
