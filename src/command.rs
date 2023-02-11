@@ -93,6 +93,16 @@ impl FfmpegCommand {
     ffmpeg_command.set_expected_loglevel();
     ffmpeg_command
   }
+
+  /// Escape hatch to access the inner `Command`.
+  pub fn as_inner(&mut self) -> &Command {
+    &self.inner
+  }
+
+  /// Escape hatch to mutably access the inner `Command`.
+  pub fn as_inner_mut(&mut self) -> &mut Command {
+    &mut self.inner
+  }
 }
 
 impl Default for FfmpegCommand {
@@ -107,5 +117,21 @@ impl fmt::Debug for FfmpegCommand {
   /// character.
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     self.inner.fmt(f)
+  }
+}
+
+impl From<Command> for FfmpegCommand {
+  /// Convert a `Command` into a `FfmpegCommand`, making no guarantees about the
+  /// validity of it's configured arguments and stdio. For example,
+  /// `set_expected_loglevel()` is not automatically applied, which can have
+  /// unexpected effects on log parsing.
+  fn from(inner: Command) -> Self {
+    Self { inner }
+  }
+}
+
+impl Into<Command> for FfmpegCommand {
+  fn into(self) -> Command {
+    self.inner
   }
 }
