@@ -10,7 +10,13 @@ pub struct FfmpegLogParser<R: Read> {
 }
 
 impl<R: Read> FfmpegLogParser<R> {
-  pub fn parse_next_line(&mut self) -> Result<FfmpegEvent, String> {
+  /// Consume lines from the inner reader until obtaining a completed
+  /// `FfmpegEvent`, returning it.
+  ///
+  /// Typically this consumes a single line, but in the case of multi-line
+  /// input/output stream specifications, nested method calls will consume
+  /// additional lines until the entire vector of Inputs/Outputs is parsed.
+  pub fn parse_next_event(&mut self) -> Result<FfmpegEvent, String> {
     let mut buf = String::new();
     let bytes_read = self.reader.read_line(&mut buf);
     let line = buf.as_str();
@@ -128,7 +134,7 @@ mod tests {
 
     let stdout = cmd.stdout.unwrap();
     let mut parser = FfmpegLogParser::new(stdout);
-    while let Ok(event) = parser.parse_next_line() {
+    while let Ok(event) = parser.parse_next_event() {
       match event {
         FfmpegEvent::ParsedVersion(_) => return,
         _ => {}
@@ -148,7 +154,7 @@ mod tests {
 
     let stdout = cmd.stdout.unwrap();
     let mut parser = FfmpegLogParser::new(stdout);
-    while let Ok(event) = parser.parse_next_line() {
+    while let Ok(event) = parser.parse_next_event() {
       match event {
         FfmpegEvent::ParsedConfiguration(_) => return,
         _ => {}

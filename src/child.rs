@@ -61,7 +61,7 @@ impl FfmpegChild {
       let reader = BufReader::new(stderr);
       let mut parser = FfmpegLogParser::new(reader);
       loop {
-        match parser.parse_next_line() {
+        match parser.parse_next_event() {
           Ok(event) => tx.send(event).unwrap(),
           Err(e) => {
             eprintln!("Error parsing ffmpeg output: {}", e);
