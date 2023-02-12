@@ -5,7 +5,10 @@ use std::{
   thread::JoinHandle,
 };
 
-use crate::event::{FfmpegEvent, FfmpegOutputs};
+use crate::{
+  event::{FfmpegEvent, FfmpegOutputs},
+  log_parser::FfmpegLogParser,
+};
 
 /// A wrapper around [`std::process::Child`] containing a spawned FFmpeg command.
 /// Provides interfaces for reading parsed metadata, progress updates, warnings and errors, and
@@ -56,17 +59,15 @@ impl FfmpegChild {
     let stderr = self.inner.stderr.take().unwrap();
     let stderr_thread = std::thread::spawn(move || {
       let reader = BufReader::new(stderr);
-      for line in reader.lines() {
-        let line = line.unwrap();
-        if line.starts_with("[info]") {
-          tx.send(FfmpegEvent::LogInfo(line)).unwrap();
-        } else if line.starts_with("[warning]") {
-          tx.send(FfmpegEvent::LogWarning(line)).unwrap();
-        } else if line.starts_with("[error]") || line.starts_with("[fatal]") {
-          tx.send(FfmpegEvent::LogError(line)).unwrap();
-        } else {
-          tx.send(FfmpegEvent::LogUnknown(line)).unwrap();
-        }
+      let mut parser = FfmpegLogParser::new(reader);
+      loop {
+        match parser.parse_next_line() {
+          Ok(event) => tx.send(event).unwrap(),
+          Err(e) => {
+            eprintln!("Error parsing ffmpeg output: {}", e);
+            break;
+          }
+        };
       }
     });
     stderr_thread

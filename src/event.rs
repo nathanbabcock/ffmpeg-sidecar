@@ -1,3 +1,4 @@
+#[derive(Debug, Clone)]
 pub enum FfmpegEvent {
   ParsedVersion(FfmpegVersion),
   ParsedConfiguration(FfmpegConfiguration),
@@ -11,6 +12,7 @@ pub enum FfmpegEvent {
   OutputFrame(OutputVideoFrame),
 }
 
+#[derive(Debug, Clone)]
 pub struct FfmpegInputs {
   pub duration: String,
   pub start_sec: f32,
@@ -18,10 +20,12 @@ pub struct FfmpegInputs {
   pub streams: Vec<AVStream>,
 }
 
+#[derive(Debug, Clone)]
 pub struct FfmpegOutputs {
   pub streams: Vec<AVStream>,
 }
 
+#[derive(Debug, Clone)]
 pub struct AVStream {
   /// e.g. `Video`, `Audio`, `data`, `subtitle`, etc.
   pub stream_type: String,
@@ -43,27 +47,31 @@ pub struct AVStream {
   // tbn: f32,
 }
 
+#[derive(Debug, Clone)]
 pub struct FfmpegVersion {
-  version: String,
-  raw_log_message: String,
+  pub version: String,
+  pub raw_log_message: String,
 }
 
+#[derive(Debug, Clone)]
 pub struct FfmpegConfiguration {
-  configuration: Vec<String>,
-  raw_log_message: String,
+  pub configuration: Vec<String>,
+  pub raw_log_message: String,
 }
 
+#[derive(Debug, Clone)]
 pub struct FfmpegProgress {
-  frame: u32,
-  fps: f32,
-  q: f32,
-  size_kb: u32,
-  time: String,
-  bitrate_kbps: f32,
-  speed: f32,
-  raw_log_message: String,
+  pub frame: u32,
+  pub fps: f32,
+  pub q: f32,
+  pub size_kb: u32,
+  pub time: String,
+  pub bitrate_kbps: f32,
+  pub speed: f32,
+  pub raw_log_message: String,
 }
 
+#[derive(Debug, Clone)]
 pub struct OutputVideoFrame {
   pub width: u32,
   pub height: u32,
