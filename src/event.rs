@@ -2,8 +2,8 @@
 pub enum FfmpegEvent {
   ParsedVersion(FfmpegVersion),
   ParsedConfiguration(FfmpegConfiguration),
-  ParsedInputs(FfmpegInputs),
-  ParsedOutputs(FfmpegOutputs),
+  ParsedInputStream(AVStream),
+  ParsedOutputStream(AVStream),
   LogInfo(String),
   LogWarning(String),
   LogError(String),
@@ -27,20 +27,19 @@ pub struct FfmpegOutputs {
 
 #[derive(Debug, Clone)]
 pub struct AVStream {
-  /// e.g. `Video`, `Audio`, `data`, `subtitle`, etc.
-  pub stream_type: String,
-  /// Corresponds to stream `-f` parameter, e.g. `rawvideo`
-  pub format: String,
   /// Corresponds to stream `-pix_fmt` parameter, e.g. `rgb24`
   pub pix_fmt: String,
   /// Width in pixels
   pub width: u32,
   /// Height in pixels
   pub height: u32,
-  /// Frames per second
-  pub fps: f32,
-
   pub raw_log_message: String,
+  // /// e.g. `Video`, `Audio`, `data`, `subtitle`, etc.
+  // pub stream_type: String,
+  // /// Corresponds to stream `-f` parameter, e.g. `rawvideo`
+  // pub format: String,
+  // /// Frames per second
+  // pub fps: f32,
   // /// tbr is guessed from the video stream and is the value users want to see when they look for the video frame rate
   // tbr: f32,
   // /// the time base in AVStream that has come from the container

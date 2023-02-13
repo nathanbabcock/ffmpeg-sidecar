@@ -5,8 +5,15 @@ use std::{
 
 use crate::event::{FfmpegConfiguration, FfmpegEvent, FfmpegVersion};
 
+enum LogSection {
+  Input(u32),
+  Output(u32),
+  Other,
+}
+
 pub struct FfmpegLogParser<R: Read> {
   reader: BufReader<R>,
+  cur_section: LogSection,
 }
 
 impl<R: Read> FfmpegLogParser<R> {
@@ -23,6 +30,14 @@ impl<R: Read> FfmpegLogParser<R> {
     match bytes_read {
       Ok(0) => Err("EOF".to_string()),
       Ok(_) => {
+        if let Some(input_number) = try_parse_input(line) {
+          self.cur_section = LogSection::Input(input_number);
+        } else if let Some(output_number) = try_parse_output(line) {
+          self.cur_section = LogSection::Output(output_number);
+        } else {
+          self.cur_section = LogSection::Other;
+        }
+
         if let Some(version) = try_parse_version(line) {
           Ok(FfmpegEvent::ParsedVersion(FfmpegVersion {
             version,
@@ -50,6 +65,7 @@ impl<R: Read> FfmpegLogParser<R> {
   pub fn new(inner: R) -> Self {
     Self {
       reader: BufReader::new(inner),
+      cur_section: LogSection::Other,
     }
   }
 }
@@ -116,6 +132,62 @@ pub fn try_parse_configuration(mut string: &str) -> Option<Vec<String>> {
         .map(|s| s.to_string())
         .collect(),
     )
+  } else {
+    None
+  }
+}
+
+/// Parse an input section like the following, extracting the index of the input:
+///
+/// ## Example:
+///
+/// ```rust
+/// use ffmpeg_sidecar::log_parser::try_parse_input;
+/// let line = "[info] Input #0, lavfi, from 'testsrc':\n";
+/// let input = try_parse_input(line);
+/// assert!(input == Some(0));
+/// ```
+///
+pub fn try_parse_input(mut string: &str) -> Option<u32> {
+  if string.starts_with("[info]") {
+    string = &string[6..];
+  }
+  string = string.trim();
+  let input_prefix = "Input #";
+  if string.starts_with(input_prefix) {
+    string[input_prefix.len()..]
+      .split_whitespace()
+      .next()
+      .and_then(|s| s.split(',').next())
+      .and_then(|s| s.parse::<u32>().ok())
+  } else {
+    None
+  }
+}
+
+/// Parse an output section like the following, extracting the index of the input:
+///
+/// ## Example:
+///
+/// ```rust
+/// use ffmpeg_sidecar::log_parser::try_parse_output;
+/// let line = "[info] Output #0, mp4, to 'test.mp4':\n";
+/// let output = try_parse_output(line);
+/// assert!(output == Some(0));
+/// ```
+///
+pub fn try_parse_output(mut string: &str) -> Option<u32> {
+  if string.starts_with("[info]") {
+    string = &string[6..];
+  }
+  string = string.trim();
+  let output_prefix = "Output #";
+  if string.starts_with(output_prefix) {
+    string[output_prefix.len()..]
+      .split_whitespace()
+      .next()
+      .and_then(|s| s.split(',').next())
+      .and_then(|s| s.parse::<u32>().ok())
   } else {
     None
   }

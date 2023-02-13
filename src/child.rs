@@ -29,10 +29,6 @@ impl FfmpegChild {
     let mut event_queue: Vec<FfmpegEvent> = Vec::new();
     while let Ok(event) = rx.recv() {
       match event {
-        FfmpegEvent::ParsedOutputs(_outputs) => {
-          outputs = Some(_outputs);
-          break;
-        }
         FfmpegEvent::Progress(progress) => {
           panic!("unexpected progress event before output metadata")
         }
