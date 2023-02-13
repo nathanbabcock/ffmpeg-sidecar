@@ -1,9 +1,6 @@
 use std::io::{BufRead, BufReader, Read};
 
-use crate::{
-  event::{AVStream, FfmpegConfiguration, FfmpegEvent, FfmpegVersion},
-  util::collect_until_comma,
-};
+use crate::event::{AVStream, FfmpegConfiguration, FfmpegEvent, FfmpegVersion};
 
 enum LogSection {
   Input(u32),
