@@ -212,13 +212,44 @@ pub fn try_parse_output(mut string: &str) -> Option<u32> {
 /// assert!(stream.is_some());
 /// ```
 pub fn try_parse_stream(mut string: &str) -> Option<AVStream> {
+  let original_string = string.clone();
   if string.starts_with("[info]") {
     string = &string[6..];
   }
   string = string.trim();
   let output_prefix = "Stream #";
   if string.starts_with(output_prefix) {
-    todo!("probably need regex here");
+    let mut colon_parts = string[output_prefix.len()..].split(":");
+    let _output_index = colon_parts.next();
+    let _stream_index = colon_parts.next();
+    let _stream_type = colon_parts.next(); // " Video" or " Audio"
+    let stream_specification = colon_parts.next(); // comma-separated list
+
+    let mut comma_parts = stream_specification.unwrap().split_whitespace();
+    let _format = comma_parts.next(); // "h264" or "wrapped_avframe"
+    let pix_fmt = comma_parts
+      .next()
+      .unwrap()
+      .trim()
+      .split("(")
+      .next()
+      .unwrap(); // "yuv444p" or "rgb24"
+    let mut dimensions = comma_parts
+      .next()
+      .unwrap()
+      .trim()
+      .split_whitespace()
+      .next()
+      .unwrap()
+      .split("x"); // "320x240"
+    let width = dimensions.next().unwrap().parse::<u32>().unwrap();
+    let height = dimensions.next().unwrap().parse::<u32>().unwrap();
+    Some(AVStream {
+      width,
+      height,
+      pix_fmt: pix_fmt.to_string(),
+      raw_log_message: original_string.to_string(),
+    })
   } else {
     None
   }
