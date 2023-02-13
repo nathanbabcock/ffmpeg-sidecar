@@ -50,6 +50,12 @@ impl<R: Read> FfmpegLogParser<R> {
             configuration,
             raw_log_message: line.to_string(),
           }))
+        } else if let Some(stream) = try_parse_stream(line) {
+          match self.cur_section {
+            LogSection::Input(_) => Ok(FfmpegEvent::ParsedInputStream(stream)),
+            LogSection::Output(_) => Ok(FfmpegEvent::ParsedOutputStream(stream)),
+            LogSection::Other => Err(format!("Unexpected stream specification: {}", line)),
+          }
         } else if line.starts_with("[info]") {
           Ok(FfmpegEvent::LogInfo(line.to_string()))
         } else if line.starts_with("[warning]") {

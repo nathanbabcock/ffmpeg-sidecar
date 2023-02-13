@@ -6,3 +6,6 @@ ffmpeg \
   -f lavfi \
   -i testsrc \
   -y test.mp4
+
+# pix_fmts
+ffmpeg -hide_banner -pix_fmts
