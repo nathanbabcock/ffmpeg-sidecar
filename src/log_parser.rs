@@ -60,7 +60,7 @@ impl<R: Read> FfmpegLogParser<R> {
 /// ```rust
 /// use ffmpeg_sidecar::log_parser::try_parse_version;
 ///
-/// let line = "ffmpeg version 2023-01-18-git-ba36e6ed52-full_build-www.gyan.dev Copyright (c) 2000-2023 the FFmpeg developers\n";
+/// let line = "[info] ffmpeg version 2023-01-18-git-ba36e6ed52-full_build-www.gyan.dev Copyright (c) 2000-2023 the FFmpeg developers\n";
 ///
 /// let version = try_parse_version(line).unwrap();
 ///
@@ -70,11 +70,12 @@ pub fn try_parse_version(mut string: &str) -> Option<String> {
   if string.starts_with("[info]") {
     string = &string[6..];
   }
+  string = string.trim();
   let version_prefix = "ffmpeg version ";
   if string.starts_with(version_prefix) {
     string[version_prefix.len()..]
       .trim_end()
-      .split(' ')
+      .split_whitespace()
       .next()
       .map(|s| s.to_string())
   } else {
@@ -90,7 +91,7 @@ pub fn try_parse_version(mut string: &str) -> Option<String> {
 /// ```rust
 /// use ffmpeg_sidecar::log_parser::try_parse_configuration;
 ///
-/// let line = "configuration: --enable-gpl --enable-version3 --enable-static\n";
+/// let line = "[info]   configuration: --enable-gpl --enable-version3 --enable-static\n";
 /// // Typically much longer, 20-30+ flags
 ///
 /// let version = try_parse_configuration(line).unwrap();
@@ -105,12 +106,13 @@ pub fn try_parse_configuration(mut string: &str) -> Option<Vec<String>> {
   if string.starts_with("[info]") {
     string = &string[6..];
   }
+  string = string.trim();
   let configuration_prefix = "configuration: ";
   if string.starts_with(configuration_prefix) {
     Some(
       string[configuration_prefix.len()..]
         .trim_end()
-        .split(' ')
+        .split_whitespace()
         .map(|s| s.to_string())
         .collect(),
     )
