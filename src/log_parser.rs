@@ -3,7 +3,7 @@ use std::{
   sync::mpsc::SyncSender,
 };
 
-use crate::event::{FfmpegConfiguration, FfmpegEvent, FfmpegVersion};
+use crate::event::{AVStream, FfmpegConfiguration, FfmpegEvent, FfmpegVersion};
 
 enum LogSection {
   Input(u32),
@@ -30,6 +30,7 @@ impl<R: Read> FfmpegLogParser<R> {
     match bytes_read {
       Ok(0) => Err("EOF".to_string()),
       Ok(_) => {
+        // Track log section
         if let Some(input_number) = try_parse_input(line) {
           self.cur_section = LogSection::Input(input_number);
         } else if let Some(output_number) = try_parse_output(line) {
@@ -38,6 +39,7 @@ impl<R: Read> FfmpegLogParser<R> {
           self.cur_section = LogSection::Other;
         }
 
+        // Parse
         if let Some(version) = try_parse_version(line) {
           Ok(FfmpegEvent::ParsedVersion(FfmpegVersion {
             version,
@@ -188,6 +190,38 @@ pub fn try_parse_output(mut string: &str) -> Option<u32> {
       .next()
       .and_then(|s| s.split(',').next())
       .and_then(|s| s.parse::<u32>().ok())
+  } else {
+    None
+  }
+}
+
+/// ## Example
+///
+/// Input stream:
+///
+/// ```rust
+/// use ffmpeg_sidecar::log_parser::try_parse_stream;
+/// let line = "[info]   Stream #0:0: Video: wrapped_avframe, rgb24, 320x240 [SAR 1:1 DAR 4:3], 25 fps, 25 tbr, 25 tbn\n";
+/// let stream = try_parse_stream(line).unwrap();
+/// assert!(stream.is_some());
+/// ```
+///
+/// Output stream:
+///
+/// ```rust
+/// use ffmpeg_sidecar::log_parser::try_parse_stream;
+/// let line = "[info]   Stream #0:0: Video: h264 (avc1 / 0x31637661), yuv444p(tv, progressive), 320x240 [SAR 1:1 DAR 4:3], q=2-31, 25 fps, 12800 tbn\n";
+/// let stream = try_parse_stream(line).unwrap();
+/// assert!(stream.is_some());
+/// ```
+pub fn try_parse_stream(mut string: &str) -> Option<AVStream> {
+  if string.starts_with("[info]") {
+    string = &string[6..];
+  }
+  string = string.trim();
+  let output_prefix = "Stream #";
+  if string.starts_with(output_prefix) {
+    todo!("probably need regex here");
   } else {
     None
   }
