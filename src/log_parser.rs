@@ -1,6 +1,9 @@
 use std::io::{BufRead, BufReader, Read};
 
-use crate::event::{AVStream, FfmpegConfiguration, FfmpegEvent, FfmpegVersion};
+use crate::{
+  comma_iter::CommaIter,
+  event::{AVStream, FfmpegConfiguration, FfmpegEvent, FfmpegVersion},
+};
 
 enum LogSection {
   Input(u32),
@@ -212,24 +215,35 @@ pub fn try_parse_output(mut string: &str) -> Option<u32> {
 /// assert!(stream.is_some());
 /// ```
 pub fn try_parse_stream(mut string: &str) -> Option<AVStream> {
-  if string.starts_with("[info]") {
-    string = &string[6..];
+  let raw_log_message = string.clone().to_string();
+  if let Some(stripped) = string.strip_prefix("[info]") {
+    string = stripped;
   }
-  string = string.trim();
-  let output_prefix = "Stream #";
-  if !string.starts_with(output_prefix) {
-    return None;
-  }
-  string = &string[output_prefix.len()..];
+  string = string.trim().strip_prefix("Stream #")?;
   let mut colon_parts = string.split(':');
   let stream_type = colon_parts.nth(2)?.trim();
   if stream_type != "Video" {
     return None;
   }
-  let comma_separated_string = colon_parts.next()?.trim();
-  let mut chars = comma_separated_string.chars();
+  let comma_string = colon_parts.next()?.trim();
+  let mut comma_iter = CommaIter::new(comma_string);
+  let pix_fmt = comma_iter
+    .nth(1)? // skip the first item, which is the format (-f)
+    .trim()
+    .split(&[' ', '(']) // trim trailing junk like "(tv, progressive)"
+    .next()?
+    .to_string();
+  let dims = comma_iter.next()?.trim().split_whitespace().next()?;
+  let mut dims_iter = dims.split('x');
+  let width = dims_iter.next()?.parse::<u32>().ok()?;
+  let height = dims_iter.next()?.parse::<u32>().ok()?;
 
-  None
+  Some(AVStream {
+    width,
+    height,
+    pix_fmt,
+    raw_log_message,
+  })
 }
 
 #[cfg(test)]
