@@ -1,6 +1,9 @@
 use std::io::{BufRead, BufReader, Read};
 
-use crate::event::{AVStream, FfmpegConfiguration, FfmpegEvent, FfmpegVersion};
+use crate::{
+  event::{AVStream, FfmpegConfiguration, FfmpegEvent, FfmpegVersion},
+  util::collect_until_comma,
+};
 
 enum LogSection {
   Input(u32),
@@ -212,65 +215,24 @@ pub fn try_parse_output(mut string: &str) -> Option<u32> {
 /// assert!(stream.is_some());
 /// ```
 pub fn try_parse_stream(mut string: &str) -> Option<AVStream> {
-  let original_string = string.clone();
   if string.starts_with("[info]") {
     string = &string[6..];
   }
   string = string.trim();
   let output_prefix = "Stream #";
-  if string.starts_with(output_prefix) {
-    let mut chars = string[output_prefix.len()..].chars();
-    chars.skip_while(|c| c != ":"); // input/output index e.g. "0"
-    chars.skip(1); // ":"
-    chars.skip_while(|c| c != ":"); // stream index e.g. "0"
-    chars.skip(1); // ":"
-    let stream_type = chars.take_while(|c| c != ":").collect::<String>().trim(); // stream type
-    if stream_type != "Video" {
-      return None;
-    }
-    chars.skip(1); // ":"
-    
-    // take until first non-parenthesis-wrapped comma
-    // then extract this to a standalone utility function
-    let cur_iter = chars.take_while(|c| c != "," && c != "(")
-    let cur_substring = cur_iter.collect::<String>();
-    let delim = chars.next().unwrap();
-    todo!("...");
-
-    let mut colon_parts = string[output_prefix.len()..].split(":");
-    let _output_index = colon_parts.next();
-    let _stream_index = colon_parts.next();
-    let _stream_type = colon_parts.next(); // " Video" or " Audio"
-    let stream_specification = colon_parts.next(); // comma-separated list
-
-    let mut comma_parts = stream_specification.unwrap().split_whitespace();
-    let _format = comma_parts.next(); // "h264" or "wrapped_avframe"
-    let pix_fmt = comma_parts
-      .next()
-      .unwrap()
-      .trim()
-      .split("(")
-      .next()
-      .unwrap(); // "yuv444p" or "rgb24"
-    let mut dimensions = comma_parts
-      .next()
-      .unwrap()
-      .trim()
-      .split_whitespace()
-      .next()
-      .unwrap()
-      .split("x"); // "320x240"
-    let width = dimensions.next().unwrap().parse::<u32>().unwrap();
-    let height = dimensions.next().unwrap().parse::<u32>().unwrap();
-    Some(AVStream {
-      width,
-      height,
-      pix_fmt: pix_fmt.to_string(),
-      raw_log_message: original_string.to_string(),
-    })
-  } else {
-    None
+  if !string.starts_with(output_prefix) {
+    return None;
   }
+  string = &string[output_prefix.len()..];
+  let mut colon_parts = string.split(':');
+  let stream_type = colon_parts.nth(2)?.trim();
+  if stream_type != "Video" {
+    return None;
+  }
+  let comma_separated_string = colon_parts.next()?.trim();
+  let mut chars = comma_separated_string.chars();
+
+  None
 }
 
 #[cfg(test)]
