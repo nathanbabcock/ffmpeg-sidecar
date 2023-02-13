@@ -1,14 +1,11 @@
 use std::{
-  io::{self, BufRead, BufReader, Write},
+  io::{self, BufReader, Write},
   process::{Child, ChildStdin},
   sync::mpsc::{sync_channel, Receiver, SyncSender},
   thread::JoinHandle,
 };
 
-use crate::{
-  event::{FfmpegEvent, FfmpegOutputs},
-  log_parser::FfmpegLogParser,
-};
+use crate::{event::FfmpegEvent, log_parser::FfmpegLogParser};
 
 /// A wrapper around [`std::process::Child`] containing a spawned FFmpeg command.
 /// Provides interfaces for reading parsed metadata, progress updates, warnings and errors, and
@@ -20,33 +17,33 @@ pub struct FfmpegChild {
 
 impl FfmpegChild {
   /// Creates a receiver for events emitted by ffmpeg.
-  pub(crate) fn events_rx(&mut self) -> Receiver<FfmpegEvent> {
+  pub fn events_rx(&mut self) -> Receiver<FfmpegEvent> {
     let (tx, rx) = sync_channel::<FfmpegEvent>(0);
     self.spawn_stderr_thread(tx.clone());
 
-    // Await the output metadata
-    let mut outputs: Option<FfmpegOutputs> = None;
-    let mut event_queue: Vec<FfmpegEvent> = Vec::new();
-    while let Ok(event) = rx.recv() {
-      match event {
-        FfmpegEvent::Progress(progress) => {
-          panic!("unexpected progress event before output metadata")
-        }
-        _ => {}
-      }
-      event_queue.push(event);
-    }
+    // // Await the output metadata
+    // let mut outputs: Option<FfmpegOutputs> = None;
+    // let mut event_queue: Vec<FfmpegEvent> = Vec::new();
+    // while let Ok(event) = rx.recv() {
+    //   match event {
+    //     FfmpegEvent::Progress(progress) => {
+    //       panic!("unexpected progress event before output metadata")
+    //     }
+    //     _ => {}
+    //   }
+    //   event_queue.push(event);
+    // }
 
-    // Once processing has started, make sure we have the output metadata
-    let output_stream = outputs.unwrap().streams.first().unwrap();
-    todo!("handle 0 or >1 output streams");
-    let width = output_stream.width;
-    let height = output_stream.height;
-    let pix_fmt = output_stream.pix_fmt;
-    let bytes_per_pixel: u32 = todo!("retrieve bytes per pixel from pix_fmt.rs");
-    let frame_size = width * height * bytes_per_pixel;
-    let buffer = vec![0; frame_size as usize];
-    todo!("spawn a thread to read stdout into buffer");
+    // // Once processing has started, make sure we have the output metadata
+    // let output_stream = outputs.unwrap().streams.first().unwrap();
+    // todo!("handle 0 or >1 output streams");
+    // let width = output_stream.width;
+    // let height = output_stream.height;
+    // let pix_fmt = output_stream.pix_fmt;
+    // let bytes_per_pixel: u32 = todo!("retrieve bytes per pixel from pix_fmt.rs");
+    // let frame_size = width * height * bytes_per_pixel;
+    // let buffer = vec![0; frame_size as usize];
+    // todo!("spawn a thread to read stdout into buffer");
 
     rx
   }

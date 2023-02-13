@@ -1,7 +1,4 @@
-use std::{
-  io::{BufRead, BufReader, Read},
-  sync::mpsc::SyncSender,
-};
+use std::io::{BufRead, BufReader, Read};
 
 use crate::event::{AVStream, FfmpegConfiguration, FfmpegEvent, FfmpegVersion};
 
