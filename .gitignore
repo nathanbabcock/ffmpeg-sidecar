@@ -1,3 +1,6 @@
 /target
 /Cargo.lock
-test.dat
+
+# FFMPEG output
+*.dat
+*.mp4

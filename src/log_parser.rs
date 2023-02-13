@@ -57,10 +57,10 @@ impl<R: Read> FfmpegLogParser<R> {
 /// Parses the ffmpeg version string from the stderr stream,
 /// typically the very first line of output:
 ///
-/// ```
-/// use ffmpeg_sidecar::stderr_parser::parse_version;
+/// ```rust
+/// use ffmpeg_sidecar::log_parser::try_parse_version;
 ///
-/// let line = "[info] ffmpeg version 2023-01-18-git-ba36e6ed52-full_build-www.gyan.dev Copyright (c) 2000-2023 the FFmpeg developers\n";
+/// let line = "ffmpeg version 2023-01-18-git-ba36e6ed52-full_build-www.gyan.dev Copyright (c) 2000-2023 the FFmpeg developers\n";
 ///
 /// let version = try_parse_version(line).unwrap();
 ///
@@ -87,8 +87,8 @@ pub fn try_parse_version(mut string: &str) -> Option<String> {
 ///
 /// ## Example:
 ///
-/// ```
-/// use ffmpeg_sidecar::stderr_parser::parse_configuration;
+/// ```rust
+/// use ffmpeg_sidecar::log_parser::try_parse_configuration;
 ///
 /// let line = "configuration: --enable-gpl --enable-version3 --enable-static\n";
 /// // Typically much longer, 20-30+ flags
@@ -99,6 +99,7 @@ pub fn try_parse_version(mut string: &str) -> Option<String> {
 /// assert!(version[0] == "--enable-gpl");
 /// assert!(version[1] == "--enable-version3");
 /// assert!(version[2] == "--enable-static");
+/// ```
 ///
 pub fn try_parse_configuration(mut string: &str) -> Option<Vec<String>> {
   if string.starts_with("[info]") {
