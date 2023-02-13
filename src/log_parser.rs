@@ -199,7 +199,7 @@ pub fn try_parse_output(mut string: &str) -> Option<u32> {
 /// ```rust
 /// use ffmpeg_sidecar::log_parser::try_parse_stream;
 /// let line = "[info]   Stream #0:0: Video: wrapped_avframe, rgb24, 320x240 [SAR 1:1 DAR 4:3], 25 fps, 25 tbr, 25 tbn\n";
-/// let stream = try_parse_stream(line).unwrap();
+/// let stream = try_parse_stream(line);
 /// assert!(stream.is_some());
 /// ```
 ///
@@ -208,7 +208,7 @@ pub fn try_parse_output(mut string: &str) -> Option<u32> {
 /// ```rust
 /// use ffmpeg_sidecar::log_parser::try_parse_stream;
 /// let line = "[info]   Stream #0:0: Video: h264 (avc1 / 0x31637661), yuv444p(tv, progressive), 320x240 [SAR 1:1 DAR 4:3], q=2-31, 25 fps, 12800 tbn\n";
-/// let stream = try_parse_stream(line).unwrap();
+/// let stream = try_parse_stream(line);
 /// assert!(stream.is_some());
 /// ```
 pub fn try_parse_stream(mut string: &str) -> Option<AVStream> {
