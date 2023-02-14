@@ -23,7 +23,9 @@ impl FfmpegChild {
   /// Creates a receiver for events emitted by ffmpeg.
   pub fn events_rx(&mut self) -> Result<Receiver<FfmpegEvent>, String> {
     let (tx, rx) = sync_channel::<FfmpegEvent>(0);
-    self.spawn_stderr_thread(tx.clone());
+    self
+      .spawn_stderr_thread(tx.clone())
+      .map_err(|e| e.to_string())?;
 
     // Await the output metadata
     let mut output_streams: Vec<AVStream> = Vec::new();
@@ -32,7 +34,7 @@ impl FfmpegChild {
       event_queue.push(event.clone());
       match event {
         FfmpegEvent::ParsedOutputStream(stream) => output_streams.push(stream.clone()),
-        FfmpegEvent::Progress(progress) => break,
+        FfmpegEvent::Progress(_) => break,
         _ => {}
       }
     }
@@ -45,7 +47,9 @@ impl FfmpegChild {
     }
 
     // Handle stdout
-    self.spawn_stdout_thread(tx.clone(), output_streams);
+    self
+      .spawn_stdout_thread(tx.clone(), output_streams)
+      .map_err(|e| e.to_string())?;
 
     // Send the events we've already received
     for event in event_queue {
