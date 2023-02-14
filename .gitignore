@@ -1,6 +1,2 @@
 /target
 /Cargo.lock
-
-# FFMPEG output
-*.dat
-*.mp4

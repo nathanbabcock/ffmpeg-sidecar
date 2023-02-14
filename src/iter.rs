@@ -43,6 +43,11 @@ impl FfmpegIterator {
             break;
           }
         }
+        FfmpegEvent::LogEOF => {
+          // An unexpected EOF means we bail out here,
+          // but still pass on the events we've already received
+          return Ok(Self { rx, event_queue });
+        }
         _ => {}
       }
     }

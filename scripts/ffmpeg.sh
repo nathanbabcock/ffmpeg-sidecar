@@ -5,7 +5,7 @@ ffmpeg \
   -v level+info \
   -f lavfi \
   -i testsrc \
-  -y test.mp4
+  -y output/test.mp4
 
 # to /dev/null
 ffmpeg \
