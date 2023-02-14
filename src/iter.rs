@@ -8,7 +8,7 @@ use std::{
 
 use crate::{
   child::FfmpegChild,
-  event::{AVStream, FfmpegEvent, FfmpegOutput, OutputVideoFrame},
+  event::{AVStream, FfmpegEvent, FfmpegOutput, FfmpegProgress, OutputVideoFrame},
   log_parser::FfmpegLogParser,
   pix_fmt::get_bytes_per_frame,
 };
@@ -65,6 +65,54 @@ impl FfmpegIterator {
     }
 
     Ok(Self { rx, event_queue })
+  }
+
+  //// Iterator filters
+
+  /// Returns an iterator over error messages (`FfmpegEvent::Error` and `FfmpegEvent::LogError`).
+  pub fn filter_errors(self) -> impl Iterator<Item = String> {
+    self.filter_map(|event| match event {
+      FfmpegEvent::Error(e) | FfmpegEvent::LogError(e) => Some(e),
+      _ => None,
+    })
+  }
+
+  /// Filter out all events except for progress (`FfmpegEvent::Progress`).
+  pub fn filter_progress(self) -> impl Iterator<Item = FfmpegProgress> {
+    self.filter_map(|event| match event {
+      FfmpegEvent::Progress(p) => Some(p),
+      _ => None,
+    })
+  }
+
+  /// Filter out all events except for output frames (`FfmpegEvent::OutputFrame`).
+  pub fn filter_output(self) -> impl Iterator<Item = OutputVideoFrame> {
+    self.filter_map(|event| match event {
+      FfmpegEvent::OutputFrame(o) => Some(o),
+      _ => None,
+    })
+  }
+
+  /// Iterator over every message from ffmpeg's stderr as a raw string.
+  /// Conceptually equivalent to `BufReader::new(ffmpeg_stderr).lines()`.
+  pub fn into_ffmpeg_stderr(self) -> impl Iterator<Item = String> {
+    self.filter_map(|event| match event {
+      FfmpegEvent::ParsedVersion(x) => Some(x.raw_log_message),
+      FfmpegEvent::ParsedConfiguration(x) => Some(x.raw_log_message),
+      FfmpegEvent::ParsedStreamMapping(x) => Some(x),
+      FfmpegEvent::ParsedOutput(x) => Some(x.raw_log_message),
+      FfmpegEvent::ParsedInputStream(x) => Some(x.raw_log_message),
+      FfmpegEvent::ParsedOutputStream(x) => Some(x.raw_log_message),
+      FfmpegEvent::LogInfo(x) => Some(x),
+      FfmpegEvent::LogWarning(x) => Some(x),
+      FfmpegEvent::LogError(x) => Some(x),
+      FfmpegEvent::LogUnknown(x) => Some(x),
+      FfmpegEvent::LogEOF => None,
+      FfmpegEvent::Error(_) => None,
+      FfmpegEvent::Progress(x) => Some(x.raw_log_message),
+      FfmpegEvent::OutputFrame(_) => None,
+      FfmpegEvent::Done => None,
+    })
   }
 }
 

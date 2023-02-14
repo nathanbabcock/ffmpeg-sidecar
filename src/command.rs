@@ -54,7 +54,7 @@ impl FfmpegCommand {
   }
 
   //// `std::process::Command` passthrough methods
-
+  ///
   /// Adds an argument to pass to the program.
   ///
   /// Identical to `arg` in [`std::process::Command`].
@@ -92,6 +92,14 @@ impl FfmpegCommand {
     self.inner.spawn().map(FfmpegChild::from_inner)
   }
 
+  /// Print a command that can be copy-pasted to run in the terminal.
+  /// Requires `&mut self` so that it chains seamlessly with other methods in the interface.
+  pub fn print_command(&mut self) -> &mut Self {
+    println!("Command: {:?}", self.inner);
+    self
+  }
+
+  //// Constructors
   pub fn new() -> Self {
     Self::new_with_exe("ffmpeg")
   }
@@ -109,6 +117,7 @@ impl FfmpegCommand {
     ffmpeg_command
   }
 
+  //// Escape hatches
   /// Escape hatch to access the inner `Command`.
   pub fn as_inner(&mut self) -> &Command {
     &self.inner

@@ -1,20 +1,9 @@
-use ffmpeg_sidecar::{command::FfmpegCommand, event::FfmpegEvent};
+use ffmpeg_sidecar::command::FfmpegCommand;
 
 fn main() {
-  let iter = FfmpegCommand::new()
-    .args("-f lavfi -i testsrc=duration=5:rate=1 -f rawvideo -pix_fmt rgb24".split(' '))
-    .pipe_stdout()
+  FfmpegCommand::new()
+    .args("-f lavfi -i testsrc=duration=1:rate=1 -f rawvideo -pix_fmt rgb24".split(' '))
+    .print_command()
     .spawn()
-    .unwrap()
-    .events_iter()
     .unwrap();
-
-  let frame_count = iter
-    .filter(|event| match event {
-      FfmpegEvent::OutputFrame(_) => true,
-      _ => false,
-    })
-    .count();
-
-  assert_eq!(frame_count, 5);
 }

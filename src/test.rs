@@ -88,7 +88,7 @@ fn test_to_file() {
     .unwrap()
     .for_each(|event| match event {
       FfmpegEvent::ParsedOutput(output) => assert!(!output.is_stdout()),
-      FfmpegEvent::OutputFrame(frame) => {
+      FfmpegEvent::OutputFrame(_) => {
         panic!("Should not have received any frames when outputting to file.")
       }
       _ => {}
