@@ -101,6 +101,7 @@ impl FfmpegCommand {
     let mut inner = Command::new(&exe);
     inner.stdin(Stdio::piped());
     inner.stderr(Stdio::piped());
+    inner.stdout(Stdio::piped());
 
     // Configure `FfmpegCommand`
     let mut ffmpeg_command = Self { inner };

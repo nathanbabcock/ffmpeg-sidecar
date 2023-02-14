@@ -3,6 +3,7 @@ pub enum FfmpegEvent {
   ParsedVersion(FfmpegVersion),
   ParsedConfiguration(FfmpegConfiguration),
   ParsedStreamMapping(String),
+  ParsedOutput(FfmpegOutput),
   ParsedInputStream(AVStream),
   ParsedOutputStream(AVStream),
   LogInfo(String),
@@ -17,17 +18,18 @@ pub enum FfmpegEvent {
   Done,
 }
 
-#[derive(Debug, Clone)]
-pub struct FfmpegInputs {
-  pub duration: String,
-  pub start_sec: f32,
-  pub bitrate_kbps: f32,
-  pub streams: Vec<AVStream>,
+#[derive(Debug, Clone, PartialEq)]
+pub struct FfmpegOutput {
+  pub to: String,
+  pub index: u32,
+  pub raw_log_message: String,
 }
 
-#[derive(Debug, Clone)]
-pub struct FfmpegOutputs {
-  pub streams: Vec<AVStream>,
+impl FfmpegOutput {
+  /// Detects one of several identifiers which indicate output to stdout
+  pub fn is_stdout(&self) -> bool {
+    ["pipe", "pipe:", "pipe:1"].contains(&self.to.as_str())
+  }
 }
 
 #[derive(Debug, Clone)]
@@ -38,6 +40,9 @@ pub struct AVStream {
   pub width: u32,
   /// Height in pixels
   pub height: u32,
+  /// The index of the input or output that this stream belongs to
+  pub parent_index: usize,
+  /// The stderr line that this stream was parsed from
   pub raw_log_message: String,
   // /// e.g. `Video`, `Audio`, `data`, `subtitle`, etc.
   // pub stream_type: String,

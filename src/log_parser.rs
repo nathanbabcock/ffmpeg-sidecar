@@ -2,7 +2,9 @@ use std::io::{BufRead, BufReader, Read};
 
 use crate::{
   comma_iter::CommaIter,
-  event::{AVStream, FfmpegConfiguration, FfmpegEvent, FfmpegProgress, FfmpegVersion},
+  event::{
+    AVStream, FfmpegConfiguration, FfmpegEvent, FfmpegOutput, FfmpegProgress, FfmpegVersion,
+  },
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -35,8 +37,9 @@ impl<R: Read> FfmpegLogParser<R> {
         // Track log section
         if let Some(input_number) = try_parse_input(line) {
           self.cur_section = LogSection::Input(input_number);
-        } else if let Some(output_number) = try_parse_output(line) {
-          self.cur_section = LogSection::Output(output_number);
+        } else if let Some(output) = try_parse_output(line) {
+          self.cur_section = LogSection::Output(output.index);
+          return Ok(FfmpegEvent::ParsedOutput(output));
         } else if line.contains("Stream mapping:") {
           self.cur_section = LogSection::StreamMapping;
         }
@@ -188,26 +191,40 @@ pub fn try_parse_input(mut string: &str) -> Option<u32> {
 ///
 /// ```rust
 /// use ffmpeg_sidecar::log_parser::try_parse_output;
+/// use ffmpeg_sidecar::event::FfmpegOutput;
 /// let line = "[info] Output #0, mp4, to 'test.mp4':\n";
 /// let output = try_parse_output(line);
-/// assert!(output == Some(0));
+/// assert!(output == Some(FfmpegOutput {
+///   index: 0,
+///   to: "test.mp4".to_string(),
+///   raw_log_message: line.to_string(),
+/// }));
 /// ```
 ///
-pub fn try_parse_output(mut string: &str) -> Option<u32> {
-  if string.starts_with("[info]") {
-    string = &string[6..];
+pub fn try_parse_output(mut string: &str) -> Option<FfmpegOutput> {
+  let raw_log_message = string.clone().to_string();
+  if let Some(stripped) = string.strip_prefix("[info]") {
+    string = stripped;
   }
-  string = string.trim();
-  let output_prefix = "Output #";
-  if string.starts_with(output_prefix) {
-    string[output_prefix.len()..]
-      .split_whitespace()
-      .next()
-      .and_then(|s| s.split(',').next())
-      .and_then(|s| s.parse::<u32>().ok())
-  } else {
-    None
-  }
+  string = string.trim().strip_prefix("Output #")?;
+  let index = string
+    .split_whitespace()
+    .next()
+    .and_then(|s| s.split(',').next())
+    .and_then(|s| s.parse::<u32>().ok())?;
+
+  let to = string
+    .split(" to '")
+    .nth(1)?
+    .split('\'')
+    .next()?
+    .to_string();
+
+  Some(FfmpegOutput {
+    index,
+    to,
+    raw_log_message,
+  })
 }
 
 /// ## Example
@@ -236,7 +253,9 @@ pub fn try_parse_stream(mut string: &str) -> Option<AVStream> {
   }
   string = string.trim().strip_prefix("Stream #")?;
   let mut colon_parts = string.split(':');
-  let stream_type = colon_parts.nth(2)?.trim();
+  let parent_index = colon_parts.next()?.parse::<usize>().ok()?;
+
+  let stream_type = colon_parts.nth(1)?.trim();
   if stream_type != "Video" {
     return None;
   }
@@ -254,6 +273,7 @@ pub fn try_parse_stream(mut string: &str) -> Option<AVStream> {
   let height = dims_iter.next()?.parse::<u32>().ok()?;
 
   Some(AVStream {
+    parent_index,
     width,
     height,
     pix_fmt,

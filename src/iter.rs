@@ -8,7 +8,7 @@ use std::{
 
 use crate::{
   child::FfmpegChild,
-  event::{AVStream, FfmpegEvent, OutputVideoFrame},
+  event::{AVStream, FfmpegEvent, FfmpegOutput, OutputVideoFrame},
   log_parser::FfmpegLogParser,
   pix_fmt::get_bytes_per_frame,
 };
@@ -27,6 +27,7 @@ impl FfmpegIterator {
 
     // Await the output metadata
     let mut output_streams: Vec<AVStream> = Vec::new();
+    let mut outputs: Vec<FfmpegOutput> = Vec::new();
     let mut expected_output_streams = 0;
     let mut event_queue: VecDeque<FfmpegEvent> = VecDeque::new();
     while let Ok(event) = rx.recv() {
@@ -35,6 +36,7 @@ impl FfmpegIterator {
         // Every stream mapping corresponds to one output stream
         // We count these to know when we've received all the output streams
         FfmpegEvent::ParsedStreamMapping(_) => expected_output_streams += 1,
+        FfmpegEvent::ParsedOutput(output) => outputs.push(output),
         FfmpegEvent::ParsedOutputStream(stream) => {
           output_streams.push(stream.clone());
           if output_streams.len() == expected_output_streams {
@@ -46,7 +48,7 @@ impl FfmpegIterator {
     }
 
     // No output detected
-    if output_streams.len() == 0 {
+    if output_streams.len() == 0 || outputs.len() == 0 {
       let err = "No output streams found".to_string();
       child.kill().map_err(|e| e.to_string())?;
       Err(err)?
@@ -54,7 +56,7 @@ impl FfmpegIterator {
 
     // Handle stdout
     if let Some(stdout) = child.take_stdout() {
-      spawn_stdout_thread(stdout, tx.clone(), output_streams);
+      spawn_stdout_thread(stdout, tx.clone(), output_streams, outputs);
     }
 
     Ok(Self { rx, event_queue })
@@ -80,33 +82,33 @@ pub fn spawn_stdout_thread(
   stdout: ChildStdout,
   tx: SyncSender<FfmpegEvent>,
   output_streams: Vec<AVStream>,
+  outputs: Vec<FfmpegOutput>,
 ) -> JoinHandle<()> {
   std::thread::spawn(move || {
+    // Filter streams which are sent to stdout
+    let stdout_output_streams = output_streams.iter().filter(|stream| {
+      outputs
+        .get(stream.parent_index)
+        .map(|o| o.is_stdout())
+        .unwrap_or(false)
+    });
+
     // Prepare buffers
-    let mut buffers = output_streams
-      .iter()
+    let mut buffers = stdout_output_streams
       .map(|stream| {
         let bytes_per_frame = get_bytes_per_frame(stream).unwrap();
         vec![0u8; bytes_per_frame as usize]
       })
       .collect::<Vec<Vec<u8>>>();
-
     assert!(buffers.len() == output_streams.len());
-    let mut buffer_index = (0..buffers.len()).cycle();
-
-    // let mut iter = output_streams
-    //   .iter()
-    //   .zip(buffers.iter_mut())
-    //   .enumerate()
-    //   .cycle();
 
     // Read into buffers
+    let mut buffer_index = (0..buffers.len()).cycle();
     let mut reader = BufReader::new(stdout);
     loop {
       let i = buffer_index.next().unwrap();
       let stream = &output_streams[i];
       let buffer = &mut buffers[i];
-      // let (i, (stream, buffer)) = iter.next().unwrap();
       match reader.read_exact(buffer.as_mut_slice()) {
         Ok(_) => tx
           .send(FfmpegEvent::OutputFrame(OutputVideoFrame {
