@@ -1,4 +1,4 @@
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum FfmpegEvent {
   ParsedVersion(FfmpegVersion),
   ParsedConfiguration(FfmpegConfiguration),
@@ -32,7 +32,7 @@ impl FfmpegOutput {
   }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct AVStream {
   /// Corresponds to stream `-pix_fmt` parameter, e.g. `rgb24`
   pub pix_fmt: String,
@@ -56,19 +56,19 @@ pub struct AVStream {
   // tbn: f32,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct FfmpegVersion {
   pub version: String,
   pub raw_log_message: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct FfmpegConfiguration {
   pub configuration: Vec<String>,
   pub raw_log_message: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct FfmpegProgress {
   /// index of the current output frame
   pub frame: u32,
@@ -98,7 +98,7 @@ pub struct FfmpegProgress {
   pub raw_log_message: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct OutputVideoFrame {
   pub width: u32,
   pub height: u32,
