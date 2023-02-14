@@ -1,23 +1,15 @@
 use std::{
-  io::{self, BufReader, Read, Write},
-  process::{Child, ChildStdin},
-  sync::mpsc::{sync_channel, Receiver, SyncSender},
-  thread::JoinHandle,
+  io::{self, Write},
+  process::{Child, ChildStderr, ChildStdin, ChildStdout},
 };
 
-use crate::{
-  event::{AVStream, FfmpegEvent, OutputVideoFrame},
-  iter::FfmpegIterator,
-  log_parser::FfmpegLogParser,
-  pix_fmt::get_bytes_per_frame,
-};
+use crate::iter::FfmpegIterator;
 
 /// A wrapper around [`std::process::Child`] containing a spawned FFmpeg command.
 /// Provides interfaces for reading parsed metadata, progress updates, warnings and errors, and
 /// piped output frames if applicable.
 pub struct FfmpegChild {
   inner: Child,
-  stdin: ChildStdin,
 }
 
 impl FfmpegChild {
@@ -29,109 +21,29 @@ impl FfmpegChild {
   /// - Progress updates
   /// - Errors and warnings
   /// - Raw output frames
-  pub fn events_iter(&mut self) -> FfmpegIterator {
-    let rx = self.events_rx().unwrap();
-    FfmpegIterator::new(rx)
+  pub fn events_iter(&mut self) -> Result<FfmpegIterator, String> {
+    FfmpegIterator::new(self)
   }
 
-  /// Creates a receiver for events emitted by ffmpeg.
-  pub fn events_rx(&mut self) -> Result<Receiver<FfmpegEvent>, String> {
-    let (tx, rx) = sync_channel::<FfmpegEvent>(0);
-    self
-      .spawn_stderr_thread(tx.clone())
-      .map_err(|e| e.to_string())?;
-
-    // Await the output metadata
-    let mut output_streams: Vec<AVStream> = Vec::new();
-    let mut event_queue: Vec<FfmpegEvent> = Vec::new();
-    while let Ok(event) = rx.recv() {
-      event_queue.push(event.clone());
-      match event {
-        FfmpegEvent::ParsedOutputStream(stream) => output_streams.push(stream.clone()),
-        FfmpegEvent::Progress(_) => break,
-        _ => {}
-      }
-    }
-
-    // No output detected
-    if output_streams.len() == 0 {
-      let err = "No output streams found".to_string();
-      self.kill().map_err(|err| err.to_string())?;
-      Err(err)?
-    }
-
-    // Handle stdout
-    self
-      .spawn_stdout_thread(tx.clone(), output_streams)
-      .map_err(|e| e.to_string())?;
-
-    // Send the events we've already received
-    for event in event_queue {
-      tx.send(event).map_err(|e| e.to_string())?;
-    }
-
-    Ok(rx)
+  /// Escape hatch to manually control the process' stdout channel.
+  /// Calling this method takes ownership of the stdout channel, so
+  /// the iterator will no longer include output frames in the stream of events.
+  pub fn take_stdout(&mut self) -> Option<ChildStdout> {
+    self.inner.stdout.take()
   }
 
-  fn spawn_stderr_thread(&mut self, tx: SyncSender<FfmpegEvent>) -> Result<JoinHandle<()>, String> {
-    let stderr = self.inner.stderr.take().ok_or("No stderr")?;
-    let stderr_thread = std::thread::spawn(move || {
-      let reader = BufReader::new(stderr);
-      let mut parser = FfmpegLogParser::new(reader);
-      loop {
-        match parser.parse_next_event() {
-          Ok(event) => tx.send(event).ok(),
-          Err(e) => {
-            eprintln!("Error parsing ffmpeg output: {}", e);
-            break;
-          }
-        };
-      }
-    });
-    Ok(stderr_thread)
+  /// Escape hatch to manually control the process' stderr channel.
+  /// This method is mutually exclusive with `events_iter`, which relies on
+  /// the stderr channel to parse events.
+  pub fn take_stderr(&mut self) -> Option<ChildStderr> {
+    self.inner.stderr.take()
   }
 
-  fn spawn_stdout_thread(
-    &mut self,
-    tx: SyncSender<FfmpegEvent>,
-    output_streams: Vec<AVStream>,
-  ) -> Result<JoinHandle<()>, String> {
-    let stdout = self.inner.stdout.take().ok_or("No stdout")?;
-    let stdout_thread = std::thread::spawn(move || {
-      // Prepare buffers
-      let mut buffers = output_streams
-        .iter()
-        .map(|stream| {
-          let bytes_per_frame = get_bytes_per_frame(stream).unwrap();
-          let buf_size = stream.width * stream.height * bytes_per_frame;
-          vec![0u8; buf_size as usize]
-        })
-        .collect::<Vec<Vec<u8>>>();
-      assert!(buffers.len() == output_streams.len());
-      let mut iter = output_streams.iter().zip(buffers.iter_mut()).enumerate();
-
-      // Read into buffers
-      let mut reader = BufReader::new(stdout);
-      loop {
-        let (i, (stream, buffer)) = iter.next().unwrap();
-        match reader.read_exact(buffer.as_mut_slice()) {
-          Ok(_) => tx
-            .send(FfmpegEvent::OutputFrame(OutputVideoFrame {
-              width: stream.width,
-              height: stream.height,
-              pix_fmt: stream.pix_fmt.clone(),
-              output_index: i as u32,
-              data: buffer.clone(),
-            }))
-            .ok(),
-          Err(e) => {
-            eprintln!("Error reading ffmpeg output: {}", e);
-            break;
-          }
-        };
-      }
-    });
-    Ok(stdout_thread)
+  /// Escape hatch to manually control the process' stdin channel.
+  /// This method is mutually exclusive with `send_stdin_command` and `quit`,
+  /// which use the stdin channel to send commands to ffmpeg.
+  pub fn take_stdin(&mut self) -> Option<ChildStdin> {
+    self.inner.stdin.take()
   }
 
   /// Send a command to ffmpeg over stdin, used during interactive mode.
@@ -153,8 +65,11 @@ impl FfmpegChild {
   /// q      quit
   /// s      Show QP histogram
   /// ```
-  pub fn send_stdin_command(&mut self, command: &[u8]) -> io::Result<()> {
-    self.stdin.write_all(command)
+  pub fn send_stdin_command(&mut self, command: &[u8]) -> Result<(), String> {
+    let mut stdin = self.inner.stdin.take().ok_or("Missing child stdin")?;
+    let result = stdin.write_all(command).map_err(|e| e.to_string());
+    self.inner.stdin.replace(stdin);
+    result
   }
 
   /// Send a `q` command to ffmpeg over stdin,
@@ -163,7 +78,7 @@ impl FfmpegChild {
   /// This method returns after the command has been sent; the actual shut down
   /// may take a few more frames as ffmpeg flushes its buffers and writes the
   /// trailer, if applicable.
-  pub fn quit(&mut self) -> io::Result<()> {
+  pub fn quit(&mut self) -> Result<(), String> {
     self.send_stdin_command(b"q")
   }
 
@@ -177,17 +92,19 @@ impl FfmpegChild {
     self.inner.kill()
   }
 
-  /// Wrap a [`std::process::Child`] in a `FfmpegChild`.
-  /// Should typically only be called by `FfmpegCommand::spawn`.
+  /// Wrap a [`std::process::Child`] in a `FfmpegChild`. Should typically only
+  /// be called by `FfmpegCommand::spawn`.
   ///
   /// ## Panics
   ///
-  /// Panics if the child process's stdin was not piped. This could be because
-  /// ffmpeg was spawned with `-nostdin`, or if the `Child` instance was not
-  /// configured with `stdin(Stdio::piped())`.
-  pub(crate) fn from_inner(mut inner: Child) -> Self {
-    let stdin = inner.stdin.take().expect("Child stdin was not piped");
-    Self { inner, stdin }
+  /// Panics if the any of the child process's stdio channels were not piped.
+  /// This could be because ffmpeg was spawned with `-nostdin`, or if the
+  /// `Child` instance was not configured with `stdin(Stdio::piped())`.
+  pub(crate) fn from_inner(inner: Child) -> Self {
+    assert!(inner.stdin.is_some(), "stdin was not piped");
+    assert!(inner.stdout.is_some(), "stdout was not piped");
+    assert!(inner.stderr.is_some(), "stderr was not piped");
+    Self { inner }
   }
 
   /// Escape hatch to access the inner `Child`.

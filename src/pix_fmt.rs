@@ -228,5 +228,11 @@ pub fn get_bits_per_pixel(pix_fmt: &str) -> Option<u32> {
 }
 
 pub fn get_bytes_per_frame(stream: &AVStream) -> Option<u32> {
-  Some(stream.width * stream.height * get_bits_per_pixel(&stream.pix_fmt)? / 8)
+  let bits_per_pixel = get_bits_per_pixel(&stream.pix_fmt)?;
+  // Enforce byte-alignment, since we don't currently have buffer reads in
+  // sub-byte increments.
+  match bits_per_pixel % 8 {
+    0 => Some(stream.width * stream.height * bits_per_pixel / 8),
+    _ => None,
+  }
 }

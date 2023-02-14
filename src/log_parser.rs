@@ -5,9 +5,11 @@ use crate::{
   event::{AVStream, FfmpegConfiguration, FfmpegEvent, FfmpegProgress, FfmpegVersion},
 };
 
+#[derive(Debug, Clone, PartialEq)]
 enum LogSection {
   Input(u32),
   Output(u32),
+  StreamMapping,
   Other,
 }
 
@@ -28,15 +30,15 @@ impl<R: Read> FfmpegLogParser<R> {
     let bytes_read = self.reader.read_line(&mut buf);
     let line = buf.as_str();
     match bytes_read {
-      Ok(0) => Err("EOF".to_string()),
+      Ok(0) => Ok(FfmpegEvent::LogEOF),
       Ok(_) => {
-        println!("line: {}", line);
-
         // Track log section
         if let Some(input_number) = try_parse_input(line) {
           self.cur_section = LogSection::Input(input_number);
         } else if let Some(output_number) = try_parse_output(line) {
           self.cur_section = LogSection::Output(output_number);
+        } else if line.contains("Stream mapping:") {
+          self.cur_section = LogSection::StreamMapping;
         }
 
         // Parse
@@ -54,8 +56,12 @@ impl<R: Read> FfmpegLogParser<R> {
           match self.cur_section {
             LogSection::Input(_) => Ok(FfmpegEvent::ParsedInputStream(stream)),
             LogSection::Output(_) => Ok(FfmpegEvent::ParsedOutputStream(stream)),
-            LogSection::Other => Err(format!("Unexpected stream specification: {}", line)),
+            LogSection::Other | LogSection::StreamMapping => {
+              Err(format!("Unexpected stream specification: {}", line))
+            }
           }
+        } else if self.cur_section == LogSection::StreamMapping && line.contains("  Stream #") {
+          Ok(FfmpegEvent::ParsedStreamMapping(line.to_string()))
         } else if let Some(progress) = try_parse_progress(line) {
           self.cur_section = LogSection::Other;
           Ok(FfmpegEvent::Progress(progress))

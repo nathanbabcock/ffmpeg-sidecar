@@ -2,14 +2,19 @@
 pub enum FfmpegEvent {
   ParsedVersion(FfmpegVersion),
   ParsedConfiguration(FfmpegConfiguration),
+  ParsedStreamMapping(String),
   ParsedInputStream(AVStream),
   ParsedOutputStream(AVStream),
   LogInfo(String),
   LogWarning(String),
   LogError(String),
   LogUnknown(String),
+  LogEOF,
+  /// An error that didn't originate from the ffmpeg logs
+  Error(String),
   Progress(FfmpegProgress),
   OutputFrame(OutputVideoFrame),
+  Done,
 }
 
 #[derive(Debug, Clone)]

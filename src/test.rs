@@ -1,26 +1,21 @@
 use crate::{command::FfmpegCommand, event::FfmpegEvent};
-use std::io;
 
-// #[test]
-// fn test_output() {
-//   println!("test_output");
+#[test]
+fn test_output() {
+  let iter = FfmpegCommand::new()
+    .args("-f lavfi -i testsrc=duration=5:rate=1 -f rawvideo -pix_fmt rgb24".split(' '))
+    .pipe_stdout()
+    .spawn()
+    .unwrap()
+    .events_iter()
+    .unwrap();
 
-//   let iter = FfmpegCommand::new()
-//     .args("-f lavfi -i testsrc=duration=5 -r 1".split(' '))
-//     .pipe_stdout()
-//     .spawn()
-//     .unwrap()
-//     .events_iter();
+  let frame_count = iter
+    .filter(|event| match event {
+      FfmpegEvent::OutputFrame(_) => true,
+      _ => false,
+    })
+    .count();
 
-//   let frame_count = iter
-//     .filter(|event| {
-//       println!("{:?}", event);
-//       match event {
-//         FfmpegEvent::OutputFrame(_) => true,
-//         _ => false,
-//       }
-//     })
-//     .count();
-
-//   assert_eq!(frame_count, 5);
-// }
+  assert_eq!(frame_count, 5);
+}
