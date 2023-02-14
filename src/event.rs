@@ -60,13 +60,31 @@ pub struct FfmpegConfiguration {
 
 #[derive(Debug, Clone)]
 pub struct FfmpegProgress {
+  /// index of the current output frame
   pub frame: u32,
+
+  /// frames per second
   pub fps: f32,
+
+  /// Quality factor (if applicable)
   pub q: f32,
+
+  /// Current total size of the output in kilobytes
   pub size_kb: u32,
+
+  /// The raw time string in a format like `00:03:29.04`
   pub time: String,
+
+  /// Bitrate in kilo**bits** per second
   pub bitrate_kbps: f32,
+
+  /// Processing speed as a ratio of the input duration
+  ///
+  /// - 1x is realtime
+  /// - 2x means 2 seconds of input are processed in 1 second of wall clock time
   pub speed: f32,
+
+  /// The line that this progress was parsed from
   pub raw_log_message: String,
 }
 

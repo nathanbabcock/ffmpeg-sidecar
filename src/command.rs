@@ -29,7 +29,7 @@ impl FfmpegCommand {
   /// Synchronizes two changes:
   /// 1. Pass `pipe:1` to the ffmpeg command ("output on stdout")
   /// 2. Set the `stdout` field of the inner `Command` to `Stdio::piped()`
-  pub fn pipe_stdout(mut self) -> Self {
+  pub fn pipe_stdout(&mut self) -> &mut Self {
     self.args(&["-"]);
     self.inner.stdout(Stdio::piped());
     self
@@ -92,7 +92,11 @@ impl FfmpegCommand {
     self.inner.spawn().map(FfmpegChild::from_inner)
   }
 
-  pub fn new<S: AsRef<OsStr>>(exe: S) -> Self {
+  pub fn new() -> Self {
+    Self::new_with_exe("ffmpeg")
+  }
+
+  pub fn new_with_exe<S: AsRef<OsStr>>(exe: S) -> Self {
     // Configure `Command`
     let mut inner = Command::new(&exe);
     inner.stdin(Stdio::piped());
@@ -117,7 +121,7 @@ impl FfmpegCommand {
 
 impl Default for FfmpegCommand {
   fn default() -> Self {
-    Self::new("ffmpeg")
+    Self::new()
   }
 }
 

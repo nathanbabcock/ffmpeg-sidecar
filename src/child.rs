@@ -7,6 +7,7 @@ use std::{
 
 use crate::{
   event::{AVStream, FfmpegEvent, OutputVideoFrame},
+  iter::FfmpegIterator,
   log_parser::FfmpegLogParser,
   pix_fmt::get_bytes_per_frame,
 };
@@ -20,6 +21,19 @@ pub struct FfmpegChild {
 }
 
 impl FfmpegChild {
+  /// Creates an iterator over events emitted by ffmpeg. Functions similarly to
+  /// `Lines` from [`std::io::BufReader`], but providing a variety of parsed
+  /// events:
+  /// - Log messages
+  /// - Parsed metadata
+  /// - Progress updates
+  /// - Errors and warnings
+  /// - Raw output frames
+  pub fn events_iter(&mut self) -> FfmpegIterator {
+    let rx = self.events_rx().unwrap();
+    FfmpegIterator::new(rx)
+  }
+
   /// Creates a receiver for events emitted by ffmpeg.
   pub fn events_rx(&mut self) -> Result<Receiver<FfmpegEvent>, String> {
     let (tx, rx) = sync_channel::<FfmpegEvent>(0);
@@ -118,18 +132,6 @@ impl FfmpegChild {
       }
     });
     Ok(stdout_thread)
-  }
-
-  /// Creates an iterator over events emitted by ffmpeg. Functions similarly to
-  /// `Lines` from [`std::io::BufReader`], but providing a variety of parsed
-  /// events:
-  /// - Log messages
-  /// - Parsed metadata
-  /// - Progress updates
-  /// - Errors and warnings
-  /// - Raw output frames
-  pub fn events_iter() {
-    todo!()
   }
 
   /// Send a command to ffmpeg over stdin, used during interactive mode.

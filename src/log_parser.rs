@@ -2,7 +2,7 @@ use std::io::{BufRead, BufReader, Read};
 
 use crate::{
   comma_iter::CommaIter,
-  event::{AVStream, FfmpegConfiguration, FfmpegEvent, FfmpegVersion},
+  event::{AVStream, FfmpegConfiguration, FfmpegEvent, FfmpegProgress, FfmpegVersion},
 };
 
 enum LogSection {
@@ -30,13 +30,13 @@ impl<R: Read> FfmpegLogParser<R> {
     match bytes_read {
       Ok(0) => Err("EOF".to_string()),
       Ok(_) => {
+        println!("line: {}", line);
+
         // Track log section
         if let Some(input_number) = try_parse_input(line) {
           self.cur_section = LogSection::Input(input_number);
         } else if let Some(output_number) = try_parse_output(line) {
           self.cur_section = LogSection::Output(output_number);
-        } else {
-          self.cur_section = LogSection::Other;
         }
 
         // Parse
@@ -56,6 +56,9 @@ impl<R: Read> FfmpegLogParser<R> {
             LogSection::Output(_) => Ok(FfmpegEvent::ParsedOutputStream(stream)),
             LogSection::Other => Err(format!("Unexpected stream specification: {}", line)),
           }
+        } else if let Some(progress) = try_parse_progress(line) {
+          self.cur_section = LogSection::Other;
+          Ok(FfmpegEvent::Progress(progress))
         } else if line.starts_with("[info]") {
           Ok(FfmpegEvent::LogInfo(line.to_string()))
         } else if line.starts_with("[warning]") {
@@ -151,7 +154,7 @@ pub fn try_parse_configuration(mut string: &str) -> Option<Vec<String>> {
 ///
 /// ```rust
 /// use ffmpeg_sidecar::log_parser::try_parse_input;
-/// let line = "[info] Input #0, lavfi, from 'testsrc':\n";
+/// let line = "[info] Input #0, lavfi, from 'testsrc=duration=5':\n";
 /// let input = try_parse_input(line);
 /// assert!(input == Some(0));
 /// ```
@@ -248,6 +251,100 @@ pub fn try_parse_stream(mut string: &str) -> Option<AVStream> {
     width,
     height,
     pix_fmt,
+    raw_log_message,
+  })
+}
+
+/// Parse a progress update line from ffmpeg.
+///
+/// ## Example
+/// ```rust
+/// use ffmpeg_sidecar::log_parser::try_parse_progress;
+/// let line = "[info] frame= 1996 fps=1984 q=-1.0 Lsize=     372kB time=00:01:19.72 bitrate=  38.2kbits/s speed=79.2x\n";
+/// let progress = try_parse_progress(line).unwrap();
+/// assert!(progress.frame == 1996);
+/// assert!(progress.fps == 1984.0);
+/// assert!(progress.q == -1.0);
+/// assert!(progress.size_kb == 372);
+/// assert!(progress.time == "00:01:19.72");
+/// assert!(progress.bitrate_kbps == 38.2);
+/// assert!(progress.speed == 79.2);
+/// ```
+pub fn try_parse_progress(mut string: &str) -> Option<FfmpegProgress> {
+  let raw_log_message = string.clone().to_string();
+  if let Some(stripped) = string.strip_prefix("[info]") {
+    string = stripped;
+  }
+
+  let frame = string
+    .split("frame=")
+    .nth(1)?
+    .trim()
+    .split_whitespace()
+    .next()?
+    .parse::<u32>()
+    .ok()?;
+  let fps = string
+    .split("fps=")
+    .nth(1)?
+    .trim()
+    .split_whitespace()
+    .next()?
+    .parse::<f32>()
+    .ok()?;
+  let q = string
+    .split("q=")
+    .nth(1)?
+    .trim()
+    .split_whitespace()
+    .next()?
+    .parse::<f32>()
+    .ok()?;
+  let size_kb = string
+    .split("Lsize=")
+    .nth(1)?
+    .trim()
+    .split_whitespace()
+    .next()?
+    .trim()
+    .strip_suffix("kB")?
+    .parse::<u32>()
+    .ok()?;
+  let time = string
+    .split("time=")
+    .nth(1)?
+    .trim()
+    .split_whitespace()
+    .next()?
+    .to_string();
+  let bitrate_kbps = string
+    .split("bitrate=")
+    .nth(1)?
+    .trim()
+    .split_whitespace()
+    .next()?
+    .trim()
+    .strip_suffix("kbits/s")?
+    .parse::<f32>()
+    .ok()?;
+  let speed = string
+    .split("speed=")
+    .nth(1)?
+    .trim()
+    .split_whitespace()
+    .next()?
+    .strip_suffix("x")?
+    .parse::<f32>()
+    .ok()?;
+
+  Some(FfmpegProgress {
+    frame,
+    fps,
+    q,
+    size_kb,
+    time,
+    bitrate_kbps,
+    speed,
     raw_log_message,
   })
 }
