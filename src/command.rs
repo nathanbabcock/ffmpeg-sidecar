@@ -24,6 +24,13 @@ impl FfmpegCommand {
     self
   }
 
+  /// Preset for emitting raw decoded video frames on stdout.
+  /// Equivalent to `-f rawvideo -pix_fmt rgb24 -`.
+  pub fn rawvideo(&mut self) -> &mut Self {
+    self.args(&["-f", "rawvideo", "-pix_fmt", "rgb24", "-"]);
+    self
+  }
+
   /// Configure the ffmpeg command to produce output on stdout.
   ///
   /// Synchronizes two changes:
