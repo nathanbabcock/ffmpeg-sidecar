@@ -61,7 +61,7 @@ cargo install ffmpeg-sidecar
 
 ### 3. Import and use
 
-```rs
+```rust
 use ffmpeg_sidecar::{FfmpegCommand, FfmpegChild, FfmpegEvent};
 
 fn main() {
@@ -110,4 +110,4 @@ fn main() {
 
 Inspired loosely by Node.js
 [`fluent-ffmpeg`](https://www.npmjs.com/package/fluent-ffmpeg), which does
-something similar in Javascript
+something similar in Javascript.

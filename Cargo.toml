@@ -2,9 +2,16 @@
 name = "ffmpeg-sidecar"
 version = "0.1.0"
 edition = "2021"
+description = "Wrap a standalone FFmpeg binary in an intuitive Iterator interface."
+authors = ["Nathan Babcock <nathan.r.babcock@gmail.com>"]
+categories = ["multimedia"]
+keywords = ["ffmpeg", "video"]
+repository = "https://github.com/nathanbabcock/ffmpeg-sidecar"
+readme = "README.md"
+license = "MIT"
 
 [lib]
 crate-type = ["lib"]
 
 [dependencies]
-# zero dependencies!
+# there are none!
