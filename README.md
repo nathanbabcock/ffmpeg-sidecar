@@ -56,7 +56,7 @@ package and distribute
 On the Rust side, it has **zero** Cargo dependencies! 🎉
 
 ```console
-cargo install ffmpeg-sidecar
+cargo add ffmpeg-sidecar
 ```
 
 ### 3. Import and use
