@@ -15,6 +15,13 @@ pub struct FfmpegCommand {
 impl FfmpegCommand {
   //// Argument presets
 
+  /// Alias for `-i` argument, setting the input file path or URL.
+  pub fn input<S: AsRef<str>>(&mut self, value: S) -> &mut Self {
+    self.arg("-i");
+    self.arg(value.as_ref());
+    self
+  }
+
   /// Generate a procedural test video.
   /// Equivalent to `ffmpeg -i lavfi -f testsrc`
   ///

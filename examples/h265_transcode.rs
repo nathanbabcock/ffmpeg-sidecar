@@ -15,7 +15,7 @@ fn main() {
 
   // One instance decodes H265 to raw frames
   let mut input = FfmpegCommand::new()
-    .args(&["-i", input_path])
+    .input(input_path)
     .rawvideo()
     .spawn()
     .unwrap();
@@ -37,7 +37,7 @@ fn main() {
     .args(&[
       "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", "600x800", "-r", "30",
     ]) // note: should be possible to infer these params from the source input stream
-    .args(&["-i", "-"])
+    .input("-")
     .args(&["-c:v", "libx265"])
     .args(&["-y", "output/h265_overlay.mp4"])
     .spawn()
