@@ -105,20 +105,15 @@ impl<R: Read> FfmpegLogParser<R> {
 ///
 /// assert!(version == "2023-01-18-git-ba36e6ed52-full_build-www.gyan.dev");
 /// ```
-pub fn try_parse_version(mut string: &str) -> Option<String> {
-  if string.starts_with("[info]") {
-    string = &string[6..];
-  }
-  string = string.trim();
-  let version_prefix = "ffmpeg version ";
-  if string.starts_with(version_prefix) {
-    string[version_prefix.len()..]
-      .split_whitespace()
-      .next()
-      .map(|s| s.to_string())
-  } else {
-    None
-  }
+pub fn try_parse_version(string: &str) -> Option<String> {
+  string
+    .strip_prefix("[info]")
+    .unwrap_or(string)
+    .trim()
+    .strip_prefix("ffmpeg version ")?
+    .split_whitespace()
+    .next()
+    .map(|s| s.to_string())
 }
 
 /// Parses the list of configuration flags ffmpeg was built with.
@@ -140,22 +135,13 @@ pub fn try_parse_version(mut string: &str) -> Option<String> {
 /// assert!(version[2] == "--enable-static");
 /// ```
 ///
-pub fn try_parse_configuration(mut string: &str) -> Option<Vec<String>> {
-  if string.starts_with("[info]") {
-    string = &string[6..];
-  }
-  string = string.trim();
-  let configuration_prefix = "configuration: ";
-  if string.starts_with(configuration_prefix) {
-    Some(
-      string[configuration_prefix.len()..]
-        .split_whitespace()
-        .map(|s| s.to_string())
-        .collect(),
-    )
-  } else {
-    None
-  }
+pub fn try_parse_configuration(string: &str) -> Option<Vec<String>> {
+  string
+    .strip_prefix("[info]")
+    .unwrap_or(string)
+    .trim()
+    .strip_prefix("configuration: ")
+    .map(|s| s.split_whitespace().map(|s| s.to_string()).collect())
 }
 
 /// Parse an input section like the following, extracting the index of the input:
@@ -169,21 +155,16 @@ pub fn try_parse_configuration(mut string: &str) -> Option<Vec<String>> {
 /// assert!(input == Some(0));
 /// ```
 ///
-pub fn try_parse_input(mut string: &str) -> Option<u32> {
-  if string.starts_with("[info]") {
-    string = &string[6..];
-  }
-  string = string.trim();
-  let input_prefix = "Input #";
-  if string.starts_with(input_prefix) {
-    string[input_prefix.len()..]
-      .split_whitespace()
-      .next()
-      .and_then(|s| s.split(',').next())
-      .and_then(|s| s.parse::<u32>().ok())
-  } else {
-    None
-  }
+pub fn try_parse_input(string: &str) -> Option<u32> {
+  string
+    .strip_prefix("[info]")
+    .unwrap_or(string)
+    .trim()
+    .strip_prefix("Input #")?
+    .split_whitespace()
+    .next()
+    .and_then(|s| s.split(',').next())
+    .and_then(|s| s.parse::<u32>().ok())
 }
 
 /// Parse an output section like the following, extracting the index of the input:
@@ -203,11 +184,14 @@ pub fn try_parse_input(mut string: &str) -> Option<u32> {
 /// ```
 ///
 pub fn try_parse_output(mut string: &str) -> Option<FfmpegOutput> {
-  let raw_log_message = string.clone().to_string();
-  if let Some(stripped) = string.strip_prefix("[info]") {
-    string = stripped;
-  }
-  string = string.trim().strip_prefix("Output #")?;
+  let raw_log_message = string.to_string();
+
+  string = string
+    .strip_prefix("[info]")
+    .unwrap_or(string)
+    .trim()
+    .strip_prefix("Output #")?;
+
   let index = string
     .split_whitespace()
     .next()
@@ -248,14 +232,16 @@ pub fn try_parse_output(mut string: &str) -> Option<FfmpegOutput> {
 /// assert!(stream.is_some());
 /// ```
 pub fn try_parse_stream(mut string: &str) -> Option<AVStream> {
-  let raw_log_message = string.clone().to_string();
-  if let Some(stripped) = string.strip_prefix("[info]") {
-    string = stripped;
-  }
-  string = string.trim().strip_prefix("Stream #")?;
+  let raw_log_message = string.to_string();
+
+  string = string
+    .strip_prefix("[info]")
+    .unwrap_or(string)
+    .trim()
+    .strip_prefix("Stream #")?;
+
   let mut colon_parts = string.split(':');
   let parent_index = colon_parts.next()?.parse::<usize>().ok()?;
-
   let stream_type = colon_parts.nth(1)?.trim();
   if stream_type != "Video" {
     return None;
@@ -298,11 +284,9 @@ pub fn try_parse_stream(mut string: &str) -> Option<AVStream> {
 /// assert!(progress.speed == 79.2);
 /// ```
 pub fn try_parse_progress(mut string: &str) -> Option<FfmpegProgress> {
-  let raw_log_message = string.clone().to_string();
-  if let Some(stripped) = string.strip_prefix("[info]") {
-    string = stripped;
-  }
-  string = string.trim();
+  let raw_log_message = string.to_string();
+
+  string = string.strip_prefix("[info]").unwrap_or(string).trim();
 
   let frame = string
     .split("frame=")
