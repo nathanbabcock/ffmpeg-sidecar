@@ -101,10 +101,12 @@ fn main() {
 
 ## Todo
 
-- [ ] Handle indeterminate output formats like H264
+- [X] Add `/examples` (WIP)
+- [ ] Handle indeterminate output formats like H264/H265
 - [ ] Take input from stdin, and pipe between iterators
-- [ ] Pipe directly to ffplay for debugging
+- [ ] Pipe directly to `ffplay` for debugging
 - [ ] Check code coverage
+- [ ] Idiomatic error type instead of `Result<_, String>`
 
 ## See also
 
