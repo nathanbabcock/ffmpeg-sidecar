@@ -14,7 +14,7 @@ fn main() {
     .args(arg_string.split(' '))
     .spawn()
     .unwrap()
-    .events_iter()
+    .iter()
     .unwrap()
     .filter_progress()
     .for_each(|progress| println!("{}%", (progress.frame * 100) / total_frames));

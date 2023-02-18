@@ -14,7 +14,7 @@ fn test_frame_count() {
     .args(arg_string.split(' '))
     .spawn()
     .unwrap()
-    .events_iter()
+    .iter()
     .unwrap();
 
   let frame_count = iter
@@ -33,7 +33,7 @@ fn test_output_format() {
     .args("-f lavfi -i testsrc=duration=1:rate=1 -f rawvideo -pix_fmt rgb24 -".split(' '))
     .spawn()
     .unwrap()
-    .events_iter()
+    .iter()
     .unwrap()
     .for_each(|event| match event {
       FfmpegEvent::OutputFrame(frame) => {
@@ -55,7 +55,7 @@ fn test_deterministic() {
     .args(arg_str.split(' '))
     .spawn()
     .unwrap()
-    .events_iter()
+    .iter()
     .unwrap()
     .filter_map(|event| match event {
       FfmpegEvent::OutputFrame(frame) => Some(frame.data),
@@ -67,7 +67,7 @@ fn test_deterministic() {
     .args(arg_str.split(' '))
     .spawn()
     .unwrap()
-    .events_iter()
+    .iter()
     .unwrap()
     .filter_map(|event| match event {
       FfmpegEvent::OutputFrame(frame) => Some(frame.data),
@@ -84,7 +84,7 @@ fn test_to_file() {
     .args("-f lavfi -i testsrc=duration=5:rate=1 -y output/test.mp4".split(' '))
     .spawn()
     .unwrap()
-    .events_iter()
+    .iter()
     .unwrap()
     .for_each(|event| match event {
       FfmpegEvent::ParsedOutput(output) => assert!(!output.is_stdout()),
@@ -102,7 +102,7 @@ fn test_progress() {
     .args("-f lavfi -i testsrc=duration=5:rate=1 -y output/test.mp4".split(' '))
     .spawn()
     .unwrap()
-    .events_iter()
+    .iter()
     .unwrap()
     .filter_progress()
     .for_each(|_| progress_events += 1);
@@ -116,7 +116,7 @@ fn test_error() {
     .args("-f lavfi -i testsrc=duration=1:rate=1 -".split(' '))
     .spawn()
     .unwrap()
-    .events_iter()
+    .iter()
     .unwrap()
     .filter(|event| match event {
       FfmpegEvent::Error(_) | FfmpegEvent::LogError(_) => true,

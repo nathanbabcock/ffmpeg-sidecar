@@ -21,7 +21,7 @@ impl FfmpegChild {
   /// - Progress updates
   /// - Errors and warnings
   /// - Raw output frames
-  pub fn events_iter(&mut self) -> Result<FfmpegIterator, String> {
+  pub fn iter(&mut self) -> Result<FfmpegIterator, String> {
     FfmpegIterator::new(self)
   }
 
