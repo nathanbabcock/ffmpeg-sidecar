@@ -4,7 +4,7 @@ use std::{
   process::{Command, CommandArgs, Stdio},
 };
 
-use crate::child::FfmpegChild;
+use crate::{child::FfmpegChild, pix_fmt::PixFmt};
 
 /// A wrapper around [`std::process::Command`] with some convenient preset
 /// argument sets and customization for `ffmpeg` specifically.
@@ -230,6 +230,59 @@ impl FfmpegCommand {
     self
   }
 
+  //// Advanced video option aliases
+  //// https://ffmpeg.org/ffmpeg.html#Advanced-Video-options
+
+  /// Alias for `-pix_fmt` argument.
+  ///
+  /// Set pixel format. Use `-pix_fmts` to show all the supported pixel formats.
+  /// If the selected pixel format can not be selected, ffmpeg will print a
+  /// warning and select the best pixel format supported by the encoder. If
+  /// pix_fmt is prefixed by a `+`, ffmpeg will exit with an error if the
+  /// requested pixel format can not be selected, and automatic conversions
+  /// inside filtergraphs are disabled. If pix_fmt is a single `+`, ffmpeg selects
+  /// the same pixel format as the input (or graph output) and automatic
+  /// conversions are disabled.
+  pub fn pix_fmt<S: AsRef<str>>(&mut self, format: S) -> &mut Self {
+    self.arg("-pix_fmt");
+    self.arg(format.as_ref());
+    self
+  }
+
+  /// Alias for `-hwaccel` argument.
+  ///
+  /// Use hardware acceleration to decode the matching stream(s). The allowed
+  /// values of hwaccel are:
+  ///
+  /// - `none`: Do not use any hardware acceleration (the default).
+  /// - `auto`: Automatically select the hardware acceleration method.
+  /// - `vdpau`: Use VDPAU (Video Decode and Presentation API for Unix) hardware
+  /// acceleration.
+  /// - `dxva2`: Use DXVA2 (DirectX Video Acceleration) hardware acceleration.
+  /// - `d3d11va`: Use D3D11VA (DirectX Video Acceleration) hardware acceleration.
+  /// - `vaapi`: Use VAAPI (Video Acceleration API) hardware acceleration.
+  /// - `qsv`: Use the Intel QuickSync Video acceleration for video transcoding.
+  ///   - Unlike most other values, this option does not enable accelerated decoding
+  /// (that is used automatically whenever a qsv decoder is selected), but
+  /// accelerated transcoding, without copying the frames into the system
+  /// memory.
+  ///   - For it to work, both the decoder and the encoder must support QSV
+  /// acceleration and no filters must be used.
+  ///
+  /// This option has no effect if the selected hwaccel is not available or not
+  /// supported by the chosen decoder.
+  ///
+  /// Note that most acceleration methods are intended for playback and will not
+  /// be faster than software decoding on modern CPUs. Additionally, `ffmpeg` will
+  /// usually need to copy the decoded frames from the GPU memory into the
+  /// system memory, resulting in further performance loss. This option is thus
+  /// mainly useful for testing.
+  pub fn hwaccel<S: AsRef<str>>(&mut self, hwaccel: S) -> &mut Self {
+    self.arg("-hwaccel");
+    self.arg(hwaccel.as_ref());
+    self
+  }
+
   //// Preset argument sets for common use cases.
 
   /// Generate a procedural test video.
@@ -317,8 +370,9 @@ impl FfmpegCommand {
     self.inner.spawn().map(FfmpegChild::from_inner)
   }
 
-  /// Print a command that can be copy-pasted to run in the terminal.
-  /// Requires `&mut self` so that it chains seamlessly with other methods in the interface.
+  /// Print a command that can be copy-pasted to run in the terminal. Requires
+  /// `&mut self` so that it chains seamlessly with other methods in the
+  /// interface.
   pub fn print_command(&mut self) -> &mut Self {
     println!("Command: {:?}", self.inner);
     self
