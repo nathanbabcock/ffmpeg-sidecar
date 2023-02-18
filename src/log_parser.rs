@@ -301,6 +301,7 @@ pub fn try_parse_progress(mut string: &str) -> Option<FfmpegProgress> {
   if let Some(stripped) = string.strip_prefix("[info]") {
     string = stripped;
   }
+  string = string.trim();
 
   let frame = string
     .split("frame=")
@@ -359,9 +360,9 @@ pub fn try_parse_progress(mut string: &str) -> Option<FfmpegProgress> {
     .trim()
     .split_whitespace()
     .next()?
-    .strip_suffix("x")?
-    .parse::<f32>()
-    .ok()?;
+    .strip_suffix("x")
+    .map(|s| s.parse::<f32>().unwrap_or(0.0))
+    .unwrap_or(0.0);
 
   Some(FfmpegProgress {
     frame,
