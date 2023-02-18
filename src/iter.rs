@@ -153,7 +153,11 @@ pub fn spawn_stdout_thread(
         vec![0u8; bytes_per_frame as usize]
       })
       .collect::<Vec<Vec<u8>>>();
-    assert!(buffers.len() == output_streams.len());
+
+    // No buffers probably indicates that output is being sent to file
+    if buffers.len() == 0 {
+      return;
+    }
 
     // Read into buffers
     let mut buffer_index = (0..buffers.len()).cycle();
