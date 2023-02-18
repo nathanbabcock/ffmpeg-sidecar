@@ -1,4 +1,7 @@
-use std::io::{BufRead, BufReader, Read};
+use std::{
+  io::{BufRead, BufReader, Read},
+  str::from_utf8,
+};
 
 use crate::{
   comma_iter::CommaIter,
@@ -28,9 +31,9 @@ impl<R: Read> FfmpegLogParser<R> {
   /// input/output stream specifications, nested method calls will consume
   /// additional lines until the entire vector of Inputs/Outputs is parsed.
   pub fn parse_next_event(&mut self) -> Result<FfmpegEvent, String> {
-    let mut buf = String::new();
-    let bytes_read = self.reader.read_line(&mut buf);
-    let line = buf.as_str();
+    let mut buf = Vec::<u8>::new();
+    let bytes_read = self.reader.read_until(b'\r', &mut buf);
+    let line = from_utf8(buf.as_slice()).map_err(|e| e.to_string())?.trim();
     match bytes_read {
       Ok(0) => Ok(FfmpegEvent::LogEOF),
       Ok(_) => {
@@ -328,7 +331,7 @@ pub fn try_parse_progress(mut string: &str) -> Option<FfmpegProgress> {
     .parse::<f32>()
     .ok()?;
   let size_kb = string
-    .split("Lsize=")
+    .split("size=") // captures "Lsize=" AND "size="
     .nth(1)?
     .trim()
     .split_whitespace()
