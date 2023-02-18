@@ -4,7 +4,7 @@ use std::{
   process::{Command, CommandArgs, Stdio},
 };
 
-use crate::{child::FfmpegChild, pix_fmt::PixFmt};
+use crate::child::FfmpegChild;
 
 /// A wrapper around [`std::process::Command`] with some convenient preset
 /// argument sets and customization for `ffmpeg` specifically.
@@ -280,6 +280,158 @@ impl FfmpegCommand {
   pub fn hwaccel<S: AsRef<str>>(&mut self, hwaccel: S) -> &mut Self {
     self.arg("-hwaccel");
     self.arg(hwaccel.as_ref());
+    self
+  }
+
+  //// Audio option aliases
+  //// https://ffmpeg.org/ffmpeg.html#Audio-Options
+
+  /// Alias for `-an` argument.
+  ///
+  /// As an input option, blocks all audio streams of a file from being filtered
+  /// or being automatically selected or mapped for any output. See `-discard`
+  /// option to disable streams individually.
+  ///
+  /// As an output option, disables audio recording i.e. automatic selection or
+  /// mapping of any audio stream. For full manual control see the `-map` option.
+  pub fn no_audio(&mut self) -> &mut Self {
+    self.arg("-an");
+    self
+  }
+
+  //// Advanced option aliases
+  //// https://ffmpeg.org/ffmpeg.html#Advanced-options
+
+  /// Alias for `-map` argument.
+  ///
+  /// Create one or more streams in the output file. This option has two forms
+  /// for specifying the data source(s): the first selects one or more streams
+  /// from some input file (specified with `-i`), the second takes an output from
+  /// some complex filtergraph (specified with `-filter_complex` or
+  /// `-filter_complex_script`).
+  ///
+  /// In the first form, an output stream is created for every stream from the
+  /// input file with the index input_file_id. If stream_specifier is given,
+  /// only those streams that match the specifier are used (see the [Stream
+  /// specifiers](https://ffmpeg.org/ffmpeg.html#Stream-specifiers) section for
+  /// the stream_specifier syntax).
+  ///
+  /// A `-` character before the stream identifier creates a "negative" mapping.
+  /// It disables matching streams from already created mappings.
+  ///
+  /// A trailing `?` after the stream index will allow the map to be optional: if
+  /// the map matches no streams the map will be ignored instead of failing.
+  /// Note the map will still fail if an invalid input file index is used; such
+  /// as if the map refers to a non-existent input.
+  ///
+  /// An alternative `[linklabel]` form will map outputs from complex filter
+  /// graphs (see the `-filter_complex` option) to the output file. `linklabel` must
+  /// correspond to a defined output link label in the graph.
+  ///
+  /// This option may be specified multiple times, each adding more streams to
+  /// the output file. Any given input stream may also be mapped any number of
+  /// times as a source for different output streams, e.g. in order to use
+  /// different encoding options and/or filters. The streams are created in the
+  /// output in the same order in which the `-map` options are given on the
+  /// commandline.
+  ///
+  /// Using this option disables the default mappings for this output file.
+  pub fn map<S: AsRef<str>>(&mut self, map_string: S) -> &mut Self {
+    self.arg("-map");
+    self.arg(map_string.as_ref());
+    self
+  }
+
+  /// Alias for `-readrate` argument.
+  ///
+  /// Limit input read speed.
+  ///
+  /// Its value is a floating-point positive number which represents the maximum
+  /// duration of media, in seconds, that should be ingested in one second of
+  /// wallclock time. Default value is zero and represents no imposed limitation
+  /// on speed of ingestion. Value `1` represents real-time speed and is
+  /// equivalent to `-re`.
+  ///
+  /// Mainly used to simulate a capture device or live input stream (e.g. when
+  /// reading from a file). Should not be used with a low value when input is an
+  /// actual capture device or live stream as it may cause packet loss.
+  ///
+  /// It is useful for when flow speed of output packets is important, such as
+  /// live streaming.
+  pub fn readrate(&mut self, speed: f32) -> &mut Self {
+    self.arg("-readrate");
+    self.arg(speed.to_string());
+    self
+  }
+
+  /// Alias for `-re`.
+  ///
+  /// Read input at native frame rate. This is equivalent to setting `-readrate 1`.
+  pub fn realtime(&mut self) -> &mut Self {
+    self.arg("-re");
+    self
+  }
+
+  /// Alias for `-fps_mode` argument.
+  ///
+  /// Set video sync method / framerate mode. vsync is applied to all output
+  /// video streams but can be overridden for a stream by setting fps_mode.
+  /// vsync is deprecated and will be removed in the future.
+  ///
+  /// For compatibility reasons some of the values for vsync can be specified as
+  /// numbers (shown in parentheses in the following table).
+  ///
+  /// - `passthrough` (`0`): Each frame is passed with its timestamp from the
+  ///   demuxer to the muxer.
+  /// - `cfr` (`1`): Frames will be duplicated and dropped to achieve exactly
+  ///   the requested constant frame rate.
+  /// - `vfr` (`2`): Frames are passed through with their timestamp or dropped
+  ///   so as to prevent 2 frames from having the same timestamp.
+  /// - `drop`: As passthrough but destroys all timestamps, making the muxer
+  ///   generate fresh timestamps based on frame-rate.
+  /// - `auto` (`-1`): Chooses between cfr and vfr depending on muxer
+  ///   capabilities. This is the default method.
+  pub fn fps_mode<S: AsRef<str>>(&mut self, parameter: S) -> &mut Self {
+    self.arg("-fps_mode");
+    self.arg(parameter.as_ref());
+    self
+  }
+
+  /// Alias for `-bsf:v` argument.
+  ///
+  /// Set bitstream filters for matching streams. `bitstream_filters` is a
+  /// comma-separated list of bitstream filters. Use the `-bsfs` option to get the
+  /// list of bitstream filters.
+  ///
+  /// See also: `-bsf:s` (subtitles), `-bsf:a` (audio), `-bsf:d` (data)
+  pub fn bitstream_filter_video<S: AsRef<str>>(&mut self, bitstream_filters: S) -> &mut Self {
+    self.arg("-bsf:v");
+    self.arg(bitstream_filters.as_ref());
+    self
+  }
+
+  /// Alias for `-filter_complex` argument.
+  ///
+  /// Define a complex filtergraph, i.e. one with arbitrary number of inputs
+  /// and/or outputs. For simple graphs – those with one input and one output of
+  /// the same type – see the `-filter` options. `filtergraph` is a description of
+  /// the filtergraph, as described in the "Filtergraph syntax" section of the
+  /// ffmpeg-filters manual.
+  ///
+  /// Input link labels must refer to input streams using the
+  /// `[file_index:stream_specifier]` syntax (i.e. the same as `-map` uses). If
+  /// `stream_specifier` matches multiple streams, the first one will be used. An
+  /// unlabeled input will be connected to the first unused input stream of the
+  /// matching type.
+  ///
+  /// Output link labels are referred to with `-map`. Unlabeled outputs are added
+  /// to the first output file.
+  ///
+  /// Note that with this option it is possible to use only lavfi sources
+  /// without normal input files.
+  pub fn filter_complex<S: AsRef<str>>(&mut self, filtergraph: S) -> &mut Self {
+    self.arg("-filtergraph");
+    self.arg(filtergraph.as_ref());
     self
   }
 
