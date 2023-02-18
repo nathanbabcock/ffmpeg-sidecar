@@ -6,21 +6,181 @@ use std::{
 
 use crate::child::FfmpegChild;
 
-/// A wrapper around [`std::process::Command`] with some convenient preset argument
-/// sets and customization for ffmpeg specifically.
+/// A wrapper around [`std::process::Command`] with some convenient preset
+/// argument sets and customization for `ffmpeg` specifically.
+///
+/// The `rustdoc` on each method includes relevant information from the FFmpeg
+/// documentation: <https://ffmpeg.org/ffmpeg.html>. Refer there for the
+/// exhaustive list of possible arguments.
 pub struct FfmpegCommand {
   inner: Command,
 }
 
 impl FfmpegCommand {
-  //// Argument presets
+  //// Generic option aliases
+  //// https://ffmpeg.org/ffmpeg.html#Generic-options
 
-  /// Alias for `-i` argument, setting the input file path or URL.
-  pub fn input<S: AsRef<str>>(&mut self, value: S) -> &mut Self {
-    self.arg("-i");
-    self.arg(value.as_ref());
+  /// alias for `-hide_banner` argument.
+  ///
+  /// Suppress printing banner.
+  ///
+  /// All FFmpeg tools will normally show a copyright notice, build options and
+  /// library versions. This option can be used to suppress printing this
+  /// information.
+  pub fn hide_banner(&mut self) -> &mut Self {
+    self.arg("-hide_banner");
     self
   }
+
+  //// Main option aliases
+  //// https://ffmpeg.org/ffmpeg.html#Main-options
+
+  /// Alias for `-i` argument, the input file path or URL.
+  ///
+  /// To take input from stdin, use the value `-` or `pipe`.
+  pub fn input<S: AsRef<str>>(&mut self, path_or_url: S) -> &mut Self {
+    self.arg("-i");
+    self.arg(path_or_url.as_ref());
+    self
+  }
+
+  /// Alias for `-y` argument: overwrite output files without asking.
+  pub fn overwrite(&mut self) -> &mut Self {
+    self.arg("-y");
+    self
+  }
+
+  /// Alias for `-n` argument: do not overwrite output files, and exit immediately if a specified output file already exists.
+  pub fn no_overwrite(&mut self) -> &mut Self {
+    self.arg("-n");
+    self
+  }
+
+  /// Alias for `-c:v` argument.
+  ///
+  /// Select an encoder (when used before an output file) or a decoder (when
+  /// used before an input file) for one or more streams. `codec` is the name of a
+  /// decoder/encoder or a special value copy (output only) to indicate that the
+  /// stream is not to be re-encoded.
+  pub fn codec_video<S: AsRef<str>>(&mut self, codec: S) -> &mut Self {
+    self.arg("-c:v");
+    self.arg(codec.as_ref());
+    self
+  }
+
+  /// Alias for `-c:a` argument.
+  ///
+  /// Select an encoder (when used before an output file) or a decoder (when
+  /// used before an input file) for one or more streams. `codec` is the name of a
+  /// decoder/encoder or a special value `copy` (output only) to indicate that the
+  /// stream is not to be re-encoded.
+  pub fn codec_audio<S: AsRef<str>>(&mut self, codec: S) -> &mut Self {
+    self.arg("-c:a");
+    self.arg(codec.as_ref());
+    self
+  }
+
+  /// Alias for `-t` argument.
+  ///
+  /// When used as an input option (before `-i`), limit the duration of data read from the input file.
+  ///
+  /// When used as an output option (before an output url), stop writing the output after its duration reaches duration.
+  ///
+  /// `duration` must be a time duration specification, see [(ffmpeg-utils)the Time duration section in the ffmpeg-utils(1) manual](https://ffmpeg.org/ffmpeg-utils.html#time-duration-syntax).
+  ///
+  /// `-to` and `-t` are mutually exclusive and -t has priority.
+  pub fn duration<S: AsRef<str>>(&mut self, duration: S) -> &mut Self {
+    self.arg("-t");
+    self.arg(duration.as_ref());
+    self
+  }
+
+  /// Alias for `-to` argument.
+  ///
+  /// Stop writing the output or reading the input at `position`. `position` must be a time duration specification, see [(ffmpeg-utils)the Time duration section in the ffmpeg-utils(1) manual](https://ffmpeg.org/ffmpeg-utils.html#time-duration-syntax).
+  ///
+  /// `-to` and `-t` (aka `duration()`) are mutually exclusive and `-t` has priority.
+  pub fn to<S: AsRef<str>>(&mut self, position: S) -> &mut Self {
+    self.arg("-to");
+    self.arg(position.as_ref());
+    self
+  }
+
+  /// Alias for `-fs` argument.
+  ///
+  /// Set the file size limit, expressed in bytes. No further chunk of bytes is
+  /// written after the limit is exceeded. The size of the output file is
+  /// slightly more than the requested file size.
+  pub fn limit_file_size(&mut self, size_in_bytes: u32) -> &mut Self {
+    self.arg("-fs");
+    self.arg(size_in_bytes.to_string());
+    self
+  }
+
+  /// Alias for `-ss` argument.
+  ///
+  /// When used as an input option (before `-i`), seeks in this input file to
+  /// position. Note that in most formats it is not possible to seek exactly, so
+  /// `ffmpeg` will seek to the closest seek point before `position`. When
+  /// transcoding and `-accurate_seek` is enabled (the default), this extra
+  /// segment between the seek point and `position` will be decoded and
+  /// discarded. When doing stream copy or when `-noaccurate_seek` is used, it
+  /// will be preserved.
+  ///
+  /// When used as an output option (before an output url), decodes but discards
+  /// input until the timestamps reach `position`.
+  ///
+  /// `position` must be a time duration specification, see [(ffmpeg-utils)the
+  /// Time duration section in the ffmpeg-utils(1)
+  /// manual](https://ffmpeg.org/ffmpeg-utils.html#time-duration-syntax).
+  pub fn seek<S: AsRef<str>>(&mut self, position: S) -> &mut Self {
+    self.arg("-ss");
+    self.arg(position.as_ref());
+    self
+  }
+
+  /// Alias for `-sseof` argument.
+  ///
+  /// Like the `-ss` option but relative to the "end of file". That is negative
+  /// values are earlier in the file, 0 is at EOF.
+  pub fn seek_eof<S: AsRef<str>>(&mut self, position: S) -> &mut Self {
+    self.arg("-sseof");
+    self.arg(position.as_ref());
+    self
+  }
+
+  /// Alias for `-frames:v` argument.
+  ///
+  /// Stop writing to the stream after `framecount` frames.
+  ///
+  /// See also: `-frames:a` (audio), `-frames:d` (data).
+  pub fn frames(&mut self, framecount: u32) -> &mut Self {
+    self.arg("-frames:v");
+    self.arg(framecount.to_string());
+    self
+  }
+
+  /// Alias for `-filter` argument.
+  ///
+  /// Create the filtergraph specified by `filtergraph` and use it to filter the
+  /// stream.
+  ///
+  /// `filtergraph` is a description of the filtergraph to apply to the stream,
+  /// and must have a single input and a single output of the same type of the
+  /// stream. In the filtergraph, the input is associated to the label `in`, and
+  /// the output to the label `out`. See the ffmpeg-filters manual for more
+  /// information about the filtergraph syntax.
+  ///
+  /// See the [`-filter_complex`
+  /// option](https://ffmpeg.org/ffmpeg.html#filter_005fcomplex_005foption) if
+  /// you want to create filtergraphs with multiple inputs and/or outputs.
+  pub fn filter<S: AsRef<str>>(&mut self, filtergraph: S) -> &mut Self {
+    self.arg("-filter");
+    self.arg(filtergraph.as_ref());
+    self
+  }
+
+  //// Preset argument sets for common use cases.
 
   /// Generate a procedural test video.
   /// Equivalent to `ffmpeg -i lavfi -f testsrc`
