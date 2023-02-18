@@ -59,44 +59,47 @@ On the Rust side, it has **zero** Cargo dependencies! 🎉
 cargo add ffmpeg-sidecar
 ```
 
-### 3. Import and use
+## Examples
+
+### Hello world 👋
+
+Read raw video frames.
 
 ```rust
-use ffmpeg_sidecar::{FfmpegCommand, FfmpegChild, FfmpegEvent};
+use ffmpeg_sidecar::{
+  child::FfmpegChild, command::FfmpegCommand, event::FfmpegEvent, iter::FfmpegIterator,
+};
 
+/// Iterates over the frames of a testsrc.
 fn main() {
   // similar to `std::process::Command`
-  let command = FfmpegCommand::new()
-      .testsrc() // generate a test pattern video
-      .rawvideo(); // pipe raw video output
+  let mut command = FfmpegCommand::new();
+  command
+    .testsrc() // generate a test pattern video
+    .rawvideo(); // pipe raw video output
 
   // similar to `std::process::Child`
-  let child: FfmpegChild = command
-    .spawn()
-    .unwrap();
+  let mut child: FfmpegChild = command.spawn().unwrap();
 
   // Iterator over all messages and output
-  let mut iter: FfmpegIterator = child.iter();
+  let iter: FfmpegIterator = child.iter().unwrap();
   iter.for_each(|event: FfmpegEvent| {
     match event {
       FfmpegEvent::OutputFrame(frame) => {
         let _pixels = frame.data; // <- raw RGB pixels! 🎨
-      },
-      FfmpegEvent::LogInfo(string) => {
-        println!("ffmpeg log info: {}", string);
-      },
-      _ => {
-        // many other kinds of events, including:
-        // - parsed inputs, outputs, streams, and metadata
-        // - errors and warnings
-        // - and more
       }
+      FfmpegEvent::Error(e) => eprintln!("Error: {}", e),
+      _ => {}
     }
   });
 }
 ```
 
-## Examples
+Source: [/examples/hello_world.rs](/examples/h265_transcode.rs)
+
+```console
+cargo run --example hello-world
+```
 
 ### H265 Transcoding
 
@@ -110,17 +113,19 @@ cargo run --example h265_transcode
 
 ### Others
 
-> For a myriad of other examples, check any of the unit tests in
-> [/src/test.rs](/src/test.rs) in this repo.
+For a myriad of other examples, check any of the unit tests in
+[/src/test.rs](/src/test.rs) in this repo.
 
 ## Todo
 
-- [X] Add `/examples` (WIP)
+- [X] Add `/examples`
 - [X] Take input from stdin, and pipe between iterators
 - [ ] Handle indeterminate output formats like H264/H265
 - [ ] Pipe directly to `ffplay` for debugging
 - [ ] Check code coverage
 - [ ] Idiomatic error type instead of `Result<_, String>`
+
+**📣 Pull requests are welcome!**
 
 ## See also
 
