@@ -76,7 +76,7 @@ fn main() {
     .unwrap();
 
   // Iterator over all messages and output
-  let mut iter: FfmpegIterator = child.events_iter();
+  let mut iter: FfmpegIterator = child.iter();
   iter.for_each(|event: FfmpegEvent| {
     match event {
       FfmpegEvent::OutputFrame(frame) => {
