@@ -95,7 +95,7 @@ fn main() {
 }
 ```
 
-Source: [/examples/hello_world.rs](/examples/h265_transcode.rs)
+Source: [/examples/hello_world.rs](/examples/hello_world.rs)
 
 ```console
 cargo run --example hello-world
