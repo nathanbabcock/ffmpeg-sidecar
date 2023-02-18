@@ -96,6 +96,20 @@ fn test_to_file() {
 }
 
 #[test]
+fn test_progress() {
+  let mut progress_events = 0;
+  FfmpegCommand::new()
+    .args("-f lavfi -i testsrc=duration=5:rate=1 -y output/test.mp4".split(' '))
+    .spawn()
+    .unwrap()
+    .events_iter()
+    .unwrap()
+    .filter_progress()
+    .for_each(|_| progress_events += 1);
+  assert!(progress_events > 0);
+}
+
+#[test]
 fn test_error() {
   let errors = FfmpegCommand::new()
     // output format and pix_fmt are deliberately missing, and cannot be inferred
