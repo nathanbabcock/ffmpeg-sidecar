@@ -17,7 +17,7 @@ pub struct FfmpegCommand {
 }
 
 impl FfmpegCommand {
-  //// Generic option aliases
+  //// Generic option aliases ////
   //// https://ffmpeg.org/ffmpeg.html#Generic-options
 
   /// alias for `-hide_banner` argument.
@@ -50,7 +50,8 @@ impl FfmpegCommand {
     self
   }
 
-  /// Alias for `-n` argument: do not overwrite output files, and exit immediately if a specified output file already exists.
+  /// Alias for `-n` argument: do not overwrite output files, and exit
+  /// immediately if a specified output file already exists.
   pub fn no_overwrite(&mut self) -> &mut Self {
     self.arg("-n");
     self
@@ -59,9 +60,9 @@ impl FfmpegCommand {
   /// Alias for `-c:v` argument.
   ///
   /// Select an encoder (when used before an output file) or a decoder (when
-  /// used before an input file) for one or more streams. `codec` is the name of a
-  /// decoder/encoder or a special value copy (output only) to indicate that the
-  /// stream is not to be re-encoded.
+  /// used before an input file) for one or more streams. `codec` is the name of
+  /// a decoder/encoder or a special value copy (output only) to indicate that
+  /// the stream is not to be re-encoded.
   pub fn codec_video<S: AsRef<str>>(&mut self, codec: S) -> &mut Self {
     self.arg("-c:v");
     self.arg(codec.as_ref());
@@ -71,9 +72,9 @@ impl FfmpegCommand {
   /// Alias for `-c:a` argument.
   ///
   /// Select an encoder (when used before an output file) or a decoder (when
-  /// used before an input file) for one or more streams. `codec` is the name of a
-  /// decoder/encoder or a special value `copy` (output only) to indicate that the
-  /// stream is not to be re-encoded.
+  /// used before an input file) for one or more streams. `codec` is the name of
+  /// a decoder/encoder or a special value `copy` (output only) to indicate that
+  /// the stream is not to be re-encoded.
   pub fn codec_audio<S: AsRef<str>>(&mut self, codec: S) -> &mut Self {
     self.arg("-c:a");
     self.arg(codec.as_ref());
@@ -82,11 +83,15 @@ impl FfmpegCommand {
 
   /// Alias for `-t` argument.
   ///
-  /// When used as an input option (before `-i`), limit the duration of data read from the input file.
+  /// When used as an input option (before `-i`), limit the duration of data
+  /// read from the input file.
   ///
-  /// When used as an output option (before an output url), stop writing the output after its duration reaches duration.
+  /// When used as an output option (before an output url), stop writing the
+  /// output after its duration reaches duration.
   ///
-  /// `duration` must be a time duration specification, see [(ffmpeg-utils)the Time duration section in the ffmpeg-utils(1) manual](https://ffmpeg.org/ffmpeg-utils.html#time-duration-syntax).
+  /// `duration` must be a time duration specification, see [(ffmpeg-utils)the
+  /// Time duration section in the ffmpeg-utils(1)
+  /// manual](https://ffmpeg.org/ffmpeg-utils.html#time-duration-syntax).
   ///
   /// `-to` and `-t` are mutually exclusive and -t has priority.
   pub fn duration<S: AsRef<str>>(&mut self, duration: S) -> &mut Self {
@@ -97,9 +102,13 @@ impl FfmpegCommand {
 
   /// Alias for `-to` argument.
   ///
-  /// Stop writing the output or reading the input at `position`. `position` must be a time duration specification, see [(ffmpeg-utils)the Time duration section in the ffmpeg-utils(1) manual](https://ffmpeg.org/ffmpeg-utils.html#time-duration-syntax).
+  /// Stop writing the output or reading the input at `position`. `position`
+  /// must be a time duration specification, see [(ffmpeg-utils)the Time
+  /// duration section in the ffmpeg-utils(1)
+  /// manual](https://ffmpeg.org/ffmpeg-utils.html#time-duration-syntax).
   ///
-  /// `-to` and `-t` (aka `duration()`) are mutually exclusive and `-t` has priority.
+  /// `-to` and `-t` (aka `duration()`) are mutually exclusive and `-t` has
+  /// priority.
   pub fn to<S: AsRef<str>>(&mut self, position: S) -> &mut Self {
     self.arg("-to");
     self.arg(position.as_ref());
@@ -224,7 +233,8 @@ impl FfmpegCommand {
   /// option to disable streams individually.
   ///
   /// As an output option, disables video recording i.e. automatic selection or
-  /// mapping of any video stream. For full manual control see the `-map` option.
+  /// mapping of any video stream. For full manual control see the `-map`
+  /// option.
   pub fn no_video(&mut self) -> &mut Self {
     self.arg("-vn");
     self
@@ -240,8 +250,8 @@ impl FfmpegCommand {
   /// warning and select the best pixel format supported by the encoder. If
   /// pix_fmt is prefixed by a `+`, ffmpeg will exit with an error if the
   /// requested pixel format can not be selected, and automatic conversions
-  /// inside filtergraphs are disabled. If pix_fmt is a single `+`, ffmpeg selects
-  /// the same pixel format as the input (or graph output) and automatic
+  /// inside filtergraphs are disabled. If pix_fmt is a single `+`, ffmpeg
+  /// selects the same pixel format as the input (or graph output) and automatic
   /// conversions are disabled.
   pub fn pix_fmt<S: AsRef<str>>(&mut self, format: S) -> &mut Self {
     self.arg("-pix_fmt");
@@ -259,12 +269,13 @@ impl FfmpegCommand {
   /// - `vdpau`: Use VDPAU (Video Decode and Presentation API for Unix) hardware
   /// acceleration.
   /// - `dxva2`: Use DXVA2 (DirectX Video Acceleration) hardware acceleration.
-  /// - `d3d11va`: Use D3D11VA (DirectX Video Acceleration) hardware acceleration.
+  /// - `d3d11va`: Use D3D11VA (DirectX Video Acceleration) hardware
+  ///   acceleration.
   /// - `vaapi`: Use VAAPI (Video Acceleration API) hardware acceleration.
   /// - `qsv`: Use the Intel QuickSync Video acceleration for video transcoding.
-  ///   - Unlike most other values, this option does not enable accelerated decoding
-  /// (that is used automatically whenever a qsv decoder is selected), but
-  /// accelerated transcoding, without copying the frames into the system
+  ///   - Unlike most other values, this option does not enable accelerated
+  /// decoding (that is used automatically whenever a qsv decoder is selected),
+  /// but accelerated transcoding, without copying the frames into the system
   /// memory.
   ///   - For it to work, both the decoder and the encoder must support QSV
   /// acceleration and no filters must be used.
@@ -273,8 +284,8 @@ impl FfmpegCommand {
   /// supported by the chosen decoder.
   ///
   /// Note that most acceleration methods are intended for playback and will not
-  /// be faster than software decoding on modern CPUs. Additionally, `ffmpeg` will
-  /// usually need to copy the decoded frames from the GPU memory into the
+  /// be faster than software decoding on modern CPUs. Additionally, `ffmpeg`
+  /// will usually need to copy the decoded frames from the GPU memory into the
   /// system memory, resulting in further performance loss. This option is thus
   /// mainly useful for testing.
   pub fn hwaccel<S: AsRef<str>>(&mut self, hwaccel: S) -> &mut Self {
@@ -293,7 +304,8 @@ impl FfmpegCommand {
   /// option to disable streams individually.
   ///
   /// As an output option, disables audio recording i.e. automatic selection or
-  /// mapping of any audio stream. For full manual control see the `-map` option.
+  /// mapping of any audio stream. For full manual control see the `-map`
+  /// option.
   pub fn no_audio(&mut self) -> &mut Self {
     self.arg("-an");
     self
@@ -306,8 +318,8 @@ impl FfmpegCommand {
   ///
   /// Create one or more streams in the output file. This option has two forms
   /// for specifying the data source(s): the first selects one or more streams
-  /// from some input file (specified with `-i`), the second takes an output from
-  /// some complex filtergraph (specified with `-filter_complex` or
+  /// from some input file (specified with `-i`), the second takes an output
+  /// from some complex filtergraph (specified with `-filter_complex` or
   /// `-filter_complex_script`).
   ///
   /// In the first form, an output stream is created for every stream from the
@@ -319,14 +331,14 @@ impl FfmpegCommand {
   /// A `-` character before the stream identifier creates a "negative" mapping.
   /// It disables matching streams from already created mappings.
   ///
-  /// A trailing `?` after the stream index will allow the map to be optional: if
-  /// the map matches no streams the map will be ignored instead of failing.
+  /// A trailing `?` after the stream index will allow the map to be optional:
+  /// if the map matches no streams the map will be ignored instead of failing.
   /// Note the map will still fail if an invalid input file index is used; such
   /// as if the map refers to a non-existent input.
   ///
   /// An alternative `[linklabel]` form will map outputs from complex filter
-  /// graphs (see the `-filter_complex` option) to the output file. `linklabel` must
-  /// correspond to a defined output link label in the graph.
+  /// graphs (see the `-filter_complex` option) to the output file. `linklabel`
+  /// must correspond to a defined output link label in the graph.
   ///
   /// This option may be specified multiple times, each adding more streams to
   /// the output file. Any given input stream may also be mapped any number of
@@ -366,7 +378,8 @@ impl FfmpegCommand {
 
   /// Alias for `-re`.
   ///
-  /// Read input at native frame rate. This is equivalent to setting `-readrate 1`.
+  /// Read input at native frame rate. This is equivalent to setting `-readrate
+  /// 1`.
   pub fn realtime(&mut self) -> &mut Self {
     self.arg("-re");
     self
@@ -400,8 +413,8 @@ impl FfmpegCommand {
   /// Alias for `-bsf:v` argument.
   ///
   /// Set bitstream filters for matching streams. `bitstream_filters` is a
-  /// comma-separated list of bitstream filters. Use the `-bsfs` option to get the
-  /// list of bitstream filters.
+  /// comma-separated list of bitstream filters. Use the `-bsfs` option to get
+  /// the list of bitstream filters.
   ///
   /// See also: `-bsf:s` (subtitles), `-bsf:a` (audio), `-bsf:d` (data)
   pub fn bitstream_filter_video<S: AsRef<str>>(&mut self, bitstream_filters: S) -> &mut Self {
@@ -414,18 +427,18 @@ impl FfmpegCommand {
   ///
   /// Define a complex filtergraph, i.e. one with arbitrary number of inputs
   /// and/or outputs. For simple graphs – those with one input and one output of
-  /// the same type – see the `-filter` options. `filtergraph` is a description of
-  /// the filtergraph, as described in the "Filtergraph syntax" section of the
-  /// ffmpeg-filters manual.
+  /// the same type – see the `-filter` options. `filtergraph` is a description
+  /// of the filtergraph, as described in the "Filtergraph syntax" section of
+  /// the ffmpeg-filters manual.
   ///
   /// Input link labels must refer to input streams using the
   /// `[file_index:stream_specifier]` syntax (i.e. the same as `-map` uses). If
-  /// `stream_specifier` matches multiple streams, the first one will be used. An
-  /// unlabeled input will be connected to the first unused input stream of the
-  /// matching type.
+  /// `stream_specifier` matches multiple streams, the first one will be used.
+  /// An unlabeled input will be connected to the first unused input stream of
+  /// the matching type.
   ///
-  /// Output link labels are referred to with `-map`. Unlabeled outputs are added
-  /// to the first output file.
+  /// Output link labels are referred to with `-map`. Unlabeled outputs are
+  /// added to the first output file.
   ///
   /// Note that with this option it is possible to use only lavfi sources
   /// without normal input files.
@@ -437,17 +450,18 @@ impl FfmpegCommand {
 
   //// Preset argument sets for common use cases.
 
-  /// Generate a procedural test video.
-  /// Equivalent to `ffmpeg -i lavfi -f testsrc`
+  /// Generate a procedural test video. Equivalent to `ffmpeg -i lavfi -f
+  /// testsrc`
   ///
-  /// [FFmpeg `testsrc` filter documentation](https://ffmpeg.org/ffmpeg-filters.html#allrgb_002c-allyuv_002c-color_002c-colorchart_002c-colorspectrum_002c-haldclutsrc_002c-nullsrc_002c-pal75bars_002c-pal100bars_002c-rgbtestsrc_002c-smptebars_002c-smptehdbars_002c-testsrc_002c-testsrc2_002c-yuvtestsrc)
+  /// [FFmpeg `testsrc` filter
+  /// documentation](https://ffmpeg.org/ffmpeg-filters.html#allrgb_002c-allyuv_002c-color_002c-colorchart_002c-colorspectrum_002c-haldclutsrc_002c-nullsrc_002c-pal75bars_002c-pal100bars_002c-rgbtestsrc_002c-smptebars_002c-smptehdbars_002c-testsrc_002c-testsrc2_002c-yuvtestsrc)
   pub fn testsrc(&mut self) -> &mut Self {
     self.args(&["-f", "lavfi", "-i", "testsrc"]);
     self
   }
 
-  /// Preset for emitting raw decoded video frames on stdout.
-  /// Equivalent to `-f rawvideo -pix_fmt rgb24 -`.
+  /// Preset for emitting raw decoded video frames on stdout. Equivalent to `-f
+  /// rawvideo -pix_fmt rgb24 -`.
   pub fn rawvideo(&mut self) -> &mut Self {
     self.args(&["-f", "rawvideo", "-pix_fmt", "rgb24", "-"]);
     self
@@ -464,14 +478,14 @@ impl FfmpegCommand {
     self
   }
 
-  /// Automatically applied in the constructor of `FfmpegCommand`.
-  /// Configures logging with a level and format expected by the log parser.
+  /// Automatically applied in the constructor of `FfmpegCommand`. Configures
+  /// logging with a level and format expected by the log parser.
   ///
   /// Equivalent to `ffmpeg -loglevel level+info`.
   ///
-  /// The `level` flag adds a prefix to all log messages with the log level in square brackets,
-  /// allowing the parser to distinguish between ambiguous messages like
-  /// warnings vs errors.
+  /// The `level` flag adds a prefix to all log messages with the log level in
+  /// square brackets, allowing the parser to distinguish between ambiguous
+  /// messages like warnings vs errors.
   ///
   /// The `+info` flag enables the `info` log level, which is the default level.
   ///
@@ -549,6 +563,7 @@ impl FfmpegCommand {
   }
 
   //// Escape hatches
+
   /// Escape hatch to access the inner `Command`.
   pub fn as_inner(&mut self) -> &Command {
     &self.inner
@@ -567,9 +582,8 @@ impl Default for FfmpegCommand {
 }
 
 impl fmt::Debug for FfmpegCommand {
-  /// Format the program and arguments of a Command for display. Any
-  /// non-utf8 data is lossily converted using the utf8 replacement
-  /// character.
+  /// Format the program and arguments of a Command for display. Any non-utf8
+  /// data is lossily converted using the utf8 replacement character.
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     self.inner.fmt(f)
   }
