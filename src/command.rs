@@ -149,17 +149,6 @@ impl FfmpegCommand {
     self
   }
 
-  /// Alias for `-frames:v` argument.
-  ///
-  /// Stop writing to the stream after `framecount` frames.
-  ///
-  /// See also: `-frames:a` (audio), `-frames:d` (data).
-  pub fn frames(&mut self, framecount: u32) -> &mut Self {
-    self.arg("-frames:v");
-    self.arg(framecount.to_string());
-    self
-  }
-
   /// Alias for `-filter` argument.
   ///
   /// Create the filtergraph specified by `filtergraph` and use it to filter the
@@ -177,6 +166,67 @@ impl FfmpegCommand {
   pub fn filter<S: AsRef<str>>(&mut self, filtergraph: S) -> &mut Self {
     self.arg("-filter");
     self.arg(filtergraph.as_ref());
+    self
+  }
+
+  //// Video option aliases
+  //// https://ffmpeg.org/ffmpeg.html#Video-Options
+
+  /// Alias for `-frames:v` argument.
+  ///
+  /// Stop writing to the stream after `framecount` frames.
+  ///
+  /// See also: `-frames:a` (audio), `-frames:d` (data).
+  pub fn frames(&mut self, framecount: u32) -> &mut Self {
+    self.arg("-frames:v");
+    self.arg(framecount.to_string());
+    self
+  }
+
+  /// Alias for `-r` argument.
+  ///
+  /// Set frame rate (Hz value, fraction or abbreviation).
+  ///
+  /// As an input option, ignore any timestamps stored in the file and instead
+  /// generate timestamps assuming constant frame rate `fps`. This is not the
+  /// same as the `-framerate` option used for some input formats like image2 or
+  /// v4l2 (it used to be the same in older versions of FFmpeg). If in doubt use
+  /// `-framerate` instead of the input option `-r`.
+  pub fn rate(&mut self, fps: f32) -> &mut Self {
+    self.arg("-r");
+    self.arg(fps.to_string());
+    self
+  }
+
+  /// Alias for `-s` argument.
+  ///
+  /// Set frame size.
+  ///
+  /// As an input option, this is a shortcut for the `video_size` private
+  /// option, recognized by some demuxers for which the frame size is either not
+  /// stored in the file or is configurable – e.g. raw video or video grabbers.
+  ///
+  /// As an output option, this inserts the `scale` video filter to the end of
+  /// the corresponding filtergraph. Please use the `scale` filter directly to
+  /// insert it at the beginning or some other place.
+  ///
+  /// The format is `'wxh'` (default - same as source).
+  pub fn size(&mut self, width: u32, height: u32) -> &mut Self {
+    self.arg("-s");
+    self.arg(format!("{}x{}", width, height));
+    self
+  }
+
+  /// Alias for `-vn` argument.
+  ///
+  /// As an input option, blocks all video streams of a file from being filtered
+  /// or being automatically selected or mapped for any output. See `-discard`
+  /// option to disable streams individually.
+  ///
+  /// As an output option, disables video recording i.e. automatic selection or
+  /// mapping of any video stream. For full manual control see the `-map` option.
+  pub fn no_video(&mut self) -> &mut Self {
+    self.arg("-vn");
     self
   }
 
@@ -228,6 +278,7 @@ impl FfmpegCommand {
   }
 
   //// `std::process::Command` passthrough methods
+
   ///
   /// Adds an argument to pass to the program.
   ///
