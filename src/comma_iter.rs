@@ -38,7 +38,7 @@ impl<'a> Iterator for CommaIter<'a> {
       match char {
         '(' => {
           // advance until closing paren (only handles one level nesting)
-          while let Some(close_paren) = self.chars.next() {
+          for close_paren in self.chars.by_ref() {
             i += 1;
             if close_paren == ')' {
               break;

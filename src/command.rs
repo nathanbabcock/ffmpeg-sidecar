@@ -456,14 +456,14 @@ impl FfmpegCommand {
   /// [FFmpeg `testsrc` filter
   /// documentation](https://ffmpeg.org/ffmpeg-filters.html#allrgb_002c-allyuv_002c-color_002c-colorchart_002c-colorspectrum_002c-haldclutsrc_002c-nullsrc_002c-pal75bars_002c-pal100bars_002c-rgbtestsrc_002c-smptebars_002c-smptehdbars_002c-testsrc_002c-testsrc2_002c-yuvtestsrc)
   pub fn testsrc(&mut self) -> &mut Self {
-    self.args(&["-f", "lavfi", "-i", "testsrc"]);
+    self.args(["-f", "lavfi", "-i", "testsrc"]);
     self
   }
 
   /// Preset for emitting raw decoded video frames on stdout. Equivalent to `-f
   /// rawvideo -pix_fmt rgb24 -`.
   pub fn rawvideo(&mut self) -> &mut Self {
-    self.args(&["-f", "rawvideo", "-pix_fmt", "rgb24", "-"]);
+    self.args(["-f", "rawvideo", "-pix_fmt", "rgb24", "-"]);
     self
   }
 
@@ -473,7 +473,7 @@ impl FfmpegCommand {
   /// 1. Pass `pipe:1` to the ffmpeg command ("output on stdout")
   /// 2. Set the `stdout` field of the inner `Command` to `Stdio::piped()`
   pub fn pipe_stdout(&mut self) -> &mut Self {
-    self.args(&["-"]);
+    self.arg("-");
     self.inner.stdout(Stdio::piped());
     self
   }
@@ -492,7 +492,7 @@ impl FfmpegCommand {
   /// If this settings is manually overridden, the log parser should still work,
   /// but lose some semantic distinction between log levels.
   fn set_expected_loglevel(&mut self) -> &mut Self {
-    self.args(&["-loglevel", "level+info"]);
+    self.args(["-loglevel", "level+info"]);
     self
   }
 
@@ -599,8 +599,8 @@ impl From<Command> for FfmpegCommand {
   }
 }
 
-impl Into<Command> for FfmpegCommand {
-  fn into(self) -> Command {
-    self.inner
+impl From<FfmpegCommand> for Command {
+  fn from(val: FfmpegCommand) -> Self {
+    val.inner
   }
 }

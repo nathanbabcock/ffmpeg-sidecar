@@ -34,12 +34,12 @@ fn main() {
 
   // A second instance encodes the updated frames back to H265
   let mut output = FfmpegCommand::new()
-    .args(&[
+    .args([
       "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", "600x800", "-r", "30",
     ]) // note: should be possible to infer these params from the source input stream
     .input("-")
-    .args(&["-c:v", "libx265"])
-    .args(&["-y", "output/h265_overlay.mp4"])
+    .args(["-c:v", "libx265"])
+    .args(["-y", "output/h265_overlay.mp4"])
     .spawn()
     .unwrap();
 

@@ -113,7 +113,6 @@ pub fn try_parse_version(mut string: &str) -> Option<String> {
   let version_prefix = "ffmpeg version ";
   if string.starts_with(version_prefix) {
     string[version_prefix.len()..]
-      .trim_end()
       .split_whitespace()
       .next()
       .map(|s| s.to_string())
@@ -150,7 +149,6 @@ pub fn try_parse_configuration(mut string: &str) -> Option<Vec<String>> {
   if string.starts_with(configuration_prefix) {
     Some(
       string[configuration_prefix.len()..]
-        .trim_end()
         .split_whitespace()
         .map(|s| s.to_string())
         .collect(),
@@ -270,7 +268,7 @@ pub fn try_parse_stream(mut string: &str) -> Option<AVStream> {
     .split(&[' ', '(']) // trim trailing junk like "(tv, progressive)"
     .next()?
     .to_string();
-  let dims = comma_iter.next()?.trim().split_whitespace().next()?;
+  let dims = comma_iter.next()?.split_whitespace().next()?;
   let mut dims_iter = dims.split('x');
   let width = dims_iter.next()?.parse::<u32>().ok()?;
   let height = dims_iter.next()?.parse::<u32>().ok()?;
@@ -309,7 +307,6 @@ pub fn try_parse_progress(mut string: &str) -> Option<FfmpegProgress> {
   let frame = string
     .split("frame=")
     .nth(1)?
-    .trim()
     .split_whitespace()
     .next()?
     .parse::<u32>()
@@ -317,7 +314,6 @@ pub fn try_parse_progress(mut string: &str) -> Option<FfmpegProgress> {
   let fps = string
     .split("fps=")
     .nth(1)?
-    .trim()
     .split_whitespace()
     .next()?
     .parse::<f32>()
@@ -325,7 +321,6 @@ pub fn try_parse_progress(mut string: &str) -> Option<FfmpegProgress> {
   let q = string
     .split("q=")
     .nth(1)?
-    .trim()
     .split_whitespace()
     .next()?
     .parse::<f32>()
@@ -333,7 +328,6 @@ pub fn try_parse_progress(mut string: &str) -> Option<FfmpegProgress> {
   let size_kb = string
     .split("size=") // captures "Lsize=" AND "size="
     .nth(1)?
-    .trim()
     .split_whitespace()
     .next()?
     .trim()
@@ -343,14 +337,12 @@ pub fn try_parse_progress(mut string: &str) -> Option<FfmpegProgress> {
   let time = string
     .split("time=")
     .nth(1)?
-    .trim()
     .split_whitespace()
     .next()?
     .to_string();
   let bitrate_kbps = string
     .split("bitrate=")
     .nth(1)?
-    .trim()
     .split_whitespace()
     .next()?
     .trim()
@@ -360,10 +352,9 @@ pub fn try_parse_progress(mut string: &str) -> Option<FfmpegProgress> {
   let speed = string
     .split("speed=")
     .nth(1)?
-    .trim()
     .split_whitespace()
     .next()?
-    .strip_suffix("x")
+    .strip_suffix('x')
     .map(|s| s.parse::<f32>().unwrap_or(0.0))
     .unwrap_or(0.0);
 

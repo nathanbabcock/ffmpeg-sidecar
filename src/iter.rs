@@ -53,7 +53,7 @@ impl FfmpegIterator {
     }
 
     // No output detected
-    if output_streams.len() == 0 || outputs.len() == 0 {
+    if output_streams.is_empty() || outputs.is_empty() {
       let err = "No output streams found".to_string();
       child.kill().map_err(|e| e.to_string())?;
       Err(err)?
@@ -61,7 +61,7 @@ impl FfmpegIterator {
 
     // Handle stdout
     if let Some(stdout) = child.take_stdout() {
-      spawn_stdout_thread(stdout, tx.clone(), output_streams, outputs);
+      spawn_stdout_thread(stdout, tx, output_streams, outputs);
     }
 
     Ok(Self { rx, event_queue })
@@ -155,7 +155,7 @@ pub fn spawn_stdout_thread(
       .collect::<Vec<Vec<u8>>>();
 
     // No buffers probably indicates that output is being sent to file
-    if buffers.len() == 0 {
+    if buffers.is_empty() {
       return;
     }
 
