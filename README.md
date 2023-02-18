@@ -96,14 +96,28 @@ fn main() {
 }
 ```
 
-> For a myriad of examples, check any of the unit tests in
+## Examples
+
+### H265 Transcoding
+
+Decode H265, modify the decoded frames, and then write back to H265.
+
+Source: [/examples/h265_transcode.rs](/examples/h265_transcode.rs)
+
+```console
+cargo run --example h265_transcode
+```
+
+### Others
+
+> For a myriad of other examples, check any of the unit tests in
 > [/src/test.rs](/src/test.rs) in this repo.
 
 ## Todo
 
 - [X] Add `/examples` (WIP)
+- [X] Take input from stdin, and pipe between iterators
 - [ ] Handle indeterminate output formats like H264/H265
-- [ ] Take input from stdin, and pipe between iterators
 - [ ] Pipe directly to `ffplay` for debugging
 - [ ] Check code coverage
 - [ ] Idiomatic error type instead of `Result<_, String>`
