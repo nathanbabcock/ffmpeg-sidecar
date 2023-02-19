@@ -35,6 +35,17 @@ impl FfmpegCommand {
   //// Main option aliases
   //// https://ffmpeg.org/ffmpeg.html#Main-options
 
+  /// Alias for `-f` argument, the format name.
+  ///
+  /// Force input or output file format. The format is normally auto detected
+  /// for input files and guessed from the file extension for output files, so
+  /// this option is not needed in most cases.
+  pub fn format<S: AsRef<str>>(&mut self, format: S) -> &mut Self {
+    self.arg("-f");
+    self.arg(format.as_ref());
+    self
+  }
+
   /// Alias for `-i` argument, the input file path or URL.
   ///
   /// To take input from stdin, use the value `-` or `pipe`.
