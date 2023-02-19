@@ -12,9 +12,11 @@ use ffmpeg_sidecar::command::FfmpegCommand;
 /// ```
 fn main() {
   let mut ffmpeg = FfmpegCommand::new()
+    .realtime()
     .format("lavfi")
     .input("testsrc=size=1920x1080:rate=60")
-    .format("matroska")
+    .codec_video("rawvideo")
+    .format("avi")
     .output("-")
     .spawn()
     .unwrap();
