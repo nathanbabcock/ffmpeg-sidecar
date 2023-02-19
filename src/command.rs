@@ -55,6 +55,19 @@ impl FfmpegCommand {
     self
   }
 
+  /// Alias for the output file path or URL.
+  ///
+  /// To send output to stdout, use the value `-` or `pipe`.
+  ///
+  /// Since this is the last argument in the command and has no `-` flag
+  /// preceding it, it is equivalent to calling `.arg()` directly. However,
+  /// using this command helps label the purpose of the argument, and makes the
+  /// code more readable at a glance.
+  pub fn output<S: AsRef<str>>(&mut self, path_or_url: S) -> &mut Self {
+    self.arg(path_or_url.as_ref());
+    self
+  }
+
   /// Alias for `-y` argument: overwrite output files without asking.
   pub fn overwrite(&mut self) -> &mut Self {
     self.arg("-y");
