@@ -98,11 +98,23 @@ pub struct FfmpegProgress {
   pub raw_log_message: String,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct OutputVideoFrame {
   pub width: u32,
   pub height: u32,
   pub pix_fmt: String,
   pub output_index: u32,
   pub data: Vec<u8>,
+}
+
+impl std::fmt::Debug for OutputVideoFrame {
+  /// Omit the `data` field from the debug output
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    f.debug_struct("OutputVideoFrame")
+      .field("width", &self.width)
+      .field("height", &self.height)
+      .field("pix_fmt", &self.pix_fmt)
+      .field("output_index", &self.output_index)
+      .finish()
+  }
 }
