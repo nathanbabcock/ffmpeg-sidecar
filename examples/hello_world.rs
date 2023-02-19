@@ -3,6 +3,10 @@ use ffmpeg_sidecar::{
 };
 
 /// Iterates over the frames of a testsrc.
+///
+/// ```console
+/// cargo run --example hello_world
+/// ```
 fn main() {
   // similar to `std::process::Command`
   let mut command = FfmpegCommand::new();

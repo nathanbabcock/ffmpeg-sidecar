@@ -2,6 +2,10 @@ use ffmpeg_sidecar::command::FfmpegCommand;
 
 /// Output progress events from a standard ffmpeg command
 /// which writes to a file.
+///
+/// ```console
+/// cargo run --example progress
+/// ```
 fn main() {
   let fps = 60;
   let duration = 10;

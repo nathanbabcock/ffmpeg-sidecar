@@ -6,6 +6,10 @@ use ffmpeg_sidecar::{command::FfmpegCommand, event::FfmpegEvent};
 /// 2. Decode video
 /// 3. Composite with an overlay image rendered by Rust
 /// 4. Re-encode back to H265 to file
+///
+/// ```console
+/// cargo run --example h265_transcode
+/// ```
 fn main() {
   // Create an H265 source video as a starting point
   let input_path = "output/h265.mp4";
