@@ -48,7 +48,7 @@ impl FfmpegCommand {
 
   /// Alias for `-i` argument, the input file path or URL.
   ///
-  /// To take input from stdin, use the value `-` or `pipe`.
+  /// To take input from stdin, use the value `-` or `pipe:0`.
   pub fn input<S: AsRef<str>>(&mut self, path_or_url: S) -> &mut Self {
     self.arg("-i");
     self.arg(path_or_url.as_ref());
@@ -57,7 +57,7 @@ impl FfmpegCommand {
 
   /// Alias for the output file path or URL.
   ///
-  /// To send output to stdout, use the value `-` or `pipe`.
+  /// To send output to stdout, use the value `-` or `pipe:1`.
   ///
   /// Since this is the last argument in the command and has no `-` flag
   /// preceding it, it is equivalent to calling `.arg()` directly. However,
