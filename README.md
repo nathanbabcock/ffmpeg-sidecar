@@ -111,6 +111,16 @@ Source: [/examples/h265_transcode.rs](/examples/h265_transcode.rs)
 cargo run --example h265_transcode
 ```
 
+### FFplay
+
+Pipe an FFmpeg instance to FFplay for debugging purposes.
+
+Source: [/examples/ffplay_preview.rs](/examples/ffplay_preview.rs)
+
+```console
+cargo run --example ffplay_preview
+```
+
 ### Others
 
 For a myriad of other examples, check any of the unit tests in
@@ -120,8 +130,8 @@ For a myriad of other examples, check any of the unit tests in
 
 - [X] Add `/examples`
 - [X] Take input from stdin, and pipe between iterators
+- [X] Pipe directly to `ffplay` for debugging
 - [ ] Handle indeterminate output formats like H264/H265
-- [ ] Pipe directly to `ffplay` for debugging
 - [ ] Check code coverage
 - [ ] Idiomatic error type instead of `Result<_, String>`
 
