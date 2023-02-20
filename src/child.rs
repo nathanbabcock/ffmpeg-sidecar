@@ -3,6 +3,7 @@ use std::{
   process::{Child, ChildStderr, ChildStdin, ChildStdout},
 };
 
+use crate::error::{Error, Result};
 use crate::iter::FfmpegIterator;
 
 /// A wrapper around [`std::process::Child`] containing a spawned FFmpeg command.
@@ -21,7 +22,7 @@ impl FfmpegChild {
   /// - Progress updates
   /// - Errors and warnings
   /// - Raw output frames
-  pub fn iter(&mut self) -> Result<FfmpegIterator, String> {
+  pub fn iter(&mut self) -> Result<FfmpegIterator> {
     FfmpegIterator::new(self)
   }
 
@@ -65,11 +66,15 @@ impl FfmpegChild {
   /// q      quit
   /// s      Show QP histogram
   /// ```
-  pub fn send_stdin_command(&mut self, command: &[u8]) -> Result<(), String> {
-    let mut stdin = self.inner.stdin.take().ok_or("Missing child stdin")?;
-    let result = stdin.write_all(command).map_err(|e| e.to_string());
+  pub fn send_stdin_command(&mut self, command: &[u8]) -> Result<()> {
+    let mut stdin = self
+      .inner
+      .stdin
+      .take()
+      .ok_or(Error::msg("Missing child stdin"))?;
+    let result = stdin.write_all(command)?;
     self.inner.stdin.replace(stdin);
-    result
+    Ok(result)
   }
 
   /// Send a `q` command to ffmpeg over stdin,
@@ -78,7 +83,7 @@ impl FfmpegChild {
   /// This method returns after the command has been sent; the actual shut down
   /// may take a few more frames as ffmpeg flushes its buffers and writes the
   /// trailer, if applicable.
-  pub fn quit(&mut self) -> Result<(), String> {
+  pub fn quit(&mut self) -> Result<()> {
     self.send_stdin_command(b"q")
   }
 

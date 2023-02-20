@@ -8,6 +8,7 @@ use std::{
 
 use crate::{
   child::FfmpegChild,
+  error::{Error, Result},
   event::{AVStream, FfmpegEvent, FfmpegOutput, FfmpegProgress, OutputVideoFrame},
   log_parser::FfmpegLogParser,
   pix_fmt::get_bytes_per_frame,
@@ -20,8 +21,8 @@ pub struct FfmpegIterator {
 }
 
 impl FfmpegIterator {
-  pub fn new(child: &mut FfmpegChild) -> Result<Self, String> {
-    let stderr = child.take_stderr().ok_or("No stderr channel\n - Did you call `take_stderr` elsewhere?\n - Did you forget to call `.stderr(Stdio::piped)` on the `ChildProcess`?")?;
+  pub fn new(child: &mut FfmpegChild) -> Result<Self> {
+    let stderr = child.take_stderr().ok_or(Error::msg("No stderr channel\n - Did you call `take_stderr` elsewhere?\n - Did you forget to call `.stderr(Stdio::piped)` on the `ChildProcess`?"))?;
     let (tx, rx) = sync_channel::<FfmpegEvent>(0);
     spawn_stderr_thread(stderr, tx.clone());
 
@@ -54,9 +55,9 @@ impl FfmpegIterator {
 
     // No output detected
     if output_streams.is_empty() || outputs.is_empty() {
-      let err = "No output streams found".to_string();
-      child.kill().map_err(|e| e.to_string())?;
-      Err(err)?
+      let err = Error::msg("No output streams found".to_string());
+      child.kill()?;
+      Err(err)? // this is just a cute way of saying `return err`
     }
 
     // Handle stdout

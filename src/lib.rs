@@ -33,10 +33,11 @@
 pub mod child;
 pub mod comma_iter;
 pub mod command;
+pub mod error;
 pub mod event;
+pub mod iter;
 pub mod log_parser;
 pub mod pix_fmt;
 
-pub mod iter;
 #[cfg(test)]
 mod test;

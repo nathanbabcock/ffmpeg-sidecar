@@ -44,16 +44,6 @@ pub struct AVStream {
   pub parent_index: usize,
   /// The stderr line that this stream was parsed from
   pub raw_log_message: String,
-  // /// e.g. `Video`, `Audio`, `data`, `subtitle`, etc.
-  // pub stream_type: String,
-  // /// Corresponds to stream `-f` parameter, e.g. `rawvideo`
-  // pub format: String,
-  // /// Frames per second
-  // pub fps: f32,
-  // /// tbr is guessed from the video stream and is the value users want to see when they look for the video frame rate
-  // tbr: f32,
-  // /// the time base in AVStream that has come from the container
-  // tbn: f32,
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -5,6 +5,7 @@ use std::{
 
 use crate::{
   comma_iter::CommaIter,
+  error::{Error, Result},
   event::{
     AVStream, FfmpegConfiguration, FfmpegEvent, FfmpegOutput, FfmpegProgress, FfmpegVersion,
   },
@@ -30,10 +31,10 @@ impl<R: Read> FfmpegLogParser<R> {
   /// Typically this consumes a single line, but in the case of multi-line
   /// input/output stream specifications, nested method calls will consume
   /// additional lines until the entire vector of Inputs/Outputs is parsed.
-  pub fn parse_next_event(&mut self) -> Result<FfmpegEvent, String> {
+  pub fn parse_next_event(&mut self) -> Result<FfmpegEvent> {
     let mut buf = Vec::<u8>::new();
     let bytes_read = self.reader.read_until(b'\r', &mut buf);
-    let line = from_utf8(buf.as_slice()).map_err(|e| e.to_string())?.trim();
+    let line = from_utf8(buf.as_slice())?.trim();
     match bytes_read {
       Ok(0) => Ok(FfmpegEvent::LogEOF),
       Ok(_) => {
@@ -62,9 +63,10 @@ impl<R: Read> FfmpegLogParser<R> {
           match self.cur_section {
             LogSection::Input(_) => Ok(FfmpegEvent::ParsedInputStream(stream)),
             LogSection::Output(_) => Ok(FfmpegEvent::ParsedOutputStream(stream)),
-            LogSection::Other | LogSection::StreamMapping => {
-              Err(format!("Unexpected stream specification: {}", line))
-            }
+            LogSection::Other | LogSection::StreamMapping => Err(Error::msg(format!(
+              "Unexpected stream specification: {}",
+              line
+            ))),
           }
         } else if self.cur_section == LogSection::StreamMapping && line.contains("  Stream #") {
           Ok(FfmpegEvent::ParsedStreamMapping(line.to_string()))
@@ -81,7 +83,7 @@ impl<R: Read> FfmpegLogParser<R> {
           Ok(FfmpegEvent::LogUnknown(line.to_string()))
         }
       }
-      Err(e) => Err(e.to_string()),
+      Err(e) => Err(Error::from_std(e)),
     }
   }
 
