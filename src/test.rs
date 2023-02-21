@@ -118,13 +118,33 @@ fn test_error() {
     .unwrap()
     .iter()
     .unwrap()
-    .filter(|event| match event {
-      FfmpegEvent::Error(_) | FfmpegEvent::LogError(_) => true,
-      _ => false,
-    })
+    .filter_errors()
     .count();
 
   assert!(errors > 0);
+}
+
+#[test]
+fn test_chunks() {
+  let mut chunks = 0;
+  let mut frames = 0;
+
+  FfmpegCommand::new()
+    .testsrc()
+    .codec_video("libx264")
+    .format("h264")
+    .pipe_stdout()
+    .spawn()
+    .unwrap()
+    .iter()
+    .unwrap()
+    .for_each(|e| match e {
+      FfmpegEvent::OutputChunk(_) => chunks += 1,
+      FfmpegEvent::OutputFrame(_) => frames += 1,
+      _ => {}
+    });
+
+  assert!(chunks > 0);
 }
 
 // #[test]

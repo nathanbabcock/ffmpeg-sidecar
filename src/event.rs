@@ -15,6 +15,11 @@ pub enum FfmpegEvent {
   Error(String),
   Progress(FfmpegProgress),
   OutputFrame(OutputVideoFrame),
+  /// A chunk of data that may not correspond to a complete frame.
+  /// For example, it may contain encoded h264.
+  /// These chunks will need to be handled manually, or piped directly to
+  /// another FFmpeg instance.
+  OutputChunk(Vec<u8>),
   Done,
 }
 
@@ -34,6 +39,8 @@ impl FfmpegOutput {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AVStream {
+  /// Corresponds to stream `-f` parameter, e.g. `rawvideo`, `h264`, or `mpegts`
+  pub format: String,
   /// Corresponds to stream `-pix_fmt` parameter, e.g. `rgb24`
   pub pix_fmt: String,
   /// Width in pixels

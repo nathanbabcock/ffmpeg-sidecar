@@ -132,10 +132,9 @@ For a myriad of other examples, check any of the unit tests in
 - [X] Take input from stdin, and pipe between iterators
 - [X] Pipe directly to `ffplay` for debugging
 - [X] Idiomatic error type instead of `Result<_, String>`
-- [ ] Handle indeterminate output formats like H264/H265
+- [X] Handle indeterminate output formats like H264/H265
   - Currently these formats are mutually exclusive with using `iter()` since
     they require consuming `stdout` directly
-- [ ] Check code coverage
 
 **📣 Pull requests are welcome!**
 

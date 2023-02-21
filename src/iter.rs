@@ -112,6 +112,7 @@ impl FfmpegIterator {
       FfmpegEvent::Error(_) => None,
       FfmpegEvent::Progress(x) => Some(x.raw_log_message),
       FfmpegEvent::OutputFrame(_) => None,
+      FfmpegEvent::OutputChunk(_) => None,
       FfmpegEvent::Done => None,
     })
   }
@@ -147,11 +148,31 @@ pub fn spawn_stdout_thread(
         .unwrap_or(false)
     });
 
+    // Limit to exactly one non-rawvideo stream,
+    // or unlimited rawvideo streams
+    if stdout_output_streams
+      .clone()
+      .find(|s| s.format != "rawvideo")
+      .is_some()
+    {
+      assert!(
+        stdout_output_streams.clone().count() == 1,
+        "Only one non-rawvideo output stream can be sent to stdout",
+      );
+    }
+
     // Prepare buffers
     let mut buffers = stdout_output_streams
       .map(|stream| {
-        let bytes_per_frame = get_bytes_per_frame(stream).unwrap();
-        vec![0u8; bytes_per_frame as usize]
+        let bytes_per_frame = get_bytes_per_frame(stream);
+        let buf_size = if stream.format == "rawvideo" && bytes_per_frame.is_some() {
+          bytes_per_frame.unwrap() as usize
+        } else {
+          // Arbitrary default buffer size for receiving indeterminate chunks
+          // of any encoder or container output, when frame boundaries are unknown
+          4096
+        };
+        vec![0u8; buf_size]
       })
       .collect::<Vec<Vec<u8>>>();
 
@@ -167,15 +188,19 @@ pub fn spawn_stdout_thread(
       let i = buffer_index.next().unwrap();
       let stream = &output_streams[i];
       let buffer = &mut buffers[i];
+
       match reader.read_exact(buffer.as_mut_slice()) {
         Ok(_) => tx
-          .send(FfmpegEvent::OutputFrame(OutputVideoFrame {
-            width: stream.width,
-            height: stream.height,
-            pix_fmt: stream.pix_fmt.clone(),
-            output_index: i as u32,
-            data: buffer.clone(),
-          }))
+          .send(match stream.format.as_str() {
+            "rawvideo" => FfmpegEvent::OutputFrame(OutputVideoFrame {
+              width: stream.width,
+              height: stream.height,
+              pix_fmt: stream.pix_fmt.clone(),
+              output_index: i as u32,
+              data: buffer.clone(),
+            }),
+            _ => FfmpegEvent::OutputChunk(buffer.clone()),
+          })
           .ok(),
         Err(e) => match e.kind() {
           ErrorKind::UnexpectedEof => break,

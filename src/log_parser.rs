@@ -221,17 +221,25 @@ pub fn try_parse_output(mut string: &str) -> Option<FfmpegOutput> {
 /// ```rust
 /// use ffmpeg_sidecar::log_parser::try_parse_stream;
 /// let line = "[info]   Stream #0:0: Video: wrapped_avframe, rgb24, 320x240 [SAR 1:1 DAR 4:3], 25 fps, 25 tbr, 25 tbn\n";
-/// let stream = try_parse_stream(line);
-/// assert!(stream.is_some());
+/// let stream = try_parse_stream(line).unwrap();
+/// assert!(stream.format == "wrapped_avframe");
+/// assert!(stream.pix_fmt == "rgb24");
+/// assert!(stream.width == 320);
+/// assert!(stream.height == 240);
+/// assert!(stream.parent_index == 0);
 /// ```
 ///
 /// Output stream:
 ///
 /// ```rust
 /// use ffmpeg_sidecar::log_parser::try_parse_stream;
-/// let line = "[info]   Stream #0:0: Video: h264 (avc1 / 0x31637661), yuv444p(tv, progressive), 320x240 [SAR 1:1 DAR 4:3], q=2-31, 25 fps, 12800 tbn\n";
-/// let stream = try_parse_stream(line);
-/// assert!(stream.is_some());
+/// let line = "[info]   Stream #1:0: Video: h264 (avc1 / 0x31637661), yuv444p(tv, progressive), 320x240 [SAR 1:1 DAR 4:3], q=2-31, 25 fps, 12800 tbn\n";
+/// let stream = try_parse_stream(line).unwrap();
+/// assert!(stream.format == "h264");
+/// assert!(stream.pix_fmt == "yuv444p");
+/// assert!(stream.width == 320);
+/// assert!(stream.height == 240);
+/// assert!(stream.parent_index == 1);
 /// ```
 pub fn try_parse_stream(mut string: &str) -> Option<AVStream> {
   let raw_log_message = string.to_string();
@@ -246,12 +254,20 @@ pub fn try_parse_stream(mut string: &str) -> Option<AVStream> {
   let parent_index = colon_parts.next()?.parse::<usize>().ok()?;
   let stream_type = colon_parts.nth(1)?.trim();
   if stream_type != "Video" {
-    return None;
+    return None; // Audio not supported yet (PRs welcome)
   }
   let comma_string = colon_parts.next()?.trim();
   let mut comma_iter = CommaIter::new(comma_string);
+
+  let format = comma_iter
+    .next()?
+    .trim()
+    .split(&[' ', '(']) // trim trailing junk like " (avc1 / 0x31637661)"
+    .next()?
+    .to_string();
+
   let pix_fmt = comma_iter
-    .nth(1)? // skip the first item, which is the format (-f)
+    .next()?
     .trim()
     .split(&[' ', '(']) // trim trailing junk like "(tv, progressive)"
     .next()?
@@ -263,9 +279,10 @@ pub fn try_parse_stream(mut string: &str) -> Option<AVStream> {
 
   Some(AVStream {
     parent_index,
+    format,
+    pix_fmt,
     width,
     height,
-    pix_fmt,
     raw_log_message,
   })
 }
