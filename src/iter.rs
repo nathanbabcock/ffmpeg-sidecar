@@ -87,9 +87,17 @@ impl FfmpegIterator {
   }
 
   /// Filter out all events except for output frames (`FfmpegEvent::OutputFrame`).
-  pub fn filter_output(self) -> impl Iterator<Item = OutputVideoFrame> {
+  pub fn filter_frames(self) -> impl Iterator<Item = OutputVideoFrame> {
     self.filter_map(|event| match event {
       FfmpegEvent::OutputFrame(o) => Some(o),
+      _ => None,
+    })
+  }
+
+  /// Filter out all events except for output chunks (`FfmpegEvent::OutputChunk`).
+  pub fn filter_chunks(self) -> impl Iterator<Item = Vec<u8>> {
+    self.filter_map(|event| match event {
+      FfmpegEvent::OutputChunk(vec) => Some(vec),
       _ => None,
     })
   }

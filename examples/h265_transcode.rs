@@ -26,7 +26,7 @@ fn main() {
 
   // Frames can be transformed by Iterator `.map()`.
   // This example is a no-op, with frames passed through unaltered.
-  let transformed_frames = input.iter().unwrap().filter_output().map(|f| f);
+  let transformed_frames = input.iter().unwrap().filter_frames().map(|f| f);
 
   // You could easily add some "middleware" processing here:
   // - overlay or composite another RGB image (or even another Ffmpeg Iterator)
