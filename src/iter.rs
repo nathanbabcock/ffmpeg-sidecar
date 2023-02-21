@@ -165,13 +165,20 @@ pub fn spawn_stdout_thread(
     let mut buffers = stdout_output_streams
       .map(|stream| {
         let bytes_per_frame = get_bytes_per_frame(stream);
-        let buf_size = if stream.format == "rawvideo" && bytes_per_frame.is_some() {
-          bytes_per_frame.unwrap() as usize
-        } else {
+        let buf_size = match stream.format.as_str() {
+          "rawvideo" => bytes_per_frame.expect("Should use a known pix_fmt") as usize,
+
           // Arbitrary default buffer size for receiving indeterminate chunks
           // of any encoder or container output, when frame boundaries are unknown
-          4096
+          _ => 32_768, // ~= 32mb (plenty large enough for any chunk of video at reasonable bitrate)
         };
+
+        // Catch unsupported pixel formats
+        assert!(
+          buf_size > 0,
+          "Unsupported pixel format with 0 bytes per pixel"
+        );
+
         vec![0u8; buf_size]
       })
       .collect::<Vec<Vec<u8>>>();
@@ -189,22 +196,37 @@ pub fn spawn_stdout_thread(
       let stream = &output_streams[i];
       let buffer = &mut buffers[i];
 
-      match reader.read_exact(buffer.as_mut_slice()) {
-        Ok(_) => tx
-          .send(match stream.format.as_str() {
-            "rawvideo" => FfmpegEvent::OutputFrame(OutputVideoFrame {
+      // Handle two scenarios:
+      match stream.format.as_str() {
+        // 1. `rawvideo` with exactly known pixel layout
+        "rawvideo" => match reader.read_exact(buffer.as_mut_slice()) {
+          Ok(_) => tx
+            .send(FfmpegEvent::OutputFrame(OutputVideoFrame {
               width: stream.width,
               height: stream.height,
               pix_fmt: stream.pix_fmt.clone(),
               output_index: i as u32,
               data: buffer.clone(),
-            }),
-            _ => FfmpegEvent::OutputChunk(buffer.clone()),
-          })
-          .ok(),
-        Err(e) => match e.kind() {
-          ErrorKind::UnexpectedEof => break,
-          e => tx.send(FfmpegEvent::Error(e.to_string())).ok(),
+            }))
+            .ok(),
+          Err(e) => match e.kind() {
+            ErrorKind::UnexpectedEof => break,
+            e => tx.send(FfmpegEvent::Error(e.to_string())).ok(),
+          },
+        },
+
+        // 2. Anything else, with unknown buffer size
+        _ => match reader.read(buffer.as_mut_slice()) {
+          Ok(0) => break,
+          Ok(bytes_read) => {
+            let mut data = vec![0; bytes_read];
+            data.clone_from_slice(&buffer[..bytes_read]);
+            tx.send(FfmpegEvent::OutputChunk(data)).ok()
+          }
+          Err(e) => match e.kind() {
+            ErrorKind::UnexpectedEof => break,
+            e => tx.send(FfmpegEvent::Error(e.to_string())).ok(),
+          },
         },
       };
     }
