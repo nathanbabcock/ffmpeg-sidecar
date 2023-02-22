@@ -156,19 +156,23 @@ fn test_kill_before_iter() {
   assert!(vec[0] == FfmpegEvent::LogEOF);
 }
 
+#[test]
+fn test_kill_after_iter() {
+  let mut child = FfmpegCommand::new().testsrc().rawvideo().spawn().unwrap();
+  let mut iter = child.iter().unwrap();
+  assert!(iter.next().is_some());
+  child.kill().unwrap();
+  child.as_inner_mut().wait().unwrap();
+  let count = iter
+    .filter(|e| matches!(e, FfmpegEvent::Progress(_)))
+    .count();
+  assert!(count <= 1);
+}
+
+#[test]
 fn test_quit() {
   let mut child = FfmpegCommand::new().testsrc().rawvideo().spawn().unwrap();
   child.quit().unwrap();
   let count = child.iter().unwrap().filter_progress().count();
   assert!(count <= 1);
 }
-
-// #[test]
-// fn test_kill_after_iter() {
-//   let mut child = FfmpegCommand::new().testsrc().output("-").spawn().unwrap();
-//   let mut iter = child.iter().unwrap();
-//   assert!(iter.next().is_some());
-//   child.kill().unwrap();
-//   child.as_inner_mut().wait().unwrap();
-//   iter.for_each(|e| println!("{:?}", e))
-// }
