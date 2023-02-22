@@ -149,23 +149,26 @@ fn test_chunks() {
 
 #[test]
 fn test_kill_before_iter() {
-  let mut child = FfmpegCommand::new().testsrc().output("-").spawn().unwrap();
+  let mut child = FfmpegCommand::new().testsrc().rawvideo().spawn().unwrap();
   child.kill().unwrap();
   let vec: Vec<FfmpegEvent> = child.iter().unwrap().collect();
   assert!(vec.len() == 1);
   assert!(vec[0] == FfmpegEvent::LogEOF);
 }
 
+fn test_quit() {
+  let mut child = FfmpegCommand::new().testsrc().rawvideo().spawn().unwrap();
+  child.quit().unwrap();
+  let count = child.iter().unwrap().filter_progress().count();
+  assert!(count <= 1);
+}
+
 // #[test]
 // fn test_kill_after_iter() {
-//   let mut child = FfmpegCommand::new()
-//     .args("-f lavfi -i testsrc=duration=1:rate=1 -f rawvideo -pix_fmt rgb24 -".split(' '))
-//     .spawn()
-//     .unwrap();
-//   let mut iter = child.events_iter().unwrap();
-//   // println!("{:?}", iter.next());
+//   let mut child = FfmpegCommand::new().testsrc().output("-").spawn().unwrap();
+//   let mut iter = child.iter().unwrap();
 //   assert!(iter.next().is_some());
 //   child.kill().unwrap();
 //   child.as_inner_mut().wait().unwrap();
-//   assert!(iter.next().is_none());
+//   iter.for_each(|e| println!("{:?}", e))
 // }
