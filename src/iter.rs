@@ -22,7 +22,7 @@ pub struct FfmpegIterator {
 
 impl FfmpegIterator {
   pub fn new(child: &mut FfmpegChild) -> Result<Self> {
-    let stderr = child.take_stderr().ok_or(Error::msg("No stderr channel\n - Did you call `take_stderr` elsewhere?\n - Did you forget to call `.stderr(Stdio::piped)` on the `ChildProcess`?"))?;
+    let stderr = child.take_stderr().ok_or_else(|| Error::msg("No stderr channel\n - Did you call `take_stderr` elsewhere?\n - Did you forget to call `.stderr(Stdio::piped)` on the `ChildProcess`?"))?;
     let (tx, rx) = sync_channel::<FfmpegEvent>(0);
     spawn_stderr_thread(stderr, tx.clone());
 
@@ -55,7 +55,7 @@ impl FfmpegIterator {
 
     // No output detected
     if output_streams.is_empty() || outputs.is_empty() {
-      let err = Error::msg("No output streams found".to_string());
+      let err = Error::msg("No output streams found");
       child.kill()?;
       Err(err)? // this is just a cute way of saying `return err`
     }
@@ -160,8 +160,7 @@ pub fn spawn_stdout_thread(
     // or unlimited rawvideo streams
     if stdout_output_streams
       .clone()
-      .find(|s| s.format != "rawvideo")
-      .is_some()
+      .any(|s| s.format != "rawvideo")
     {
       assert!(
         stdout_output_streams.clone().count() == 1,

@@ -71,10 +71,10 @@ impl FfmpegChild {
       .inner
       .stdin
       .take()
-      .ok_or(Error::msg("Missing child stdin"))?;
-    let result = stdin.write_all(command)?;
+      .ok_or_else(|| Error::msg("Missing child stdin"))?;
+    stdin.write_all(command)?;
     self.inner.stdin.replace(stdin);
-    Ok(result)
+    Ok(())
   }
 
   /// Send a `q` command to ffmpeg over stdin,
