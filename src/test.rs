@@ -147,16 +147,14 @@ fn test_chunks() {
   assert!(chunks > 0);
 }
 
-// #[test]
-// fn test_kill_before_iter() {
-//   let mut child = FfmpegCommand::new()
-//     .args("-f lavfi -i testsrc=duration=1:rate=1 -f rawvideo -pix_fmt rgb24 -".split(' '))
-//     .spawn()
-//     .unwrap();
-//   child.kill().unwrap();
-//   let iter = child.events_iter();
-//   assert!(iter.is_err());
-// }
+#[test]
+fn test_kill_before_iter() {
+  let mut child = FfmpegCommand::new().testsrc().output("-").spawn().unwrap();
+  child.kill().unwrap();
+  let vec: Vec<FfmpegEvent> = child.iter().unwrap().collect();
+  assert!(vec.len() == 1);
+  assert!(vec[0] == FfmpegEvent::LogEOF);
+}
 
 // #[test]
 // fn test_kill_after_iter() {
