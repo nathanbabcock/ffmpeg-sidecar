@@ -376,7 +376,10 @@ pub fn try_parse_progress(mut string: &str) -> Option<FfmpegProgress> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use std::process::{Command, Stdio};
+  use std::{
+    io::{Cursor, Seek, SeekFrom, Write},
+    process::{Command, Stdio},
+  };
 
   #[test]
   fn test_version() {
@@ -416,5 +419,27 @@ mod tests {
       }
     }
     panic!() // should have found a configuration
+  }
+
+  /// Test case from https://github.com/nathanbabcock/ffmpeg-sidecar/issues/2#issue-1606661255
+  #[test]
+  fn test_macos_line_endings() {
+    let stdout_str = "[info] ffmpeg version N-109875-geabc304d12-tessus  https://evermeet.cx/ffmpeg/  Copyright (c) 2000-2023 the FFmpeg developers\n[info]   built with Apple clang version 11.0.0 (clang-1100.0.33.17)\n[info]   configuration: --cc=/usr/bin/clang --prefix=/opt/ffmpeg --extra-version=tessus --enable-avisynth --enable-fontconfig --enable-gpl --enable-libaom --enable-libass --enable-libbluray --enable-libdav1d --enable-libfreetype --enable-libgsm --enable-libmodplug --enable-libmp3lame --enable-libmysofa --enable-libopencore-amrnb --enable-libopencore-amrwb --enable-libopenh264 --enable-libopenjpeg --enable-libopus --enable-librubberband --enable-libshine --enable-libsnappy --enable-libsoxr --enable-libspeex --enable-libtheora --enable-libtwolame --enable-libvidstab --enable-libvmaf --enable-libvo-amrwbenc --enable-libvorbis --enable-libvpx --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxavs --enable-libxvid --enable-libzimg --enable-libzmq --enable-libzvbi --enable-version3 --pkg-config-flags=--static --disable-ffplay\n[info]   libavutil      58.  1.100 / 58.  1.100\n[info]   libavcodec     60.  2.100 / 60.  2.100\n[info]   libavformat    60.  2.100 / 60.  2.100\n[info]   libavdevice    60.  0.100 / 60.  0.100\n[info]   libavfilter     9.  2.100 /  9.  2.100\n[info]   libswscale      7.  0.100 /  7.  0.100\n[info]   libswresample   4.  9.100 /  4.  9.100\n[info]   libpostproc    57.  0.100 / 57.  0.100\n[info] Input #0, lavfi, from 'testsrc=duration=10':\n[info]   Duration: N/A, start: 0.000000, bitrate: N/A\n[info]   Stream #0:0: Video: wrapped_avframe, rgb24, 320x240 [SAR 1:1 DAR 4:3], 25 fps, 25 tbr, 25 tbn\n[info] Stream mapping:\n[info]   Stream #0:0 -> #0:0 (wrapped_avframe (native) -> rawvideo (native))\n[info] Press [q] to stop, [?] for help\n[info] Output #0, rawvideo, to 'pipe:':\n[info]   Metadata:\n[info]     encoder         : Lavf60.2.100\n[info]   Stream #0:0: Video: rawvideo (RGB[24] / 0x18424752), rgb24(progressive), 320x240 [SAR 1:1 DAR 4:3], q=2-31, 46080 kb/s, 25 fps, 25 tbn\n[info]     Metadata:\n[info]       encoder         : Lavc60.2.100 rawvideo\n[info] frame=    0 fps=0.0 q=0.0 size=       0kB time=-577014:32:22.77 bitrate=  -0.0kbits/s speed=N/A";
+
+    // Emulate a stderr channel
+    let mut cursor = Cursor::new(Vec::new());
+    cursor.write_all(stdout_str.as_bytes()).unwrap();
+    cursor.seek(SeekFrom::Start(0)).unwrap();
+
+    let reader = BufReader::new(cursor);
+    let mut parser = FfmpegLogParser::new(reader);
+    let mut num_events = 0;
+    while let Ok(event) = parser.parse_next_event() {
+      match event {
+        FfmpegEvent::LogEOF => break,
+        _ => num_events += 1,
+      }
+    }
+    assert!(num_events > 1);
   }
 }
