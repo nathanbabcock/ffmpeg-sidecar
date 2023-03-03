@@ -47,6 +47,8 @@ pub struct AVStream {
   pub width: u32,
   /// Height in pixels
   pub height: u32,
+  /// Framerate in frames per second
+  pub fps: f32,
   /// The index of the input or output that this stream belongs to
   pub parent_index: usize,
   /// The stderr line that this stream was parsed from
@@ -97,11 +99,23 @@ pub struct FfmpegProgress {
 
 #[derive(Clone, PartialEq)]
 pub struct OutputVideoFrame {
+  /// The width of this video frame in pixels
   pub width: u32,
+  /// The height of this video frame in pixels
   pub height: u32,
+  /// The pixel format of the video frame, corresponding to the chosen
+  /// `-pix_fmt` FFmpeg parameter.
   pub pix_fmt: String,
+  /// The index of the FFmpeg output stream that emitted this frame.
+  /// In a typical case, there is only one output stream and this will be 0.
   pub output_index: u32,
+  /// Raw image frame data. The layout of the pixels in memory depends on
+  /// `width`, `height`, and `pix_fmt`.
   pub data: Vec<u8>,
+  /// Index of current frame, starting at 0 and monotonically increasing by 1
+  pub frame_num: u32,
+  /// Output frame timestamp in seconds
+  pub timestamp: f32,
 }
 
 impl std::fmt::Debug for OutputVideoFrame {

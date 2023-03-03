@@ -232,6 +232,7 @@ pub fn try_parse_output(mut string: &str) -> Option<FfmpegOutput> {
 /// assert!(stream.pix_fmt == "rgb24");
 /// assert!(stream.width == 320);
 /// assert!(stream.height == 240);
+/// assert!(stream.fps == 25.0);
 /// assert!(stream.parent_index == 0);
 /// ```
 ///
@@ -245,6 +246,7 @@ pub fn try_parse_output(mut string: &str) -> Option<FfmpegOutput> {
 /// assert!(stream.pix_fmt == "yuv444p");
 /// assert!(stream.width == 320);
 /// assert!(stream.height == 240);
+/// assert!(stream.fps == 25.0);
 /// assert!(stream.parent_index == 1);
 /// ```
 pub fn try_parse_stream(mut string: &str) -> Option<AVStream> {
@@ -278,10 +280,20 @@ pub fn try_parse_stream(mut string: &str) -> Option<AVStream> {
     .split(&[' ', '(']) // trim trailing junk like "(tv, progressive)"
     .next()?
     .to_string();
+
   let dims = comma_iter.next()?.split_whitespace().next()?;
   let mut dims_iter = dims.split('x');
   let width = dims_iter.next()?.parse::<u32>().ok()?;
   let height = dims_iter.next()?.parse::<u32>().ok()?;
+
+  let fps = string
+    .split("fps,")
+    .next()?
+    .trim()
+    .split_whitespace()
+    .last()?
+    .parse()
+    .ok()?;
 
   Some(AVStream {
     parent_index,
@@ -289,6 +301,7 @@ pub fn try_parse_stream(mut string: &str) -> Option<AVStream> {
     pix_fmt,
     width,
     height,
+    fps,
     raw_log_message,
   })
 }

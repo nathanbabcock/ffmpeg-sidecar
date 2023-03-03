@@ -196,12 +196,17 @@ pub fn spawn_stdout_thread(
     }
 
     // Read into buffers
+    let num_buffers = buffers.len();
     let mut buffer_index = (0..buffers.len()).cycle();
     let mut reader = BufReader::new(stdout);
+    let mut frame_num = 0;
     loop {
       let i = buffer_index.next().unwrap();
       let stream = &output_streams[i];
       let buffer = &mut buffers[i];
+      let output_frame_num = frame_num / num_buffers;
+      let timestamp = output_frame_num as f32 / stream.fps;
+      frame_num += 1;
 
       // Handle two scenarios:
       match stream.format.as_str() {
@@ -214,6 +219,8 @@ pub fn spawn_stdout_thread(
               pix_fmt: stream.pix_fmt.clone(),
               output_index: i as u32,
               data: buffer.clone(),
+              frame_num: output_frame_num as u32,
+              timestamp,
             }))
             .ok(),
           Err(e) => match e.kind() {
