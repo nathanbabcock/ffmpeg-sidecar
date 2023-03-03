@@ -1,7 +1,8 @@
 use std::{
   env::consts::OS,
   io::Read,
-  process::{Command, Stdio},
+  path::Path,
+  process::{Command, ExitStatus, Stdio},
 };
 
 use crate::error::{Error, Result};
@@ -58,6 +59,7 @@ pub fn parse_linux_version(version: &str) -> Option<String> {
 pub fn curl(url: &str) -> Result<String> {
   let mut child = Command::new("curl")
     .args(["-L", url])
+    .stderr(Stdio::null())
     .stdout(Stdio::piped())
     .spawn()?;
 
@@ -69,6 +71,15 @@ pub fn curl(url: &str) -> Result<String> {
   let mut string = String::new();
   std::io::BufReader::new(stdout).read_to_string(&mut string)?;
   Ok(string)
+}
+
+/// Invoke cURL on the command line to download a file, writing to a file.
+pub fn curl_to_file(url: &str, filename: &str) -> Result<ExitStatus> {
+  Command::new("curl")
+    .args(["-L", url])
+    .args(["-o", filename])
+    .status()
+    .map_err(Error::from)
 }
 
 /// Check the latest version available online
@@ -100,5 +111,26 @@ pub fn get_download_url() -> Option<&'static str> {
   }
 }
 
-// 3. md5 checksum, unzip, move binaries, delete
+pub fn download_ffmpeg() -> Result<String> {
+  let url = get_download_url().ok_or(Error::msg("Unsupported platform"))?;
+
+  let filename = Path::new(url)
+    .file_name()
+    .ok_or(Error::msg("Failed to get filename"))?;
+
+  let exit_status = curl_to_file(
+    url,
+    filename
+      .to_str()
+      .ok_or(Error::msg("Failed to get filename"))?,
+  )?;
+
+  if !exit_status.success() {
+    return Err(Error::msg("Failed to download ffmpeg"));
+  }
+
+  Ok(filename.to_string_lossy().to_string())
+}
+
+// 3. unzip/untar, move binaries, delete
 // 4. check version
