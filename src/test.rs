@@ -1,5 +1,9 @@
 use crate::{command::FfmpegCommand, event::FfmpegEvent};
 
+fn approx_eq(a: f32, b: f32, error: f32) -> bool {
+  (a - b).abs() < error
+}
+
 #[test]
 fn test_frame_count() {
   let fps = 1;
@@ -175,4 +179,26 @@ fn test_quit() {
   child.quit().unwrap();
   let count = child.iter().unwrap().filter_progress().count();
   assert!(count <= 1);
+}
+
+#[test]
+fn test_frame_timestamp() {
+  let mut last_timestamp: Option<f32> = None;
+  FfmpegCommand::new()
+    .format("lavfi")
+    .input("testsrc=duration=1:rate=10")
+    .rawvideo()
+    .spawn()
+    .unwrap()
+    .iter()
+    .unwrap()
+    .filter_frames()
+    .for_each(|frame| {
+      match last_timestamp {
+        None => assert!(frame.timestamp == 0.0),
+        Some(last_timestamp) => assert!(approx_eq(frame.timestamp, last_timestamp + 0.1, 0.001)),
+      }
+      last_timestamp = Some(frame.timestamp);
+    });
+  assert!(approx_eq(last_timestamp.unwrap(), 0.9, 0.001));
 }
