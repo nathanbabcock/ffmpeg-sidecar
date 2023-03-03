@@ -1,5 +1,6 @@
 use std::{
-  env::consts::OS,
+  env::{consts::OS, current_dir},
+  fs::{create_dir_all, read_dir, rename},
   io::Read,
   path::Path,
   process::{Command, ExitStatus, Stdio},
@@ -16,6 +17,8 @@ pub const LINUX_DOWNLOAD: &str =
 pub const WINDOWS_DOWNLOAD: &str =
   "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip";
 pub const MACOS_DOWNLOAD: &str = "https://evermeet.cx/ffmpeg/getrelease";
+
+pub const UNPACK_DIR: &str = "ffmpeg_release_temp";
 
 /// Parse the the MacOS version number from a JSON string
 ///
@@ -132,5 +135,51 @@ pub fn download_ffmpeg() -> Result<String> {
   Ok(filename.to_string_lossy().to_string())
 }
 
-// 3. unzip/untar, move binaries, delete
+pub fn unpack_ffmpeg(filename: &str) -> Result<()> {
+  create_dir_all(UNPACK_DIR)?;
+
+  // Extract archive
+  Command::new("tar")
+    .arg("-xf")
+    .arg(filename)
+    .args(["-C", UNPACK_DIR])
+    .status()?
+    .success()
+    .then_some(())
+    .ok_or("Failed to unpack ffmpeg")?;
+
+  // Move binaries
+  let cwd = current_dir()?;
+  let (ffmpeg, ffplay, ffprobe) = match OS {
+    "windows" => {
+      let inner_folder = read_dir(UNPACK_DIR)?
+        .next()
+        .ok_or("Failed to get inner folder")??;
+
+      inner_folder
+        .file_type()?
+        .is_dir()
+        .then_some(())
+        .ok_or("No top level directory inside archive")?;
+
+      (
+        inner_folder.path().clone().join("bin/ffmpeg.exe"),
+        inner_folder.path().clone().join("bin/ffplay.exe"),
+        inner_folder.path().clone().join("bin/ffprobe.exe"),
+      )
+    }
+    "linux" => todo!(),
+    "macos" => todo!(),
+    _ => return Err(Error::msg("Unsupported platform")),
+  };
+
+  println!("ffmpeg: {:?}", ffmpeg);
+
+  rename(&ffmpeg, cwd.join(ffmpeg.file_name().ok_or(())?))?;
+  rename(&ffplay, cwd.join(ffplay.file_name().ok_or(())?))?;
+  rename(&ffprobe, cwd.join(ffprobe.file_name().ok_or(())?))?;
+
+  Ok(())
+}
+
 // 4. check version

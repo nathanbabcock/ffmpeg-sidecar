@@ -82,3 +82,9 @@ impl From<String> for Error {
     Error::from_display(e)
   }
 }
+
+impl From<()> for Error {
+  fn from(e: ()) -> Self {
+    Error::from_display("empty error")
+  }
+}
