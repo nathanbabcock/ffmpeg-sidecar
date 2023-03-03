@@ -33,6 +33,7 @@
 #[cfg(test)]
 mod test;
 
+pub mod auto_download;
 pub mod child;
 pub mod comma_iter;
 pub mod command;
