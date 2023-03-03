@@ -30,6 +30,9 @@
 //! ```
 //!
 
+#[cfg(test)]
+mod test;
+
 pub mod child;
 pub mod comma_iter;
 pub mod command;
@@ -38,6 +41,4 @@ pub mod event;
 pub mod iter;
 pub mod log_parser;
 pub mod pix_fmt;
-
-#[cfg(test)]
-mod test;
+pub mod read_until_any;
