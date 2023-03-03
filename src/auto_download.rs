@@ -1,6 +1,6 @@
 use std::{
   env::{consts::OS, current_dir},
-  fs::{create_dir_all, read_dir, rename},
+  fs::{create_dir_all, read_dir, remove_dir_all, remove_file, rename},
   io::Read,
   path::Path,
   process::{Command, ExitStatus, Stdio},
@@ -173,13 +173,12 @@ pub fn unpack_ffmpeg(filename: &str) -> Result<()> {
     _ => return Err(Error::msg("Unsupported platform")),
   };
 
-  println!("ffmpeg: {:?}", ffmpeg);
-
   rename(&ffmpeg, cwd.join(ffmpeg.file_name().ok_or(())?))?;
   rename(&ffplay, cwd.join(ffplay.file_name().ok_or(())?))?;
   rename(&ffprobe, cwd.join(ffprobe.file_name().ok_or(())?))?;
 
+  remove_dir_all(UNPACK_DIR)?;
+  remove_file(filename)?;
+
   Ok(())
 }
-
-// 4. check version
