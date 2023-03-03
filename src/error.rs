@@ -70,3 +70,15 @@ impl From<Utf8Error> for Error {
     Error::from_std(e)
   }
 }
+
+impl From<&str> for Error {
+  fn from(e: &str) -> Self {
+    Error::from_display(e)
+  }
+}
+
+impl From<String> for Error {
+  fn from(e: String) -> Self {
+    Error::from_display(e)
+  }
+}
