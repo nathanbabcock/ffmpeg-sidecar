@@ -1,5 +1,5 @@
 use std::{
-  io::{BufRead, BufReader, Read},
+  io::{BufReader, Read},
   str::from_utf8,
 };
 
@@ -9,6 +9,7 @@ use crate::{
   event::{
     AVStream, FfmpegConfiguration, FfmpegEvent, FfmpegOutput, FfmpegProgress, FfmpegVersion,
   },
+  read_until_any::read_until_any,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -31,9 +32,14 @@ impl<R: Read> FfmpegLogParser<R> {
   /// Typically this consumes a single line, but in the case of multi-line
   /// input/output stream specifications, nested method calls will consume
   /// additional lines until the entire vector of Inputs/Outputs is parsed.
+  ///
+  /// Line endings can be marked by three possible delimiters:
+  /// - `\n` (MacOS),
+  /// - `\r\n` (Windows)
+  /// - `\r` (Windows, progress updates which overwrite the previous line)
   pub fn parse_next_event(&mut self) -> Result<FfmpegEvent> {
     let mut buf = Vec::<u8>::new();
-    let bytes_read = self.reader.read_until(b'\r', &mut buf);
+    let bytes_read = read_until_any(&mut self.reader, &[b'\r', b'\n'], &mut buf);
     let line = from_utf8(buf.as_slice())?.trim();
     match bytes_read {
       Ok(0) => Ok(FfmpegEvent::LogEOF),
