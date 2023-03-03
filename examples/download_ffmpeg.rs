@@ -1,5 +1,9 @@
-use ffmpeg_sidecar::auto_download::check_latest_version;
+use ffmpeg_sidecar::auto_download::{check_latest_version, download_ffmpeg};
 
 fn main() {
-  println!("{}", check_latest_version().unwrap());
+  let latest_version = check_latest_version().unwrap();
+  println!("{}", latest_version);
+
+  let filename = download_ffmpeg().unwrap();
+  println!("{}", filename);
 }
