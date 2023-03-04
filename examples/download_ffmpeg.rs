@@ -17,12 +17,12 @@ fn main() {
   let filename = download_ffmpeg_package().unwrap();
   println!("Downloaded package: {}", filename);
 
+  println!("Extracting...");
   unpack_ffmpeg(&filename).unwrap();
-  println!("Done! ✨");
 
   // TODO: verify that the 3 binary files are present
-
   if !ffmpeg_is_installed() {
     panic!()
   }
+  println!("Done! ✨");
 }
