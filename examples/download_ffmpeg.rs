@@ -12,11 +12,11 @@ fn main() {
   let latest_version = check_latest_version().unwrap();
   println!("Latest available version: {}", latest_version);
 
-  let filename = download_ffmpeg_package().unwrap();
-  println!("Downloaded package: {}", filename);
+  let archive_path = download_ffmpeg_package().unwrap();
+  println!("Downloaded package: {:?}", archive_path);
 
   println!("Extracting...");
-  unpack_ffmpeg(&filename).unwrap();
+  unpack_ffmpeg(&archive_path).unwrap();
 
   let version = ffmpeg_version().unwrap();
   println!("Freshly installed FFmpeg version: {}", version);
