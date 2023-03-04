@@ -1,9 +1,9 @@
 use ffmpeg_sidecar::{
   download::{
-    check_latest_version, download_ffmpeg_package, ffmpeg_is_installed, get_download_dir,
-    get_package_url, unpack_ffmpeg,
+    check_latest_version, download_ffmpeg_package, ffmpeg_is_installed, package_url, unpack_ffmpeg,
   },
   error::Result,
+  paths::sidecar_dir,
   version::ffmpeg_version,
 };
 
@@ -26,8 +26,8 @@ fn main() -> Result<()> {
 
   // These defaults will automatically select the correct download URL for your
   // platform.
-  let download_url = get_package_url()?;
-  let destination = get_download_dir()?;
+  let download_url = package_url()?;
+  let destination = sidecar_dir()?;
 
   // By default the download will use a `curl` command. You could also write
   // your own download function and use another package like `reqwest` instead.
