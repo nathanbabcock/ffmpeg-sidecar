@@ -1,15 +1,12 @@
 use std::{
-  env::{consts::OS, current_dir},
+  env::{consts::OS, current_exe},
   fs::{create_dir_all, read_dir, remove_dir_all, remove_file, rename},
   io::Read,
   path::Path,
   process::{Command, ExitStatus, Stdio},
 };
 
-use crate::{
-  error::{Error, Result},
-  log_parser::FfmpegLogParser,
-};
+use crate::error::{Error, Result};
 
 pub const LINUX_VERSION: &str = "https://johnvansickle.com/ffmpeg/release-readme.txt";
 pub const WINDOWS_VERSION: &str = "https://www.gyan.dev/ffmpeg/builds/release-version";
@@ -117,7 +114,9 @@ pub fn get_download_url() -> Option<&'static str> {
   }
 }
 
-pub fn download_ffmpeg() -> Result<String> {
+/// Downloads an archive (ZIP on windows, TAR on linux and mac)
+/// from the latest published release online.
+pub fn download_ffmpeg_package() -> Result<String> {
   let url = get_download_url().ok_or(Error::msg("Unsupported platform"))?;
 
   let filename = Path::new(url)
@@ -138,6 +137,7 @@ pub fn download_ffmpeg() -> Result<String> {
   Ok(filename.to_string_lossy().to_string())
 }
 
+/// After downloading, unpacks the archive, moves the binaries, and cleans up.
 pub fn unpack_ffmpeg(filename: &str) -> Result<()> {
   create_dir_all(UNPACK_DIR)?;
 
@@ -152,7 +152,7 @@ pub fn unpack_ffmpeg(filename: &str) -> Result<()> {
     .ok_or("Failed to unpack ffmpeg")?;
 
   // Move binaries
-  let cwd = current_dir()?;
+  let cwd = current_exe()?.parent().ok_or(())?.to_owned();
   let (ffmpeg, ffplay, ffprobe) = match OS {
     "windows" => {
       let inner_folder = read_dir(UNPACK_DIR)?
@@ -197,4 +197,20 @@ pub fn ffmpeg_is_installed() -> bool {
     .status()
     .map(|s| s.success())
     .unwrap_or_else(|_| false)
+}
+
+/// Check if FFmpeg is installed, and if it's not, download and unpack it.
+/// Automatically selects the correct binaries for Windows, Linux, and MacOS.
+/// The binaries will be placed in the same directory as the Rust executable.
+///
+/// If FFmpeg is already installed, the method exits early without downloading
+/// anything.
+pub fn auto_download() -> Result<()> {
+  if ffmpeg_is_installed() {
+    return Ok(());
+  }
+
+  let filename = download_ffmpeg_package()?;
+  unpack_ffmpeg(&filename)?;
+  Ok(())
 }

@@ -1,6 +1,2 @@
 /target
 /Cargo.lock
-/ffmpeg_release_temp
-/ff*.exe
-/*.zip
-/*.tar.*
