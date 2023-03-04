@@ -219,9 +219,9 @@ pub fn unpack_ffmpeg(
         inner_folder.path().clone().join("bin/ffprobe.exe"),
       )
     }
-    "linux" => todo!(),
-    "macos" => todo!(),
-    _ => return Err(Error::msg("Unsupported platform")),
+    "linux" => todo!(), // PR's welcome here!
+    "macos" => todo!(), // And here!
+    _ => return Err(Error::msg(format!("Unsupported platform: {}", OS))),
   };
 
   // Move binaries
