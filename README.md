@@ -2,6 +2,15 @@
 
 > Wrap a standalone FFmpeg binary in an intuitive Iterator interface.
 
+## Features
+
+- ✨ Zero dependencies
+- ⚡ Automatic FFmpeg CLI download (if needed)
+- 🤗 Support for Windows, MacOS, and Linux
+- 🧪 Unit tested
+
+> 👉 Jump to [Getting Started](#getting-started) 👈
+
 ## Motivation
 
 The core goal of this project is to provide a method of interacting with any video **as if it were an
@@ -40,24 +49,35 @@ its own:
 - Argument presets and aliases with discoverable names through Intellisense/autocomplete
 
 The only remaining downside is the size of the FFmpeg binary itself, but it's
-less than 100MB when zipped.
+less than 100MB when zipped. It can be automatically downloaded by the crate, so
+you may choose to not even ship it with your own application and instead
+download it at runtime.
 
-## Getting started
+## Getting Started
 
-### 1. Download FFmpeg
-
-First you need an FFmpeg binary. If you don't already have one, head to
-<https://ffmpeg.org>. Either install it globally (e.g. add to `PATH` on windows),
-or simply place the executable adjacent to your Rust binary target. When you
-package and distribute
-
-### 2. Cargo install
+### 1. Cargo install
 
 On the Rust side, it has **zero** Cargo dependencies! 🎉
 
 ```console
 cargo add ffmpeg-sidecar
 ```
+
+### 2. Download FFmpeg
+
+To automatically download & install a FFmpeg binary for your platform
+(Windows, MacOS, and Linux), call this function anywhere in your program:
+
+```rust
+ffmpeg_sidecar::download::auto_download().unwrap();
+```
+
+You can do this once to set up your dev environment, or include it as a feature
+of your client application.
+
+> To customize or extend the download behavior, see [`/examples/download_ffmpeg.rs`](/examples/download_ffmpeg.rs).
+
+
 
 ## Examples
 
@@ -95,7 +115,7 @@ fn main() {
 }
 ```
 
-Source: [/examples/hello_world.rs](/examples/hello_world.rs)
+Source: [`/examples/hello_world.rs`](/examples/hello_world.rs)
 
 ```console
 cargo run --example hello-world
@@ -105,7 +125,7 @@ cargo run --example hello-world
 
 Decode H265, modify the decoded frames, and then write back to H265.
 
-Source: [/examples/h265_transcode.rs](/examples/h265_transcode.rs)
+Source: [`/examples/h265_transcode.rs`](/examples/h265_transcode.rs)
 
 ```console
 cargo run --example h265_transcode
@@ -115,7 +135,7 @@ cargo run --example h265_transcode
 
 Pipe an FFmpeg instance to FFplay for debugging purposes.
 
-Source: [/examples/ffplay_preview.rs](/examples/ffplay_preview.rs)
+Source: [`/examples/ffplay_preview.rs`](/examples/ffplay_preview.rs)
 
 ```console
 cargo run --example ffplay_preview
@@ -136,10 +156,13 @@ For a myriad of other examples, check any of the unit tests in
   - Currently these formats are mutually exclusive with using `iter()` since
     they require consuming `stdout` directly
 
-**📣 Pull requests are welcome!**
-
 ## See also
 
 Inspired loosely by Node.js
 [`fluent-ffmpeg`](https://www.npmjs.com/package/fluent-ffmpeg), which does
 something similar in Javascript.
+
+Uses [`setup-ffmpeg`](https://github.com/FedericoCarboni/setup-ffmpeg) for
+Github Actions and as a reference for the auto-download behavior.
+
+## 📣 Pull Requests Welcome 📣
