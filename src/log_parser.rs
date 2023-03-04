@@ -401,7 +401,7 @@ mod tests {
   };
 
   #[test]
-  fn test_version() {
+  fn test_parse_version() {
     let cmd = Command::new("ffmpeg")
       .arg("-version")
       .stdout(Stdio::piped())
@@ -421,7 +421,7 @@ mod tests {
   }
 
   #[test]
-  fn test_configuration() {
+  fn test_parse_configuration() {
     let cmd = Command::new("ffmpeg")
       .arg("-version")
       .stdout(Stdio::piped())

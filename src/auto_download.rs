@@ -6,7 +6,10 @@ use std::{
   process::{Command, ExitStatus, Stdio},
 };
 
-use crate::error::{Error, Result};
+use crate::{
+  error::{Error, Result},
+  log_parser::FfmpegLogParser,
+};
 
 pub const LINUX_VERSION: &str = "https://johnvansickle.com/ffmpeg/release-readme.txt";
 pub const WINDOWS_VERSION: &str = "https://www.gyan.dev/ffmpeg/builds/release-version";
@@ -181,4 +184,17 @@ pub fn unpack_ffmpeg(filename: &str) -> Result<()> {
   remove_file(filename)?;
 
   Ok(())
+}
+
+/// Verify whether ffmpeg is installed on the system. This will return true if
+/// there is an ffmpeg binary in the PATH, or in the same directory as the Rust
+/// executable.
+pub fn ffmpeg_is_installed() -> bool {
+  Command::new("ffmpeg")
+    .arg("-version")
+    .stderr(Stdio::null())
+    .stdout(Stdio::null())
+    .status()
+    .map(|s| s.success())
+    .unwrap_or_else(|_| false)
 }
