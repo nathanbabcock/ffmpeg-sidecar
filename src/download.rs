@@ -194,43 +194,47 @@ pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &PathBuf) -> Result<
     .ok_or("Failed to unpack ffmpeg")?;
 
   // Move binaries
+  let inner_folder = read_dir(&temp_folder)?
+    .next()
+    .ok_or("Failed to get inner folder")??;
+
+  if !inner_folder.file_type()?.is_dir() {
+    return Err(Error::msg("No top level directory inside archive"));
+  }
+
   let (ffmpeg, ffplay, ffprobe) = match OS {
-    "windows" => {
-      let inner_folder = read_dir(&temp_folder)?
-        .next()
-        .ok_or("Failed to get inner folder")??;
-
-      inner_folder
-        .file_type()?
-        .is_dir()
-        .then_some(())
-        .ok_or("No top level directory inside archive")?;
-
-      (
-        (&inner_folder).path().join("bin/ffmpeg.exe"),
-        (&inner_folder).path().join("bin/ffplay.exe"),
-        (&inner_folder).path().join("bin/ffprobe.exe"),
-      )
-    }
+    "windows" => (
+      (&inner_folder).path().join("bin/ffmpeg.exe"),
+      (&inner_folder).path().join("bin/ffplay.exe"),
+      (&inner_folder).path().join("bin/ffprobe.exe"),
+    ),
     "linux" | "macos" => (
-      (&temp_folder).join("ffmpeg"),
-      (&temp_folder).join("ffplay"),
-      (&temp_folder).join("ffprobe"), // <- this likely won't exist, but it's ok
+      (&inner_folder).path().join("./ffmpeg"),
+      (&inner_folder).path().join("./ffplay"),// <- this typically only exists in Windows builds
+      (&inner_folder).path().join("./ffprobe"), 
     ),
     _ => return Err(Error::msg(format!("Unsupported platform: {}", OS))),
   };
 
   // Move binaries
   rename(&ffmpeg, binary_folder.join(ffmpeg.file_name().ok_or(())?))?;
-  rename(&ffplay, binary_folder.join(ffplay.file_name().ok_or(())?))?;
+  
   if ffprobe.exists() {
-    // Only included in Windows builds
     rename(&ffprobe, binary_folder.join(ffprobe.file_name().ok_or(())?))?;
+  }
+  
+  if ffplay.exists() {
+    rename(&ffplay, binary_folder.join(ffplay.file_name().ok_or(())?))?;
   }
 
   // Delete archive and unpacked files
-  remove_dir_all(&temp_folder)?;
-  remove_file(from_archive)?;
+  if temp_folder.exists() {
+    remove_dir_all(&temp_folder)?;
+  }
+
+  if from_archive.exists() {
+    remove_file(from_archive)?;
+  }
 
   Ok(())
 }
