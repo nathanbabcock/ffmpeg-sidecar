@@ -113,7 +113,8 @@ pub fn curl_to_file(url: &str, destination: &str) -> Result<ExitStatus> {
     .map_err(Error::from)
 }
 
-/// Check the latest version available online
+/// Makes an HTTP request to obtain the latest version available online,
+/// automatically choosing the correct URL for the current platform.
 pub fn check_latest_version() -> Result<String> {
   let manifest_url = match OS {
     "linux" => Ok(LINUX_VERSION),
@@ -133,7 +134,7 @@ pub fn check_latest_version() -> Result<String> {
   }
 }
 
-/// Gets the URL to the latest publish FFmpeg release, automatically detecting the platform.
+/// Gets the URL to the latest published FFmpeg release, automatically detecting the platform.
 pub fn package_url() -> Result<&'static str> {
   if ARCH != "x86_64" {
     return Err(Error::msg(format!("Unsupported architecture: {}", ARCH)));
@@ -147,7 +148,7 @@ pub fn package_url() -> Result<&'static str> {
   }
 }
 
-/// Downloads an archive (ZIP on windows, TAR on linux and mac)
+/// Invoke `curl` to download an archive (ZIP on windows, TAR on linux and mac)
 /// from the latest published release online.
 pub fn download_ffmpeg_package(url: &str, download_dir: &PathBuf) -> Result<PathBuf> {
   let filename = Path::new(url)
