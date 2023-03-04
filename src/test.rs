@@ -1,5 +1,6 @@
 use crate::{
-  command::FfmpegCommand, download::ffmpeg_is_installed, event::FfmpegEvent,
+  command::{ffmpeg_is_installed, FfmpegCommand},
+  event::FfmpegEvent,
   version::ffmpeg_version,
 };
 
