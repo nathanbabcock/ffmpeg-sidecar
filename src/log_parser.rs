@@ -395,6 +395,7 @@ pub fn try_parse_progress(mut string: &str) -> Option<FfmpegProgress> {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::paths::ffmpeg_path;
   use std::{
     io::{Cursor, Seek, SeekFrom, Write},
     process::{Command, Stdio},
@@ -402,7 +403,7 @@ mod tests {
 
   #[test]
   fn test_parse_version() {
-    let cmd = Command::new("ffmpeg")
+    let cmd = Command::new(ffmpeg_path())
       .arg("-version")
       .stdout(Stdio::piped())
       // ⚠ notice that ffmpeg emits on stdout when `-version` or `-help` is passed!
@@ -422,7 +423,7 @@ mod tests {
 
   #[test]
   fn test_parse_configuration() {
-    let cmd = Command::new("ffmpeg")
+    let cmd = Command::new(ffmpeg_path())
       .arg("-version")
       .stdout(Stdio::piped())
       // ⚠ notice that ffmpeg emits on stdout when `-version` or `-help` is passed!

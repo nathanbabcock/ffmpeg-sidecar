@@ -2,18 +2,20 @@ use crate::{
   error::{Error, Result},
   event::FfmpegEvent,
   log_parser::FfmpegLogParser,
+  paths::ffmpeg_path,
 };
 use std::process::{Command, Stdio};
+use std::ffi::OsStr;
 
 /// Alias for `ffmpeg -version`, parsing the version number and returning it.
 pub fn ffmpeg_version() -> Result<String> {
-  ffmpeg_version_with_exe("ffmpeg")
+  ffmpeg_version_with_path(ffmpeg_path())
 }
 
 /// Lower level variant of `ffmpeg_version` that exposes a customized the path
 /// to the ffmpeg binary.
-pub fn ffmpeg_version_with_exe(exe: &str) -> Result<String> {
-  let mut cmd = Command::new(exe)
+pub fn ffmpeg_version_with_path<S: AsRef<OsStr>>(path: S) -> Result<String> {
+  let mut cmd = Command::new(&path)
     .arg("-version")
     .stdout(Stdio::piped()) // not stderr when calling `-version`
     .spawn()?;
