@@ -1,15 +1,15 @@
 use std::{
-  env::{
-    consts::{ARCH, OS},
-    current_exe,
-  },
+  env::consts::{ARCH, OS},
   fs::{create_dir_all, read_dir, remove_dir_all, remove_file, rename},
   io::Read,
   path::{Path, PathBuf},
   process::{Command, ExitStatus, Stdio},
 };
 
-use crate::error::{Error, Result};
+use crate::{
+  error::{Error, Result},
+  paths::sidecar_dir,
+};
 
 pub const LINUX_VERSION: &str = "https://johnvansickle.com/ffmpeg/release-readme.txt";
 pub const WINDOWS_VERSION: &str = "https://www.gyan.dev/ffmpeg/builds/release-version";
@@ -34,8 +34,8 @@ pub fn auto_download() -> Result<()> {
     return Ok(());
   }
 
-  let download_url = get_package_url()?;
-  let destination = get_download_dir()?;
+  let download_url = package_url()?;
+  let destination = sidecar_dir()?;
   let archive_path = download_ffmpeg_package(download_url, &destination)?;
   unpack_ffmpeg(&archive_path, &destination)?;
 
@@ -133,7 +133,7 @@ pub fn check_latest_version() -> Result<String> {
 }
 
 /// Gets the URL to the latest publish FFmpeg release, automatically detecting the platform.
-pub fn get_package_url() -> Result<&'static str> {
+pub fn package_url() -> Result<&'static str> {
   if ARCH != "x86_64" {
     return Err(Error::msg(format!("Unsupported architecture: {}", ARCH)));
   }
@@ -144,14 +144,6 @@ pub fn get_package_url() -> Result<&'static str> {
     "macos" => Ok(MACOS_DOWNLOAD),
     _ => Err(Error::msg(format!("Unsupported platform: {}", OS))),
   }
-}
-
-/// By default, downloads all temporary files to the same directory as the Rust executable.
-pub fn get_download_dir() -> Result<PathBuf> {
-  current_exe()?
-    .parent()
-    .ok_or_else(|| Error::from(()))
-    .map(|p| p.to_owned())
 }
 
 /// Downloads an archive (ZIP on windows, TAR on linux and mac)
@@ -210,19 +202,19 @@ pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &PathBuf) -> Result<
     ),
     "linux" | "macos" => (
       (&inner_folder).path().join("./ffmpeg"),
-      (&inner_folder).path().join("./ffplay"),// <- this typically only exists in Windows builds
-      (&inner_folder).path().join("./ffprobe"), 
+      (&inner_folder).path().join("./ffplay"), // <- this typically only exists in Windows builds
+      (&inner_folder).path().join("./ffprobe"),
     ),
     _ => return Err(Error::msg(format!("Unsupported platform: {}", OS))),
   };
 
   // Move binaries
   rename(&ffmpeg, binary_folder.join(ffmpeg.file_name().ok_or(())?))?;
-  
+
   if ffprobe.exists() {
     rename(&ffprobe, binary_folder.join(ffprobe.file_name().ok_or(())?))?;
   }
-  
+
   if ffplay.exists() {
     rename(&ffplay, binary_folder.join(ffplay.file_name().ok_or(())?))?;
   }
