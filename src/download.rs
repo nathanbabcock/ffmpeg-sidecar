@@ -25,7 +25,7 @@ pub const UNPACK_DIR: &str = "ffmpeg_release_temp";
 /// Example input: https://evermeet.cx/ffmpeg/info/ffmpeg/release
 ///
 /// ```rust
-/// use ffmpeg_sidecar::auto_download::{curl, parse_macos_version, MACOS_VERSION};
+/// use ffmpeg_sidecar::download::{curl, parse_macos_version, MACOS_VERSION};
 /// let json_string = curl(MACOS_VERSION).unwrap();
 /// assert!(parse_macos_version(&json_string).is_some());
 /// ```
@@ -44,7 +44,7 @@ pub fn parse_macos_version(version: &str) -> Option<String> {
 /// Example input: https://johnvansickle.com/ffmpeg/release-readme.txt
 ///
 /// ```rust
-/// use ffmpeg_sidecar::auto_download::{curl, parse_linux_version, LINUX_VERSION};
+/// use ffmpeg_sidecar::download::{curl, parse_linux_version, LINUX_VERSION};
 /// let text_file = curl(LINUX_VERSION).unwrap();
 /// assert!(parse_linux_version(&text_file).is_some());
 /// ```

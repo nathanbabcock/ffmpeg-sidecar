@@ -43,3 +43,4 @@ pub mod iter;
 pub mod log_parser;
 pub mod pix_fmt;
 pub mod read_until_any;
+pub mod version;
