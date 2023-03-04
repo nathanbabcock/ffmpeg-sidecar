@@ -1,7 +1,12 @@
-use crate::{command::FfmpegCommand, event::FfmpegEvent};
+use crate::{auto_download::ffmpeg_is_installed, command::FfmpegCommand, event::FfmpegEvent};
 
 fn approx_eq(a: f32, b: f32, error: f32) -> bool {
   (a - b).abs() < error
+}
+
+#[test]
+fn test_installed() {
+  assert!(ffmpeg_is_installed());
 }
 
 #[test]
