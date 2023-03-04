@@ -28,7 +28,6 @@ fn main() -> Result<()> {
   // platform.
   let download_url = get_package_url()?;
   let destination = get_download_dir()?;
-  let temp_folder = get_unpack_dirname();
 
   // By default the download will use a `curl` command. You could also write
   // your own download function and use another package like `reqwest` instead.
@@ -37,7 +36,7 @@ fn main() -> Result<()> {
 
   // Extraction uses `tar` on all platforms (available in Windows since version 1803)
   println!("Extracting...");
-  unpack_ffmpeg(&archive_path, &temp_folder, &destination)?;
+  unpack_ffmpeg(&archive_path, &destination)?;
 
   // Use the freshly installed FFmpeg to check the version number
   let version = ffmpeg_version()?;

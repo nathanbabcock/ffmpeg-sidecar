@@ -36,9 +36,8 @@ pub fn auto_download() -> Result<()> {
 
   let download_url = get_package_url()?;
   let destination = get_download_dir()?;
-  let temp_folder = get_unpack_dirname();
   let archive_path = download_ffmpeg_package(download_url, &destination)?;
-  unpack_ffmpeg(&archive_path, &temp_folder, &destination)?;
+  unpack_ffmpeg(&archive_path, &destination)?;
 
   match ffmpeg_is_installed() {
     false => Err(Error::msg(
@@ -182,19 +181,18 @@ pub fn get_unpack_dirname() -> PathBuf {
 
 /// After downloading, unpacks the archive to a folder, moves the binaries to
 /// their final location, and deletes the archive and temporary folder.
-pub fn unpack_ffmpeg(
-  from_archive: &PathBuf,
-  temp_folder: &PathBuf,
-  binary_folder: &PathBuf,
-) -> Result<()> {
-  create_dir_all(temp_folder)?;
+pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &PathBuf) -> Result<()> {
+  let temp_dirname = UNPACK_DIRNAME;
+  let temp_folder = binary_folder.join(temp_dirname);
+  create_dir_all(&temp_folder)?;
 
   // Extract archive
   Command::new("tar")
     .arg("-xf")
     .arg(from_archive)
-    .arg("-C")
-    .arg(temp_folder)
+    // .arg("-C")
+    // .arg(temp_dirname)
+    .current_dir(&temp_folder)
     .status()?
     .success()
     .then_some(())
@@ -203,7 +201,7 @@ pub fn unpack_ffmpeg(
   // Move binaries
   let (ffmpeg, ffplay, ffprobe) = match OS {
     "windows" => {
-      let inner_folder = read_dir(temp_folder)?
+      let inner_folder = read_dir(&temp_folder)?
         .next()
         .ok_or("Failed to get inner folder")??;
 
@@ -230,7 +228,7 @@ pub fn unpack_ffmpeg(
   rename(&ffprobe, binary_folder.join(ffprobe.file_name().ok_or(())?))?;
 
   // Delete archive and unpacked files
-  remove_dir_all(temp_folder)?;
+  remove_dir_all(&temp_folder)?;
   remove_file(from_archive)?;
 
   Ok(())
