@@ -1,13 +1,17 @@
 # FFmpeg Sidecar 🏍
 
+[Github](https://github.com/nathanbabcock/ffmpeg-sidecar) |
+[Crates.io](https://crates.io/crates/ffmpeg-sidecar) |
+[Docs.rs](https://docs.rs/ffmpeg-sidecar)
+
 > Wrap a standalone FFmpeg binary in an intuitive Iterator interface.
 
 ## Features
 
 - ✨ Zero dependencies
-- ⚡ Automatic FFmpeg CLI download (if needed)
+- ⚡ Automatically FFmpeg CLI download (if needed)
 - 🤗 Support for Windows, MacOS, and Linux
-- 🧪 Unit tested
+- 🧪 Thoroughly unit tested
 
 > 👉 Jump to [Getting Started](#getting-started) 👈
 
@@ -55,7 +59,7 @@ download it at runtime.
 
 ## Getting Started
 
-### 1. Cargo install
+### 1. Cargo Install
 
 On the Rust side, it has **zero** Cargo dependencies! 🎉
 
@@ -76,8 +80,6 @@ You can do this once to set up your dev environment, or include it as a feature
 of your client application.
 
 > To customize or extend the download behavior, see [`/examples/download_ffmpeg.rs`](/examples/download_ffmpeg.rs).
-
-
 
 ## Examples
 
