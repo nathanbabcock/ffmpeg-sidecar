@@ -7,6 +7,7 @@ use std::{
 };
 
 use crate::{
+  command::ffmpeg_is_installed,
   error::{Error, Result},
   paths::sidecar_dir,
 };
@@ -229,17 +230,4 @@ pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &PathBuf) -> Result<
   }
 
   Ok(())
-}
-
-/// Verify whether ffmpeg is installed on the system. This will return true if
-/// there is an ffmpeg binary in the PATH, or in the same directory as the Rust
-/// executable.
-pub fn ffmpeg_is_installed() -> bool {
-  Command::new("ffmpeg")
-    .arg("-version")
-    .stderr(Stdio::null())
-    .stdout(Stdio::null())
-    .status()
-    .map(|s| s.success())
-    .unwrap_or_else(|_| false)
 }

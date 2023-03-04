@@ -627,3 +627,16 @@ impl From<FfmpegCommand> for Command {
     val.inner
   }
 }
+
+/// Verify whether ffmpeg is installed on the system. This will return true if
+/// there is an ffmpeg binary in the PATH, or in the same directory as the Rust
+/// executable.
+pub fn ffmpeg_is_installed() -> bool {
+  Command::new(ffmpeg_path())
+    .arg("-version")
+    .stderr(Stdio::null())
+    .stdout(Stdio::null())
+    .status()
+    .map(|s| s.success())
+    .unwrap_or_else(|_| false)
+}
