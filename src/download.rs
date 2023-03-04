@@ -174,11 +174,6 @@ pub fn download_ffmpeg_package(url: &str, download_dir: &PathBuf) -> Result<Path
   Ok(archive_path)
 }
 
-/// By default, extracts all temporary files to a folder in the same directory as the Rust executable.
-pub fn get_unpack_dirname() -> PathBuf {
-  Path::new(UNPACK_DIRNAME).to_owned()
-}
-
 /// After downloading, unpacks the archive to a folder, moves the binaries to
 /// their final location, and deletes the archive and temporary folder.
 pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &PathBuf) -> Result<()> {
@@ -212,20 +207,26 @@ pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &PathBuf) -> Result<
         .ok_or("No top level directory inside archive")?;
 
       (
-        inner_folder.path().clone().join("bin/ffmpeg.exe"),
-        inner_folder.path().clone().join("bin/ffplay.exe"),
-        inner_folder.path().clone().join("bin/ffprobe.exe"),
+        (&inner_folder).path().join("bin/ffmpeg.exe"),
+        (&inner_folder).path().join("bin/ffplay.exe"),
+        (&inner_folder).path().join("bin/ffprobe.exe"),
       )
     }
-    "linux" => todo!(), // PR's welcome here!
-    "macos" => todo!(), // And here!
+    "linux" | "macos" => (
+      (&temp_folder).join("ffmpeg"),
+      (&temp_folder).join("ffplay"),
+      (&temp_folder).join("ffprobe"), // <- this likely won't exist, but it's ok
+    ),
     _ => return Err(Error::msg(format!("Unsupported platform: {}", OS))),
   };
 
   // Move binaries
   rename(&ffmpeg, binary_folder.join(ffmpeg.file_name().ok_or(())?))?;
   rename(&ffplay, binary_folder.join(ffplay.file_name().ok_or(())?))?;
-  rename(&ffprobe, binary_folder.join(ffprobe.file_name().ok_or(())?))?;
+  if ffprobe.exists() {
+    // Only included in Windows builds
+    rename(&ffprobe, binary_folder.join(ffprobe.file_name().ok_or(())?))?;
+  }
 
   // Delete archive and unpacked files
   remove_dir_all(&temp_folder)?;

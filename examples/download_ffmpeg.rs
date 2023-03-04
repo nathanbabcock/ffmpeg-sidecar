@@ -1,7 +1,7 @@
 use ffmpeg_sidecar::{
   download::{
     check_latest_version, download_ffmpeg_package, ffmpeg_is_installed, get_download_dir,
-    get_package_url, get_unpack_dirname, unpack_ffmpeg,
+    get_package_url, unpack_ffmpeg,
   },
   error::Result,
   version::ffmpeg_version,
