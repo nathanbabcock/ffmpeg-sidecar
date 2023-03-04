@@ -1,5 +1,8 @@
 use std::{
-  env::{consts::OS, current_exe},
+  env::{
+    consts::{ARCH, OS},
+    current_exe,
+  },
   fs::{create_dir_all, read_dir, remove_dir_all, remove_file, rename},
   io::Read,
   path::{Path, PathBuf},
@@ -18,7 +21,32 @@ pub const WINDOWS_DOWNLOAD: &str =
   "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip";
 pub const MACOS_DOWNLOAD: &str = "https://evermeet.cx/ffmpeg/getrelease";
 
-pub const UNPACK_DIR: &str = "ffmpeg_release_temp";
+pub const UNPACK_DIRNAME: &str = "ffmpeg_release_temp";
+
+/// Check if FFmpeg is installed, and if it's not, download and unpack it.
+/// Automatically selects the correct binaries for Windows, Linux, and MacOS.
+/// The binaries will be placed in the same directory as the Rust executable.
+///
+/// If FFmpeg is already installed, the method exits early without downloading
+/// anything.
+pub fn auto_download() -> Result<()> {
+  if ffmpeg_is_installed() {
+    return Ok(());
+  }
+
+  let download_url = get_package_url()?;
+  let destination = get_download_dir()?;
+  let temp_folder = get_unpack_dirname();
+  let archive_path = download_ffmpeg_package(download_url, &destination)?;
+  unpack_ffmpeg(&archive_path, &temp_folder, &destination)?;
+
+  match ffmpeg_is_installed() {
+    false => Err(Error::msg(
+      "FFmpeg failed to install, please install manually.",
+    )),
+    true => Ok(()),
+  }
+}
 
 /// Parse the the MacOS version number from a JSON string
 ///
@@ -77,10 +105,10 @@ pub fn curl(url: &str) -> Result<String> {
 }
 
 /// Invoke cURL on the command line to download a file, writing to a file.
-pub fn curl_to_file(url: &str, filename: &str) -> Result<ExitStatus> {
+pub fn curl_to_file(url: &str, destination: &str) -> Result<ExitStatus> {
   Command::new("curl")
     .args(["-L", url])
-    .args(["-o", filename])
+    .args(["-o", destination])
     .status()
     .map_err(Error::from)
 }
@@ -105,12 +133,17 @@ pub fn check_latest_version() -> Result<String> {
   }
 }
 
-pub fn get_download_url() -> Option<&'static str> {
+/// Gets the URL to the latest publish FFmpeg release, automatically detecting the platform.
+pub fn get_package_url() -> Result<&'static str> {
+  if ARCH != "x86_64" {
+    return Err(Error::msg(format!("Unsupported architecture: {}", ARCH)));
+  }
+
   match OS {
-    "linux" => Some(LINUX_DOWNLOAD),
-    "windows" => Some(WINDOWS_DOWNLOAD),
-    "macos" => Some(MACOS_DOWNLOAD),
-    _ => None,
+    "linux" => Ok(LINUX_DOWNLOAD),
+    "windows" => Ok(WINDOWS_DOWNLOAD),
+    "macos" => Ok(MACOS_DOWNLOAD),
+    _ => Err(Error::msg(format!("Unsupported platform: {}", OS))),
   }
 }
 
@@ -124,16 +157,16 @@ pub fn get_download_dir() -> Result<PathBuf> {
 
 /// Downloads an archive (ZIP on windows, TAR on linux and mac)
 /// from the latest published release online.
-pub fn download_ffmpeg_package() -> Result<PathBuf> {
-  let url = get_download_url().ok_or(Error::msg("Unsupported platform"))?;
-
+pub fn download_ffmpeg_package(url: &str, download_dir: &PathBuf) -> Result<PathBuf> {
   let filename = Path::new(url)
     .file_name()
     .ok_or(Error::msg("Failed to get filename"))?;
 
-  let archive_path = get_download_dir()?.join(filename);
+  let archive_path = download_dir.join(filename);
 
-  let exit_status = curl_to_file(url, archive_path.to_str().ok_or("invalid download path")?)?;
+  let archive_filename = archive_path.to_str().ok_or("invalid download path")?;
+
+  let exit_status = curl_to_file(url, archive_filename)?;
 
   if !exit_status.success() {
     return Err(Error::msg("Failed to download ffmpeg"));
@@ -142,25 +175,35 @@ pub fn download_ffmpeg_package() -> Result<PathBuf> {
   Ok(archive_path)
 }
 
-/// After downloading, unpacks the archive, moves the binaries, and cleans up.
-pub fn unpack_ffmpeg(archive_path: &PathBuf) -> Result<()> {
-  create_dir_all(UNPACK_DIR)?;
+/// By default, extracts all temporary files to a folder in the same directory as the Rust executable.
+pub fn get_unpack_dirname() -> PathBuf {
+  Path::new(UNPACK_DIRNAME).to_owned()
+}
+
+/// After downloading, unpacks the archive to a folder, moves the binaries to
+/// their final location, and deletes the archive and temporary folder.
+pub fn unpack_ffmpeg(
+  from_archive: &PathBuf,
+  temp_folder: &PathBuf,
+  binary_folder: &PathBuf,
+) -> Result<()> {
+  create_dir_all(temp_folder)?;
 
   // Extract archive
   Command::new("tar")
     .arg("-xf")
-    .arg(archive_path.to_str().ok_or("invalid archive path")?)
-    .args(["-C", UNPACK_DIR])
+    .arg(from_archive)
+    .arg("-C")
+    .arg(temp_folder)
     .status()?
     .success()
     .then_some(())
     .ok_or("Failed to unpack ffmpeg")?;
 
   // Move binaries
-  let download_dir = get_download_dir()?;
   let (ffmpeg, ffplay, ffprobe) = match OS {
     "windows" => {
-      let inner_folder = read_dir(UNPACK_DIR)?
+      let inner_folder = read_dir(temp_folder)?
         .next()
         .ok_or("Failed to get inner folder")??;
 
@@ -182,13 +225,13 @@ pub fn unpack_ffmpeg(archive_path: &PathBuf) -> Result<()> {
   };
 
   // Move binaries
-  rename(&ffmpeg, download_dir.join(ffmpeg.file_name().ok_or(())?))?;
-  rename(&ffplay, download_dir.join(ffplay.file_name().ok_or(())?))?;
-  rename(&ffprobe, download_dir.join(ffprobe.file_name().ok_or(())?))?;
+  rename(&ffmpeg, binary_folder.join(ffmpeg.file_name().ok_or(())?))?;
+  rename(&ffplay, binary_folder.join(ffplay.file_name().ok_or(())?))?;
+  rename(&ffprobe, binary_folder.join(ffprobe.file_name().ok_or(())?))?;
 
   // Delete archive and unpacked files
-  remove_dir_all(UNPACK_DIR)?;
-  remove_file(archive_path)?;
+  remove_dir_all(temp_folder)?;
+  remove_file(from_archive)?;
 
   Ok(())
 }
@@ -204,20 +247,4 @@ pub fn ffmpeg_is_installed() -> bool {
     .status()
     .map(|s| s.success())
     .unwrap_or_else(|_| false)
-}
-
-/// Check if FFmpeg is installed, and if it's not, download and unpack it.
-/// Automatically selects the correct binaries for Windows, Linux, and MacOS.
-/// The binaries will be placed in the same directory as the Rust executable.
-///
-/// If FFmpeg is already installed, the method exits early without downloading
-/// anything.
-pub fn auto_download() -> Result<()> {
-  if ffmpeg_is_installed() {
-    return Ok(());
-  }
-
-  let filename = download_ffmpeg_package()?;
-  unpack_ffmpeg(&filename)?;
-  Ok(())
 }
