@@ -9,7 +9,7 @@
 ## Features
 
 - ✨ Zero dependencies
-- ⚡ Automatically FFmpeg CLI download (if needed)
+- ⚡ Automatic FFmpeg CLI download (if needed)
 - 🤗 Support for Windows, MacOS, and Linux
 - 🧪 Thoroughly unit tested
 
@@ -79,7 +79,7 @@ ffmpeg_sidecar::download::auto_download().unwrap();
 You can do this once to set up your dev environment, or include it as a feature
 of your client application.
 
-> To customize or extend the download behavior, see [`/examples/download_ffmpeg.rs`](/examples/download_ffmpeg.rs).
+> To customize or extend the download, see [`/examples/download_ffmpeg.rs`](/examples/download_ffmpeg.rs).
 
 ## Examples
 
