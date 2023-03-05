@@ -12,6 +12,7 @@ use crate::{
   paths::sidecar_dir,
 };
 
+// TODO: detect OS at compile time, not runtime
 pub const LINUX_VERSION: &str = "https://johnvansickle.com/ffmpeg/release-readme.txt";
 pub const WINDOWS_VERSION: &str = "https://www.gyan.dev/ffmpeg/builds/release-version";
 pub const MACOS_VERSION: &str = "https://evermeet.cx/ffmpeg/info/ffmpeg/release";
@@ -53,9 +54,10 @@ pub fn auto_download() -> Result<()> {
 /// Example input: https://evermeet.cx/ffmpeg/info/ffmpeg/release
 ///
 /// ```rust
-/// use ffmpeg_sidecar::download::{curl, parse_macos_version, MACOS_VERSION};
-/// let json_string = curl(MACOS_VERSION).unwrap();
-/// assert!(parse_macos_version(&json_string).is_some());
+/// use ffmpeg_sidecar::download::parse_macos_version;
+/// let json_string = "{\"name\":\"ffmpeg\",\"type\":\"release\",\"version\":\"6.0\",...}";
+/// let parsed = parse_macos_version(&json_string).unwrap();
+/// assert!(parsed == "6.0");
 /// ```
 pub fn parse_macos_version(version: &str) -> Option<String> {
   version
@@ -63,7 +65,7 @@ pub fn parse_macos_version(version: &str) -> Option<String> {
     .nth(1)?
     .trim()
     .split("\"")
-    .next()
+    .nth(1)
     .map(|s| s.to_string())
 }
 
@@ -72,15 +74,16 @@ pub fn parse_macos_version(version: &str) -> Option<String> {
 /// Example input: https://johnvansickle.com/ffmpeg/release-readme.txt
 ///
 /// ```rust
-/// use ffmpeg_sidecar::download::{curl, parse_linux_version, LINUX_VERSION};
-/// let text_file = curl(LINUX_VERSION).unwrap();
-/// assert!(parse_linux_version(&text_file).is_some());
+/// use ffmpeg_sidecar::download::parse_linux_version;
+/// let json_string = "build: ffmpeg-5.1.1-amd64-static.tar.xz\nversion: 5.1.1\n\ngcc: 8.3.0";
+/// let parsed = parse_linux_version(&json_string).unwrap();
+/// assert!(parsed == "5.1.1");
 /// ```
 pub fn parse_linux_version(version: &str) -> Option<String> {
   version
     .split("version:")
     .nth(1)?
-    .trim()
+    .trim_start()
     .split_whitespace()
     .next()
     .map(|s| s.to_string())
@@ -179,8 +182,6 @@ pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &PathBuf) -> Result<
   Command::new("tar")
     .arg("-xf")
     .arg(from_archive)
-    // .arg("-C")
-    // .arg(temp_dirname)
     .current_dir(&temp_folder)
     .status()?
     .success()
