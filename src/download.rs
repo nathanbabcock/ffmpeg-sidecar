@@ -1,5 +1,4 @@
 use std::{
-  env::consts::{ARCH, OS},
   fs::{create_dir_all, read_dir, remove_dir_all, remove_file, rename},
   io::Read,
   path::{Path, PathBuf},
@@ -12,18 +11,47 @@ use crate::{
   paths::sidecar_dir,
 };
 
-// TODO: detect OS at compile time, not runtime
-pub const LINUX_VERSION: &str = "https://johnvansickle.com/ffmpeg/release-readme.txt";
-pub const WINDOWS_VERSION: &str = "https://www.gyan.dev/ffmpeg/builds/release-version";
-pub const MACOS_VERSION: &str = "https://evermeet.cx/ffmpeg/info/ffmpeg/release";
-
-pub const LINUX_DOWNLOAD: &str =
-  "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz";
-pub const WINDOWS_DOWNLOAD: &str =
-  "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip";
-pub const MACOS_DOWNLOAD: &str = "https://evermeet.cx/ffmpeg/getrelease";
-
 pub const UNPACK_DIRNAME: &str = "ffmpeg_release_temp";
+
+/// URL of a manifest file containing the latest published build of FFmpeg. The
+/// correct URL for the target platform is baked in at compile time.
+pub fn ffmpeg_manifest_url() -> Result<&'static str> {
+  if cfg!(not(target_arch = "x86_64")) {
+    return Err(Error::msg(
+      "Downloads must be manually provided for non-x86_64 architectures",
+    ));
+  }
+
+  if cfg!(target_os = "windows") {
+    Ok("https://www.gyan.dev/ffmpeg/builds/release-version")
+  } else if cfg!(target_os = "macos") {
+    Ok("https://evermeet.cx/ffmpeg/info/ffmpeg/release")
+  } else if cfg!(target_os = "linux") {
+    Ok("https://johnvansickle.com/ffmpeg/release-readme.txt")
+  } else {
+    Err(Error::msg("Unsupported platform"))
+  }
+}
+
+/// URL for the latest published FFmpeg release. The correct URL for the target
+/// platform is baked in at compile time.
+pub fn ffmpeg_download_url() -> Result<&'static str> {
+  if cfg!(not(target_arch = "x86_64")) {
+    return Err(Error::msg(
+      "Downloads must be manually provided for non-x86_64 architectures",
+    ));
+  }
+
+  if cfg!(target_os = "windows") {
+    Ok("https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip")
+  } else if cfg!(target_os = "macos") {
+    Ok("https://evermeet.cx/ffmpeg/getrelease")
+  } else if cfg!(target_os = "linux") {
+    Ok("https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz")
+  } else {
+    Err(Error::msg("Unsupported platform"))
+  }
+}
 
 /// Check if FFmpeg is installed, and if it's not, download and unpack it.
 /// Automatically selects the correct binaries for Windows, Linux, and MacOS.
@@ -36,7 +64,7 @@ pub fn auto_download() -> Result<()> {
     return Ok(());
   }
 
-  let download_url = package_url()?;
+  let download_url = ffmpeg_download_url()?;
   let destination = sidecar_dir()?;
   let archive_path = download_ffmpeg_package(download_url, &destination)?;
   unpack_ffmpeg(&archive_path, &destination)?;
@@ -49,7 +77,7 @@ pub fn auto_download() -> Result<()> {
   }
 }
 
-/// Parse the the MacOS version number from a JSON string
+/// Parse the the MacOS version number from a JSON string manifest file.
 ///
 /// Example input: https://evermeet.cx/ffmpeg/info/ffmpeg/release
 ///
@@ -69,7 +97,7 @@ pub fn parse_macos_version(version: &str) -> Option<String> {
     .map(|s| s.to_string())
 }
 
-/// Parse the the Linux version number from a long text file.
+/// Parse the the Linux version number from a long manifest text file.
 ///
 /// Example input: https://johnvansickle.com/ffmpeg/release-readme.txt
 ///
@@ -119,35 +147,16 @@ pub fn curl_to_file(url: &str, destination: &str) -> Result<ExitStatus> {
 /// Makes an HTTP request to obtain the latest version available online,
 /// automatically choosing the correct URL for the current platform.
 pub fn check_latest_version() -> Result<String> {
-  let manifest_url = match OS {
-    "linux" => Ok(LINUX_VERSION),
-    "windows" => Ok(WINDOWS_VERSION),
-    "macos" => Ok(MACOS_VERSION),
-    _ => Err(Error::msg(format!("Unsupported platform: {}", OS))),
-  }?;
+  let string = curl(ffmpeg_manifest_url()?)?;
 
-  println!("Using url: {}", manifest_url);
-  let string = curl(manifest_url)?;
-
-  match OS {
-    "linux" => Ok(parse_linux_version(&string).ok_or(Error::msg("failed to parse linux version"))?),
-    "windows" => Ok(string),
-    "macos" => Ok(parse_macos_version(&string).ok_or(Error::msg("failed to parse macos version"))?),
-    _ => Err(Error::msg(format!("Unsupported platform: {}", OS))),
-  }
-}
-
-/// Gets the URL to the latest published FFmpeg release, automatically detecting the platform.
-pub fn package_url() -> Result<&'static str> {
-  if ARCH != "x86_64" {
-    return Err(Error::msg(format!("Unsupported architecture: {}", ARCH)));
-  }
-
-  match OS {
-    "linux" => Ok(LINUX_DOWNLOAD),
-    "windows" => Ok(WINDOWS_DOWNLOAD),
-    "macos" => Ok(MACOS_DOWNLOAD),
-    _ => Err(Error::msg(format!("Unsupported platform: {}", OS))),
+  if cfg!(target_os = "windows") {
+    Ok(string)
+  } else if cfg!(target_os = "macos") {
+    Ok(parse_macos_version(&string).ok_or("failed to parse version number (macos variant)")?)
+  } else if cfg!(target_os = "linux") {
+    Ok(parse_linux_version(&string).ok_or("failed to parse version number (linux variant)")?)
+  } else {
+    Err(Error::msg("Unsupported platform"))
   }
 }
 
@@ -197,18 +206,20 @@ pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &PathBuf) -> Result<
     return Err(Error::msg("No top level directory inside archive"));
   }
 
-  let (ffmpeg, ffplay, ffprobe) = match OS {
-    "windows" => (
+  let (ffmpeg, ffplay, ffprobe) = if cfg!(target_os = "windows") {
+    (
       (&inner_folder).path().join("bin/ffmpeg.exe"),
       (&inner_folder).path().join("bin/ffplay.exe"),
       (&inner_folder).path().join("bin/ffprobe.exe"),
-    ),
-    "linux" | "macos" => (
+    )
+  } else if cfg!(any(target_os = "linux", target_os = "macos")) {
+    (
       (&inner_folder).path().join("./ffmpeg"),
       (&inner_folder).path().join("./ffplay"), // <- this typically only exists in Windows builds
       (&inner_folder).path().join("./ffprobe"),
-    ),
-    _ => return Err(Error::msg(format!("Unsupported platform: {}", OS))),
+    )
+  } else {
+    return Err(Error::msg("Unsupported platform"));
   };
 
   // Move binaries
