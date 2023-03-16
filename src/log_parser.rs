@@ -83,8 +83,10 @@ impl<R: Read> FfmpegLogParser<R> {
           Ok(FfmpegEvent::LogInfo(line.to_string()))
         } else if line.starts_with("[warning]") {
           Ok(FfmpegEvent::LogWarning(line.to_string()))
-        } else if line.starts_with("[error]") || line.starts_with("[fatal]") {
+        } else if line.starts_with("[error]") {
           Ok(FfmpegEvent::LogError(line.to_string()))
+        } else if line.starts_with("[fatal]") {
+          Ok(FfmpegEvent::LogFatal(line.to_string()))
         } else {
           Ok(FfmpegEvent::LogUnknown(line.to_string()))
         }

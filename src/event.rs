@@ -9,6 +9,7 @@ pub enum FfmpegEvent {
   LogInfo(String),
   LogWarning(String),
   LogError(String),
+  LogFatal(String),
   LogUnknown(String),
   LogEOF,
   /// An error that didn't originate from the ffmpeg logs
