@@ -9,7 +9,7 @@ use std::{
 use crate::{
   child::FfmpegChild,
   error::{Error, Result},
-  event::{AVStream, FfmpegEvent, FfmpegOutput, FfmpegProgress, OutputVideoFrame},
+  event::{AVStream, FfmpegEvent, FfmpegOutput, FfmpegProgress, LogLevel, OutputVideoFrame},
   log_parser::FfmpegLogParser,
   pix_fmt::get_bytes_per_frame,
 };
@@ -73,7 +73,7 @@ impl FfmpegIterator {
   /// Returns an iterator over error messages (`FfmpegEvent::Error` and `FfmpegEvent::LogError`).
   pub fn filter_errors(self) -> impl Iterator<Item = String> {
     self.filter_map(|event| match event {
-      FfmpegEvent::Error(e) | FfmpegEvent::LogError(e) => Some(e),
+      FfmpegEvent::Error(e) | FfmpegEvent::Log(LogLevel::Error, e) => Some(e),
       _ => None,
     })
   }
@@ -112,11 +112,7 @@ impl FfmpegIterator {
       FfmpegEvent::ParsedOutput(x) => Some(x.raw_log_message),
       FfmpegEvent::ParsedInputStream(x) => Some(x.raw_log_message),
       FfmpegEvent::ParsedOutputStream(x) => Some(x.raw_log_message),
-      FfmpegEvent::LogInfo(x) => Some(x),
-      FfmpegEvent::LogWarning(x) => Some(x),
-      FfmpegEvent::LogError(x) => Some(x),
-      FfmpegEvent::LogFatal(x) => Some(x),
-      FfmpegEvent::LogUnknown(x) => Some(x),
+      FfmpegEvent::Log(_, x) => Some(x),
       FfmpegEvent::LogEOF => None,
       FfmpegEvent::Error(_) => None,
       FfmpegEvent::Progress(x) => Some(x.raw_log_message),

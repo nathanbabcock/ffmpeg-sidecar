@@ -1,6 +1,9 @@
 use std::{io::Write, path::Path, thread};
 
-use ffmpeg_sidecar::{command::FfmpegCommand, event::FfmpegEvent};
+use ffmpeg_sidecar::{
+  command::FfmpegCommand,
+  event::{FfmpegEvent, LogLevel},
+};
 
 /// 1. Read an H265 source video from file
 /// 2. Decode video
@@ -59,7 +62,7 @@ fn main() {
 
   // On the main thread, run the output instance to completion
   output.iter().unwrap().for_each(|e| match e {
-    FfmpegEvent::LogError(e) => println!("Error: {}", e),
+    FfmpegEvent::Log(LogLevel::Error, e) => println!("Error: {}", e),
     FfmpegEvent::Progress(p) => println!("Progress: {} / 00:00:15", p.time),
     _ => {}
   });
@@ -76,7 +79,7 @@ fn create_h265_source(path_str: &str) {
     .iter()
     .unwrap()
     .for_each(|e| match e {
-      FfmpegEvent::LogError(e) => println!("Error: {}", e),
+      FfmpegEvent::Log(LogLevel::Error, e) => println!("Error: {}", e),
       FfmpegEvent::Progress(p) => println!("Progress: {} / 00:00:15", p.time),
       _ => {}
     });

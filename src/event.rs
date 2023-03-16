@@ -6,11 +6,7 @@ pub enum FfmpegEvent {
   ParsedOutput(FfmpegOutput),
   ParsedInputStream(AVStream),
   ParsedOutputStream(AVStream),
-  LogInfo(String),
-  LogWarning(String),
-  LogError(String),
-  LogFatal(String),
-  LogUnknown(String),
+  Log(LogLevel, String),
   LogEOF,
   /// An error that didn't originate from the ffmpeg logs
   Error(String),
@@ -22,6 +18,15 @@ pub enum FfmpegEvent {
   /// another FFmpeg instance.
   OutputChunk(Vec<u8>),
   Done,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum LogLevel {
+  Info,
+  Warning,
+  Error,
+  Fatal,
+  Unknown,
 }
 
 #[derive(Debug, Clone, PartialEq)]
