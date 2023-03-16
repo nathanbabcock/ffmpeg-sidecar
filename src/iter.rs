@@ -115,6 +115,7 @@ impl FfmpegIterator {
       FfmpegEvent::LogInfo(x) => Some(x),
       FfmpegEvent::LogWarning(x) => Some(x),
       FfmpegEvent::LogError(x) => Some(x),
+      FfmpegEvent::LogFatal(x) => Some(x),
       FfmpegEvent::LogUnknown(x) => Some(x),
       FfmpegEvent::LogEOF => None,
       FfmpegEvent::Error(_) => None,
