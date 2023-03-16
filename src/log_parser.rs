@@ -8,6 +8,7 @@ use crate::{
   error::{Error, Result},
   event::{
     AVStream, FfmpegConfiguration, FfmpegEvent, FfmpegOutput, FfmpegProgress, FfmpegVersion,
+    LogLevel,
   },
   read_until_any::read_until_any,
 };
@@ -80,15 +81,15 @@ impl<R: Read> FfmpegLogParser<R> {
           self.cur_section = LogSection::Other;
           Ok(FfmpegEvent::Progress(progress))
         } else if line.contains("[info]") {
-          Ok(FfmpegEvent::LogInfo(line.to_string()))
+          Ok(FfmpegEvent::Log(LogLevel::Info, line.to_string()))
         } else if line.contains("[warning]") {
-          Ok(FfmpegEvent::LogWarning(line.to_string()))
+          Ok(FfmpegEvent::Log(LogLevel::Warning, line.to_string()))
         } else if line.contains("[error]") {
-          Ok(FfmpegEvent::LogError(line.to_string()))
+          Ok(FfmpegEvent::Log(LogLevel::Error, line.to_string()))
         } else if line.contains("[fatal]") {
-          Ok(FfmpegEvent::LogFatal(line.to_string()))
+          Ok(FfmpegEvent::Log(LogLevel::Fatal, line.to_string()))
         } else {
-          Ok(FfmpegEvent::LogUnknown(line.to_string()))
+          Ok(FfmpegEvent::Log(LogLevel::Unknown, line.to_string()))
         }
       }
       Err(e) => Err(Error::from_std(e)),
