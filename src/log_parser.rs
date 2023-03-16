@@ -79,13 +79,13 @@ impl<R: Read> FfmpegLogParser<R> {
         } else if let Some(progress) = try_parse_progress(line) {
           self.cur_section = LogSection::Other;
           Ok(FfmpegEvent::Progress(progress))
-        } else if line.starts_with("[info]") {
+        } else if line.contains("[info]") {
           Ok(FfmpegEvent::LogInfo(line.to_string()))
-        } else if line.starts_with("[warning]") {
+        } else if line.contains("[warning]") {
           Ok(FfmpegEvent::LogWarning(line.to_string()))
-        } else if line.starts_with("[error]") {
+        } else if line.contains("[error]") {
           Ok(FfmpegEvent::LogError(line.to_string()))
-        } else if line.starts_with("[fatal]") {
+        } else if line.contains("[fatal]") {
           Ok(FfmpegEvent::LogFatal(line.to_string()))
         } else {
           Ok(FfmpegEvent::LogUnknown(line.to_string()))
