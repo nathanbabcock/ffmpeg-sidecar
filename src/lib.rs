@@ -3,30 +3,31 @@
 //! ## Example
 //!
 //! ```rust
-//! use ffmpeg_sidecar::{
-//!   child::FfmpegChild, command::FfmpegCommand, event::FfmpegEvent, iter::FfmpegIterator,
-//! };
+//! use ffmpeg_sidecar::{command::FfmpegCommand, error::Result, event::FfmpegEvent};
 //!
-//! // similar to `std::process::Command`
-//! let mut command = FfmpegCommand::new();
-//! command
-//!   .testsrc() // generate a test pattern video
-//!   .rawvideo(); // pipe raw video output
-//!
-//! // similar to `std::process::Child`
-//! let mut child: FfmpegChild = command.spawn().unwrap();
-//!
-//! // Iterator over all messages and output
-//! let iter: FfmpegIterator = child.iter().unwrap();
-//! iter.for_each(|event: FfmpegEvent| {
-//!   match event {
-//!     FfmpegEvent::OutputFrame(frame) => {
-//!       let _pixels = frame.data; // <- raw RGB pixels! 🎨
-//!     }
-//!     FfmpegEvent::Error(e) => eprintln!("Error: {}", e),
-//!     _ => {}
-//!   }
-//! });
+//! fn main() -> Result<()> {
+//!   FfmpegCommand::new() // <- Builder API like `std::process::Command`
+//!     .testsrc()  // <- Discoverable aliases for FFmpeg args
+//!     .rawvideo() // <- Convenient argument presets
+//!     .spawn()?   // <- Uses an ordinary `std::process::Child`
+//!     .iter()?    // <- Iterator over all log messages and video output
+//!     .for_each(|event: FfmpegEvent| {
+//!       match event {
+//!         FfmpegEvent::OutputFrame(frame) => {
+//!           println!("frame: {}x{}", frame.width, frame.height);
+//!           let _pixels: Vec<u8> = frame.data; // <- raw RGB pixels! 🎨
+//!         }
+//!         FfmpegEvent::Progress(progress) => {
+//!           eprintln!("Current speed: {}x", progress.speed); // <- parsed progress updates
+//!         }
+//!         FfmpegEvent::Log(_level, msg) => {
+//!           eprintln!("[ffmpeg] {}", msg); // <- granular log message from stderr
+//!         }
+//!         _ => {}
+//!       }
+//!     });
+//!   Ok(())
+//! }
 //! ```
 //!
 
