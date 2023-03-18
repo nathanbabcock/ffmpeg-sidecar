@@ -567,6 +567,15 @@ impl FfmpegCommand {
     self
   }
 
+  /// Disable creating a new console window for the spawned process on Windows.
+  /// Has no effect on other platforms. This can be usefull when spawning ffmpeg
+  /// from a GUI program.
+  pub fn create_no_window(&mut self) -> &mut Self {
+    #[cfg(target_os = "windows")]
+    std::os::windows::process::CommandExt::creation_flags(self.as_inner_mut(), 0x08000000);
+    self
+  }
+
   //// Constructors
   pub fn new() -> Self {
     Self::new_with_path(ffmpeg_path())
