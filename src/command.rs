@@ -563,7 +563,16 @@ impl FfmpegCommand {
   /// `&mut self` so that it chains seamlessly with other methods in the
   /// interface.
   pub fn print_command(&mut self) -> &mut Self {
-    println!("Command: {:?}", self.inner);
+    let program = self.inner.get_program().to_str();
+    let args = self
+      .inner
+      .get_args()
+      .map(|s| s.to_str())
+      .collect::<Option<Vec<_>>>();
+    if let (Some(program), Some(args)) = (program, args) {
+      println!("Command: {} {}", program, args.join(" "));
+    }
+
     self
   }
 
