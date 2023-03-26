@@ -44,9 +44,9 @@ By wrapping the CLI, this crate avoids those downsides, and also solves some of
 the pain points that you would encounter if you were to use the CLI directly on
 its own:
 
-- Raw data can easily move in and out of FFmpeg instances, or piped between them. Under the hood they
+- Raw data can easily move in and out of FFmpeg instances, or pipe between them. Under the hood they
   are moving across stdin and stdout.
-- Rich semantic information is recovered from the ffmpeg stderr logs, including:
+- Rich semantic information is recovered from the FFmpeg stderr logs, including:
   - Progress updates (frame #, timestamp, speed, bitrate, ...)
   - Input/output metadata and stream mappings
   - Warnings & errors
