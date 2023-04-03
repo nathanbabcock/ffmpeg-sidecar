@@ -188,16 +188,16 @@ pub fn spawn_stdout_thread(
         .unwrap_or(false)
     });
 
-    // Limit to exactly one non-rawvideo stream,
-    // or unlimited rawvideo streams
-    if stdout_output_streams
+    // Error on mixing rawvideo and non-rawvideo streams
+    // TODO: Maybe just revert to chunk mode if this happens?
+    let any_rawvideo = stdout_output_streams
       .clone()
-      .any(|s| s.format != "rawvideo")
-    {
-      assert!(
-        stdout_output_streams.clone().count() == 1,
-        "Only one non-rawvideo output stream can be sent to stdout",
-      );
+      .any(|s| s.format == "rawvideo");
+    let any_non_rawvideo = stdout_output_streams
+      .clone()
+      .any(|s| s.format != "rawvideo");
+    if any_rawvideo && any_non_rawvideo {
+      panic!("Cannot mix rawvideo and non-rawvideo streams");
     }
 
     // Prepare buffers
