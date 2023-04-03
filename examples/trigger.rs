@@ -51,13 +51,6 @@ impl<Root> Trigger<Root, String> {
   }
 }
 
-struct ImageTrigger;
-impl ImageTrigger {
-  fn new() -> Trigger<Image, Image> {
-    Trigger::new()
-  }
-}
-
 fn image_trigger() -> Trigger<Image, Image> {
   Trigger::new()
 }
@@ -80,5 +73,5 @@ fn main() {
   assert!(my_string == "[(asdf)]!");
 
   let _trigger = Trigger::<String, String>::new();
-  ImageTrigger::new().run(Image);
+  image_trigger().run(Image);
 }
