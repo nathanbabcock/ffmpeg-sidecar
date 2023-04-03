@@ -201,7 +201,6 @@ fn test_duration() {
     .unwrap()
     .for_each(|e| {
       if let FfmpegEvent::ParsedDuration(duration) = e {
-        println!("Duration: {:?}", duration);
         match duration_received {
           false => {
             assert!(duration.duration == 5.0);
