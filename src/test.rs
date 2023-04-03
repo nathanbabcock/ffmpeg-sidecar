@@ -190,6 +190,40 @@ fn test_chunks_with_audio() {
 }
 
 #[test]
+/// TODO This test is order-dependent, relying on input from `test_to_file`.
+/// A better implementation would be use a future `pipeTo` method to generate
+/// its input in-memory in realtime.
+fn test_duration() {
+  let mut duration_received = false;
+
+  FfmpegCommand::new()
+    .input("output/test.mp4")
+    .pipe_stdout()
+    .spawn()
+    .unwrap()
+    .iter()
+    .unwrap()
+    .for_each(|e| {
+      match &e {
+        FfmpegEvent::OutputFrame(_) | FfmpegEvent::OutputChunk(_) => {}
+        e => println!("{:?}", e),
+      }
+      if let FfmpegEvent::ParsedDuration(duration) = e {
+        println!("Duration: {:?}", duration);
+        match duration_received {
+          false => {
+            assert!(duration.duration == 10.0);
+            duration_received = true
+          }
+          true => panic!("Received multiple duration events."),
+        }
+      }
+    });
+
+  assert!(duration_received);
+}
+
+#[test]
 fn test_kill_before_iter() {
   let mut child = FfmpegCommand::new().testsrc().rawvideo().spawn().unwrap();
   child.kill().unwrap();

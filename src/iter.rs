@@ -156,6 +156,8 @@ impl FfmpegIterator {
       FfmpegEvent::OutputFrame(_) => None,
       FfmpegEvent::OutputChunk(_) => None,
       FfmpegEvent::Done => None,
+      FfmpegEvent::ParsedInput(input) => Some(input.raw_log_message),
+      FfmpegEvent::ParsedDuration(duration) => Some(duration.raw_log_message),
     })
   }
 }
