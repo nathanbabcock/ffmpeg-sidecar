@@ -186,14 +186,21 @@ fn test_chunks_with_audio() {
 }
 
 #[test]
-/// TODO This test is order-dependent, relying on input from `test_to_file`.
-/// A better implementation would be use a future `pipeTo` method to generate
-/// its input in-memory in realtime.
 fn test_duration() {
+  // Prepare the input file.
+  // TODO construct this in-memory instead of writing to disk.
+  FfmpegCommand::new()
+    .args("-f lavfi -i testsrc=duration=5:rate=1 -y output/test_duration.mp4".split(' '))
+    .spawn()
+    .unwrap()
+    .iter()
+    .unwrap()
+    .count();
+
   let mut duration_received = false;
 
   FfmpegCommand::new()
-    .input("output/test.mp4")
+    .input("output/test_duration.mp4")
     .format("mpegts")
     .pipe_stdout()
     .spawn()
@@ -216,12 +223,19 @@ fn test_duration() {
 }
 
 #[test]
-/// TODO This test is order-dependent, relying on input from `test_to_file`.
-/// A better implementation would be use a future `pipeTo` method to generate
-/// its input in-memory in realtime.
 fn test_metadata_duration() {
+  // Prepare the input file.
+  // TODO construct this in-memory instead of writing to disk.
+  FfmpegCommand::new()
+    .args("-f lavfi -i testsrc=duration=5:rate=1 -y output/test_metadata_duration.mp4".split(' '))
+    .spawn()
+    .unwrap()
+    .iter()
+    .unwrap()
+    .count();
+
   let mut child = FfmpegCommand::new()
-    .input("output/test.mp4")
+    .input("output/test_metadata_duration.mp4")
     .format("mpegts")
     .pipe_stdout()
     .spawn()
