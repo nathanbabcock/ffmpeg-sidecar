@@ -18,7 +18,7 @@ pub fn read_until_any<R: BufRead + ?Sized>(
       // NB: `memchr` crate would be faster, but it's unstable and not worth the dependency.
       let first_delim_index = available
         .iter()
-        .position(|b| delims.iter().find(|d| **d == *b).is_some());
+        .position(|b| delims.iter().any(|d| *d == *b));
 
       match first_delim_index {
         Some(i) => {

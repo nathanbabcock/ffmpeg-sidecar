@@ -1,5 +1,4 @@
 use std::{
-  collections::VecDeque,
   io::{BufReader, ErrorKind, Read},
   process::{ChildStderr, ChildStdout},
   sync::mpsc::{sync_channel, Receiver, SyncSender},
@@ -17,7 +16,18 @@ use crate::{
 /// An iterator over events from an ffmpeg process, including parsed metadata, progress, and raw video frames.
 pub struct FfmpegIterator {
   rx: Receiver<FfmpegEvent>,
-  event_queue: VecDeque<FfmpegEvent>,
+  tx: Option<SyncSender<FfmpegEvent>>,
+  stdout: Option<ChildStdout>,
+  metadata: FfmpegMetadata,
+}
+
+pub struct FfmpegMetadata {
+  expected_output_streams: usize,
+  output_streams: Vec<AVStream>,
+  outputs: Vec<FfmpegOutput>,
+
+  /// Whether all metadata from the parent process has been gathered into this struct
+  completed: bool,
 }
 
 impl FfmpegIterator {
@@ -25,47 +35,64 @@ impl FfmpegIterator {
     let stderr = child.take_stderr().ok_or_else(|| Error::msg("No stderr channel\n - Did you call `take_stderr` elsewhere?\n - Did you forget to call `.stderr(Stdio::piped)` on the `ChildProcess`?"))?;
     let (tx, rx) = sync_channel::<FfmpegEvent>(0);
     spawn_stderr_thread(stderr, tx.clone());
+    let stdout = child.take_stdout();
 
-    // Await the output metadata
-    let mut output_streams: Vec<AVStream> = Vec::new();
-    let mut outputs: Vec<FfmpegOutput> = Vec::new();
-    let mut expected_output_streams = 0;
-    let mut event_queue: VecDeque<FfmpegEvent> = VecDeque::new();
-    while let Ok(event) = rx.recv() {
-      event_queue.push_back(event.clone());
-      match event {
-        // Every stream mapping corresponds to one output stream
-        // We count these to know when we've received all the output streams
-        FfmpegEvent::ParsedStreamMapping(_) => expected_output_streams += 1,
-        FfmpegEvent::ParsedOutput(output) => outputs.push(output),
-        FfmpegEvent::ParsedOutputStream(stream) => {
-          output_streams.push(stream.clone());
-          if output_streams.len() == expected_output_streams {
-            break;
-          }
-        }
-        FfmpegEvent::LogEOF => {
-          // An unexpected EOF means we bail out here,
-          // but still pass on the events we've already received
-          return Ok(Self { rx, event_queue });
-        }
-        _ => {}
+    Ok(Self {
+      rx,
+      tx: Some(tx),
+      stdout,
+      metadata: FfmpegMetadata {
+        expected_output_streams: 0,
+        output_streams: Vec::new(),
+        outputs: Vec::new(),
+        completed: false,
+      },
+    })
+  }
+
+  fn handle_metadata(&mut self, item: &Option<FfmpegEvent>) -> Result<()> {
+    match item {
+      // Every stream mapping corresponds to one output stream
+      // We count these to know when we've received all the output streams
+      Some(FfmpegEvent::ParsedStreamMapping(_)) => self.metadata.expected_output_streams += 1,
+      Some(FfmpegEvent::ParsedOutput(output)) => self.metadata.outputs.push(output.clone()),
+      Some(FfmpegEvent::ParsedOutputStream(stream)) => {
+        self.metadata.output_streams.push(stream.clone())
       }
+      _ => (),
     }
 
+    if self.metadata.expected_output_streams > 0
+      && self.metadata.output_streams.len() == self.metadata.expected_output_streams
+    {
+      self.finish_metadata()?;
+    }
+
+    Ok(())
+  }
+
+  fn finish_metadata(&mut self) -> Result<()> {
+    // "Seal" the metadata struct
+    self.metadata.completed = true;
+
     // No output detected
-    if output_streams.is_empty() || outputs.is_empty() {
+    if self.metadata.output_streams.is_empty() || self.metadata.outputs.is_empty() {
       let err = Error::msg("No output streams found");
-      child.kill()?;
-      Err(err)? // this is just a cute way of saying `return err`
+      self.tx.take(); // drop the tx so that the channel closes
+      return Err(err);
     }
 
     // Handle stdout
-    if let Some(stdout) = child.take_stdout() {
-      spawn_stdout_thread(stdout, tx, output_streams, outputs);
+    if let Some(stdout) = self.stdout.take() {
+      spawn_stdout_thread(
+        stdout,
+        self.tx.take().ok_or("missing channel tx")?,
+        self.metadata.output_streams.clone(),
+        self.metadata.outputs.clone(),
+      );
     }
 
-    Ok(Self { rx, event_queue })
+    Ok(())
   }
 
   //// Iterator filters
@@ -127,13 +154,21 @@ impl Iterator for FfmpegIterator {
   type Item = FfmpegEvent;
 
   fn next(&mut self) -> Option<Self::Item> {
-    match self.event_queue.pop_front() {
-      // First, re-send the queued events that were used to parse metadata
-      Some(event) => Some(event),
+    let item = self.rx.recv().ok();
 
-      // Then, read from the channel or return `None` when it closes
-      None => self.rx.recv().ok(),
+    if let Some(FfmpegEvent::LogEOF) = item {
+      self.tx.take(); // drop the tx so that the receiver can close
     }
+
+    if !self.metadata.completed {
+      if let Err(e) = self.handle_metadata(&item) {
+        return Some(FfmpegEvent::Error(e.to_string()));
+        // TODO in this case, the preceding `item` is lost;
+        // Probably better to queue it as the next item.
+      }
+    }
+
+    item
   }
 }
 

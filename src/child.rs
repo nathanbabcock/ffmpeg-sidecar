@@ -14,7 +14,7 @@ pub struct FfmpegChild {
 }
 
 impl FfmpegChild {
-  /// Creates an iterator over events emitted by ffmpeg. Functions similarly to
+  /// Creates an iterator over events emitted by FFmpeg. Functions similarly to
   /// `Lines` from [`std::io::BufReader`], but providing a variety of parsed
   /// events:
   /// - Log messages

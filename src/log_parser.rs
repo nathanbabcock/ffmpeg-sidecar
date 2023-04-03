@@ -292,7 +292,6 @@ pub fn try_parse_stream(mut string: &str) -> Option<AVStream> {
   let fps = string
     .split("fps,")
     .next()?
-    .trim()
     .split_whitespace()
     .last()?
     .parse()

@@ -92,7 +92,7 @@ pub fn parse_macos_version(version: &str) -> Option<String> {
     .split("\"version\":")
     .nth(1)?
     .trim()
-    .split("\"")
+    .split('\"')
     .nth(1)
     .map(|s| s.to_string())
 }
@@ -111,7 +111,6 @@ pub fn parse_linux_version(version: &str) -> Option<String> {
   version
     .split("version:")
     .nth(1)?
-    .trim_start()
     .split_whitespace()
     .next()
     .map(|s| s.to_string())
@@ -208,15 +207,15 @@ pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &PathBuf) -> Result<
 
   let (ffmpeg, ffplay, ffprobe) = if cfg!(target_os = "windows") {
     (
-      (&inner_folder).path().join("bin/ffmpeg.exe"),
-      (&inner_folder).path().join("bin/ffplay.exe"),
-      (&inner_folder).path().join("bin/ffprobe.exe"),
+      inner_folder.path().join("bin/ffmpeg.exe"),
+      inner_folder.path().join("bin/ffplay.exe"),
+      inner_folder.path().join("bin/ffprobe.exe"),
     )
   } else if cfg!(any(target_os = "linux", target_os = "macos")) {
     (
-      (&inner_folder).path().join("./ffmpeg"),
-      (&inner_folder).path().join("./ffplay"), // <- this typically only exists in Windows builds
-      (&inner_folder).path().join("./ffprobe"),
+      inner_folder.path().join("./ffmpeg"),
+      inner_folder.path().join("./ffplay"), // <- this typically only exists in Windows builds
+      inner_folder.path().join("./ffprobe"),
     )
   } else {
     return Err(Error::msg("Unsupported platform"));
