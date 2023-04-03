@@ -8,7 +8,9 @@ use std::{
 use crate::{
   child::FfmpegChild,
   error::{Error, Result},
-  event::{AVStream, FfmpegEvent, FfmpegOutput, FfmpegProgress, LogLevel, OutputVideoFrame},
+  event::{
+    AVStream, FfmpegEvent, FfmpegInput, FfmpegOutput, FfmpegProgress, LogLevel, OutputVideoFrame,
+  },
   log_parser::FfmpegLogParser,
   pix_fmt::get_bytes_per_frame,
 };
@@ -24,8 +26,10 @@ pub struct FfmpegIterator {
 #[derive(Debug, Clone, PartialEq)]
 pub struct FfmpegMetadata {
   expected_output_streams: usize,
-  output_streams: Vec<AVStream>,
   outputs: Vec<FfmpegOutput>,
+  output_streams: Vec<AVStream>,
+  inputs: Vec<FfmpegInput>,
+  input_streams: Vec<AVStream>,
 
   /// Whether all metadata from the parent process has been gathered into this struct
   completed: bool,
@@ -44,8 +48,10 @@ impl FfmpegIterator {
       stdout,
       metadata: FfmpegMetadata {
         expected_output_streams: 0,
-        output_streams: Vec::new(),
         outputs: Vec::new(),
+        output_streams: Vec::new(),
+        inputs: Vec::new(),
+        input_streams: Vec::new(),
         completed: false,
       },
     })
@@ -56,9 +62,16 @@ impl FfmpegIterator {
       // Every stream mapping corresponds to one output stream
       // We count these to know when we've received all the output streams
       Some(FfmpegEvent::ParsedStreamMapping(_)) => self.metadata.expected_output_streams += 1,
+      Some(FfmpegEvent::ParsedInput(input)) => self.metadata.inputs.push(input.clone()),
       Some(FfmpegEvent::ParsedOutput(output)) => self.metadata.outputs.push(output.clone()),
+      Some(FfmpegEvent::ParsedDuration(duration)) => {
+        self.metadata.inputs[duration.input_index as usize].duration = Some(duration.duration)
+      }
       Some(FfmpegEvent::ParsedOutputStream(stream)) => {
         self.metadata.output_streams.push(stream.clone())
+      }
+      Some(FfmpegEvent::ParsedInputStream(stream)) => {
+        self.metadata.input_streams.push(stream.clone())
       }
       _ => (),
     }
