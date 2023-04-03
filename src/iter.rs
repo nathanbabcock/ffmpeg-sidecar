@@ -21,6 +21,7 @@ pub struct FfmpegIterator {
   metadata: FfmpegMetadata,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct FfmpegMetadata {
   expected_output_streams: usize,
   output_streams: Vec<AVStream>,
@@ -93,6 +94,15 @@ impl FfmpegIterator {
     }
 
     Ok(())
+  }
+
+  /// Advance the iterator until all metadata has been collected, returning it.
+  pub fn collect_metadata(&mut self) -> FfmpegMetadata {
+    while !self.metadata.completed {
+      self.next();
+    }
+
+    self.metadata.clone()
   }
 
   //// Iterator filters
