@@ -7,8 +7,8 @@ use crate::{
   comma_iter::CommaIter,
   error::{Error, Result},
   event::{
-    AVStream, FfmpegConfiguration, FfmpegEvent, FfmpegOutput, FfmpegProgress, FfmpegVersion,
-    LogLevel,
+    AVStream, FfmpegConfiguration, FfmpegDuration, FfmpegEvent, FfmpegInput, FfmpegOutput,
+    FfmpegProgress, FfmpegVersion, LogLevel,
   },
   read_until_any::read_until_any,
 };
@@ -48,6 +48,11 @@ impl<R: Read> FfmpegLogParser<R> {
         // Track log section
         if let Some(input_number) = try_parse_input(line) {
           self.cur_section = LogSection::Input(input_number);
+          return Ok(FfmpegEvent::ParsedInput(FfmpegInput {
+            index: input_number,
+            duration: None,
+            raw_log_message: line.to_string(),
+          }));
         } else if let Some(output) = try_parse_output(line) {
           self.cur_section = LogSection::Output(output.index);
           return Ok(FfmpegEvent::ParsedOutput(output));
@@ -66,6 +71,15 @@ impl<R: Read> FfmpegLogParser<R> {
             configuration,
             raw_log_message: line.to_string(),
           }))
+        } else if let Some(duration) = try_parse_duration(line) {
+          match self.cur_section {
+            LogSection::Input(input_index) => Ok(FfmpegEvent::ParsedDuration(FfmpegDuration {
+              input_index,
+              duration,
+              raw_log_message: line.to_string(),
+            })),
+            _ => Ok(FfmpegEvent::Log(LogLevel::Info, line.to_string())),
+          }
         } else if self.cur_section == LogSection::StreamMapping && line.contains("  Stream #") {
           Ok(FfmpegEvent::ParsedStreamMapping(line.to_string()))
         } else if let Some(stream) = try_parse_stream(line) {
@@ -176,6 +190,35 @@ pub fn try_parse_input(string: &str) -> Option<u32> {
     .next()
     .and_then(|s| s.split(',').next())
     .and_then(|s| s.parse::<u32>().ok())
+}
+
+/// ## Example:
+///
+/// ```rust
+/// use ffmpeg_sidecar::log_parser::try_parse_duration;
+/// let line = "[info]   Duration: [info]   Duration: 00:00:05.00, start: 0.000000, bitrate: 16 kb/s, start: 0.000000, bitrate: N/A\n";
+/// let duration = try_parse_duration(line);
+/// assert!(duration == Some(5.0));
+/// ```
+///
+/// ### Unknown duration
+///
+/// ```rust
+/// use ffmpeg_sidecar::log_parser::try_parse_duration;
+/// let line = "[info]   Duration: N/A, start: 0.000000, bitrate: N/A\n";
+/// let duration = try_parse_duration(line);
+/// assert!(duration == None);
+/// ```
+pub fn try_parse_duration(string: &str) -> Option<f64> {
+  string
+    .strip_prefix("[info]")
+    .unwrap_or(string)
+    .trim()
+    .strip_prefix("Duration:")?
+    .split_whitespace()
+    .next()?
+    .parse::<f64>()
+    .ok()
 }
 
 /// Parse an output section like the following, extracting the index of the input:

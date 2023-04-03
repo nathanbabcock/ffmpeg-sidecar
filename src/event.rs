@@ -3,9 +3,11 @@ pub enum FfmpegEvent {
   ParsedVersion(FfmpegVersion),
   ParsedConfiguration(FfmpegConfiguration),
   ParsedStreamMapping(String),
+  ParsedInput(FfmpegInput),
   ParsedOutput(FfmpegOutput),
   ParsedInputStream(AVStream),
   ParsedOutputStream(AVStream),
+  ParsedDuration(FfmpegDuration),
   Log(LogLevel, String),
   LogEOF,
   /// An error that didn't originate from the ffmpeg logs
@@ -27,6 +29,20 @@ pub enum LogLevel {
   Error,
   Fatal,
   Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FfmpegInput {
+  pub index: u32,
+  pub duration: Option<f64>,
+  pub raw_log_message: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FfmpegDuration {
+  pub input_index: u32,
+  pub duration: f64,
+  pub raw_log_message: String,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -137,3 +153,5 @@ impl std::fmt::Debug for OutputVideoFrame {
       .finish()
   }
 }
+
+// TODO fix the output for OutputChunk also
