@@ -166,6 +166,30 @@ fn test_chunks() {
 }
 
 #[test]
+fn test_chunks_with_audio() {
+  let mut chunks = 0;
+  let mut frames = 0;
+
+  FfmpegCommand::new()
+    .testsrc()
+    .args("-f lavfi -i sine=frequency=1000 -shortest".split(' '))
+    .codec_video("libx264")
+    .format("mpegts")
+    .pipe_stdout()
+    .spawn()
+    .unwrap()
+    .iter()
+    .unwrap()
+    .for_each(|e| match e {
+      FfmpegEvent::OutputChunk(_) => chunks += 1,
+      FfmpegEvent::OutputFrame(_) => frames += 1,
+      _ => {}
+    });
+
+  assert!(chunks > 0);
+}
+
+#[test]
 fn test_kill_before_iter() {
   let mut child = FfmpegCommand::new().testsrc().rawvideo().spawn().unwrap();
   child.kill().unwrap();

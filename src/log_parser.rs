@@ -66,6 +66,8 @@ impl<R: Read> FfmpegLogParser<R> {
             configuration,
             raw_log_message: line.to_string(),
           }))
+        } else if self.cur_section == LogSection::StreamMapping && line.contains("  Stream #") {
+          Ok(FfmpegEvent::ParsedStreamMapping(line.to_string()))
         } else if let Some(stream) = try_parse_stream(line) {
           match self.cur_section {
             LogSection::Input(_) => Ok(FfmpegEvent::ParsedInputStream(stream)),
@@ -75,8 +77,6 @@ impl<R: Read> FfmpegLogParser<R> {
               line
             ))),
           }
-        } else if self.cur_section == LogSection::StreamMapping && line.contains("  Stream #") {
-          Ok(FfmpegEvent::ParsedStreamMapping(line.to_string()))
         } else if let Some(progress) = try_parse_progress(line) {
           self.cur_section = LogSection::Other;
           Ok(FfmpegEvent::Progress(progress))
@@ -225,7 +225,7 @@ pub fn try_parse_output(mut string: &str) -> Option<FfmpegOutput> {
 
 /// ## Example
 ///
-/// Input stream:
+/// ### Input stream:
 ///
 /// ```rust
 /// use ffmpeg_sidecar::log_parser::try_parse_stream;
@@ -239,7 +239,7 @@ pub fn try_parse_output(mut string: &str) -> Option<FfmpegOutput> {
 /// assert!(stream.parent_index == 0);
 /// ```
 ///
-/// Output stream:
+/// ### Output stream:
 ///
 /// ```rust
 /// use ffmpeg_sidecar::log_parser::try_parse_stream;
@@ -252,6 +252,16 @@ pub fn try_parse_output(mut string: &str) -> Option<FfmpegOutput> {
 /// assert!(stream.fps == 25.0);
 /// assert!(stream.parent_index == 1);
 /// ```
+///
+/// ### Audio output stream:
+///
+/// ```rust
+/// use ffmpeg_sidecar::log_parser::try_parse_stream;
+/// let line = "[info]   Stream #0:1: Audio: mp2, 44100 Hz, mono, s16, 384 kb/s\n";
+/// let stream = try_parse_stream(line).unwrap();
+/// assert!(stream.stream_type == "Audio");
+/// ```
+///
 pub fn try_parse_stream(mut string: &str) -> Option<AVStream> {
   let raw_log_message = string.to_string();
 
@@ -263,9 +273,19 @@ pub fn try_parse_stream(mut string: &str) -> Option<AVStream> {
 
   let mut colon_parts = string.split(':');
   let parent_index = colon_parts.next()?.parse::<usize>().ok()?;
-  let stream_type = colon_parts.nth(1)?.trim();
+  let stream_type = colon_parts.nth(1)?.trim().to_string();
   if stream_type != "Video" {
-    return None; // Audio not supported yet (PRs welcome)
+    // Audio is not well-supported yet (PRs welcome)
+    return Some(AVStream {
+      stream_type,
+      format: "unknown".into(),
+      pix_fmt: "unknown".into(),
+      width: 0,
+      height: 0,
+      fps: 0.0,
+      parent_index,
+      raw_log_message,
+    });
   }
   let comma_string = colon_parts.next()?.trim();
   let mut comma_iter = CommaIter::new(comma_string);
@@ -298,6 +318,7 @@ pub fn try_parse_stream(mut string: &str) -> Option<AVStream> {
     .ok()?;
 
   Some(AVStream {
+    stream_type,
     parent_index,
     format,
     pix_fmt,

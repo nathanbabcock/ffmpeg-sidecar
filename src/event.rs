@@ -45,6 +45,8 @@ impl FfmpegOutput {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AVStream {
+  /// Typically `video` or `audio`, but might be something else like `data` or `subtitle`.
+  pub stream_type: String,
   /// Corresponds to stream `-f` parameter, e.g. `rawvideo`, `h264`, or `mpegts`
   pub format: String,
   /// Corresponds to stream `-pix_fmt` parameter, e.g. `rgb24`
