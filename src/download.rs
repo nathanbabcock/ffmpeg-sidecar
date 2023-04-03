@@ -127,7 +127,7 @@ pub fn curl(url: &str) -> Result<String> {
   let stdout = child
     .stdout
     .take()
-    .ok_or(Error::msg("Failed to get stdout"))?;
+    .ok_or_else(|| Error::msg("Failed to get stdout"))?;
 
   let mut string = String::new();
   std::io::BufReader::new(stdout).read_to_string(&mut string)?;
@@ -161,10 +161,10 @@ pub fn check_latest_version() -> Result<String> {
 
 /// Invoke `curl` to download an archive (ZIP on windows, TAR on linux and mac)
 /// from the latest published release online.
-pub fn download_ffmpeg_package(url: &str, download_dir: &PathBuf) -> Result<PathBuf> {
+pub fn download_ffmpeg_package(url: &str, download_dir: &Path) -> Result<PathBuf> {
   let filename = Path::new(url)
     .file_name()
-    .ok_or(Error::msg("Failed to get filename"))?;
+    .ok_or_else(|| Error::msg("Failed to get filename"))?;
 
   let archive_path = download_dir.join(filename);
 
@@ -181,7 +181,7 @@ pub fn download_ffmpeg_package(url: &str, download_dir: &PathBuf) -> Result<Path
 
 /// After downloading, unpacks the archive to a folder, moves the binaries to
 /// their final location, and deletes the archive and temporary folder.
-pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &PathBuf) -> Result<()> {
+pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> Result<()> {
   let temp_dirname = UNPACK_DIRNAME;
   let temp_folder = binary_folder.join(temp_dirname);
   create_dir_all(&temp_folder)?;

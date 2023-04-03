@@ -4,8 +4,8 @@ use crate::{
   log_parser::FfmpegLogParser,
   paths::ffmpeg_path,
 };
-use std::process::{Command, Stdio};
 use std::ffi::OsStr;
+use std::process::{Command, Stdio};
 
 /// Alias for `ffmpeg -version`, parsing the version number and returning it.
 pub fn ffmpeg_version() -> Result<String> {
@@ -34,5 +34,5 @@ pub fn ffmpeg_version_with_path<S: AsRef<OsStr>>(path: S) -> Result<String> {
   if !exit_status.success() {
     return Err(Error::msg("ffmpeg -version exited with non-zero status"));
   }
-  version.ok_or(Error::msg("Failed to parse ffmpeg version"))
+  version.ok_or_else(|| Error::msg("Failed to parse ffmpeg version"))
 }
