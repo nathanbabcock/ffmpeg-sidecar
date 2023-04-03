@@ -8,10 +8,9 @@ use std::{
 use crate::{
   child::FfmpegChild,
   error::{Error, Result},
-  event::{
-    AVStream, FfmpegEvent, FfmpegInput, FfmpegOutput, FfmpegProgress, LogLevel, OutputVideoFrame,
-  },
+  event::{AVStream, FfmpegEvent, FfmpegOutput, FfmpegProgress, LogLevel, OutputVideoFrame},
   log_parser::FfmpegLogParser,
+  metadata::FfmpegMetadata,
   pix_fmt::get_bytes_per_frame,
 };
 
@@ -21,29 +20,6 @@ pub struct FfmpegIterator {
   tx: Option<SyncSender<FfmpegEvent>>,
   stdout: Option<ChildStdout>,
   metadata: FfmpegMetadata,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct FfmpegMetadata {
-  expected_output_streams: usize,
-  pub outputs: Vec<FfmpegOutput>,
-  pub output_streams: Vec<AVStream>,
-  pub inputs: Vec<FfmpegInput>,
-  pub input_streams: Vec<AVStream>,
-
-  /// Whether all metadata from the parent process has been gathered into this struct
-  completed: bool,
-}
-
-impl FfmpegMetadata {
-  /// A shortcut to obtain the expected duration (in seconds) of an FFmpeg job.
-  ///
-  /// Usually this is the duration of the first input stream. Theoretically
-  /// different streams could have different (or conflicting) durations, but
-  /// this handles the common case.
-  pub fn duration(&self) -> Option<f64> {
-    self.inputs[0].duration
-  }
 }
 
 impl FfmpegIterator {
@@ -57,49 +33,14 @@ impl FfmpegIterator {
       rx,
       tx: Some(tx),
       stdout,
-      metadata: FfmpegMetadata {
-        expected_output_streams: 0,
-        outputs: Vec::new(),
-        output_streams: Vec::new(),
-        inputs: Vec::new(),
-        input_streams: Vec::new(),
-        completed: false,
-      },
+      metadata: FfmpegMetadata::new(),
     })
   }
 
-  fn handle_metadata(&mut self, item: &Option<FfmpegEvent>) -> Result<()> {
-    match item {
-      // Every stream mapping corresponds to one output stream
-      // We count these to know when we've received all the output streams
-      Some(FfmpegEvent::ParsedStreamMapping(_)) => self.metadata.expected_output_streams += 1,
-      Some(FfmpegEvent::ParsedInput(input)) => self.metadata.inputs.push(input.clone()),
-      Some(FfmpegEvent::ParsedOutput(output)) => self.metadata.outputs.push(output.clone()),
-      Some(FfmpegEvent::ParsedDuration(duration)) => {
-        self.metadata.inputs[duration.input_index as usize].duration = Some(duration.duration)
-      }
-      Some(FfmpegEvent::ParsedOutputStream(stream)) => {
-        self.metadata.output_streams.push(stream.clone())
-      }
-      Some(FfmpegEvent::ParsedInputStream(stream)) => {
-        self.metadata.input_streams.push(stream.clone())
-      }
-      _ => (),
-    }
-
-    if self.metadata.expected_output_streams > 0
-      && self.metadata.output_streams.len() == self.metadata.expected_output_streams
-    {
-      self.finish_metadata()?;
-    }
-
-    Ok(())
-  }
-
-  fn finish_metadata(&mut self) -> Result<()> {
-    // "Seal" the metadata struct
-    self.metadata.completed = true;
-
+  /// Called after all metadata has been obtained to spawn the thread that will
+  /// handle output. The metadata is needed to determine the output format and
+  /// other parameters.
+  fn start_stdout(&mut self) -> Result<()> {
     // No output detected
     if self.metadata.output_streams.is_empty() || self.metadata.outputs.is_empty() {
       let err = Error::msg("No output streams found");
@@ -124,7 +65,7 @@ impl FfmpegIterator {
   pub fn collect_metadata(&mut self) -> Result<FfmpegMetadata> {
     let mut event_queue: Vec<FfmpegEvent> = Vec::new();
 
-    while !self.metadata.completed {
+    while !self.metadata.is_completed() {
       let event = self.next();
       match event {
         Some(e) => event_queue.push(e),
@@ -216,11 +157,19 @@ impl Iterator for FfmpegIterator {
       self.tx.take(); // drop the tx so that the receiver can close
     }
 
-    if !self.metadata.completed {
-      if let Err(e) = self.handle_metadata(&item) {
-        return Some(FfmpegEvent::Error(e.to_string()));
+    if !self.metadata.is_completed() {
+      match self.metadata.handle_event(&item) {
+        Err(e) => return Some(FfmpegEvent::Error(e.to_string())),
         // TODO in this case, the preceding `item` is lost;
         // Probably better to queue it as the next item.
+        Ok(()) if self.metadata.is_completed() => {
+          if let Err(e) = self.start_stdout() {
+            return Some(FfmpegEvent::Error(e.to_string()));
+            // Same problem as above
+          }
+        }
+
+        _ => {}
       }
     }
 
