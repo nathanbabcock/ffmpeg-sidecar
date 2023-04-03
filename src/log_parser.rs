@@ -196,8 +196,9 @@ pub fn try_parse_input(string: &str) -> Option<u32> {
 ///
 /// ```rust
 /// use ffmpeg_sidecar::log_parser::try_parse_duration;
-/// let line = "[info]   Duration: [info]   Duration: 00:00:05.00, start: 0.000000, bitrate: 16 kb/s, start: 0.000000, bitrate: N/A\n";
+/// let line = "[info]   Duration: 00:00:05.00, start: 0.000000, bitrate: 16 kb/s, start: 0.000000, bitrate: N/A\n";
 /// let duration = try_parse_duration(line);
+/// println!("{:?}", duration);
 /// assert!(duration == Some(5.0));
 /// ```
 ///
@@ -215,10 +216,10 @@ pub fn try_parse_duration(string: &str) -> Option<f64> {
     .unwrap_or(string)
     .trim()
     .strip_prefix("Duration:")?
-    .split_whitespace()
-    .next()?
-    .parse::<f64>()
-    .ok()
+    .trim()
+    .split(',')
+    .next()
+    .and_then(parse_time_str)
 }
 
 /// Parse an output section like the following, extracting the index of the input:
@@ -456,6 +457,41 @@ pub fn try_parse_progress(mut string: &str) -> Option<FfmpegProgress> {
     speed,
     raw_log_message,
   })
+}
+
+/// Parse a time string in the format `HOURS:MM:SS.MILLISECONDS` into a number of seconds.
+///
+/// <https://trac.ffmpeg.org/wiki/Seeking#Timeunitsyntax>
+///
+/// ## Examples
+///
+/// ```rust
+/// use ffmpeg_sidecar::log_parser::parse_time_str;
+/// assert!(parse_time_str("00:00:00.00") == Some(0.0));
+/// assert!(parse_time_str("5") == Some(5.0));
+/// assert!(parse_time_str("0.123") == Some(0.123));
+/// assert!(parse_time_str("1:00.0") == Some(60.0));
+/// assert!(parse_time_str("1:01.0") == Some(61.0));
+/// assert!(parse_time_str("1:01:01.123") == Some(3661.123));
+/// assert!(parse_time_str("N/A") == None);
+/// ```
+pub fn parse_time_str(str: &str) -> Option<f64> {
+  let mut seconds = 0.0;
+
+  let mut smh = str.split(':').rev();
+  if let Some(sec) = smh.next() {
+    seconds += sec.parse::<f64>().ok()?;
+  }
+
+  if let Some(min) = smh.next() {
+    seconds += min.parse::<f64>().ok()? * 60.0;
+  }
+
+  if let Some(hrs) = smh.next() {
+    seconds += hrs.parse::<f64>().ok()? * 60.0 * 60.0;
+  }
+
+  Some(seconds)
 }
 
 #[cfg(test)]

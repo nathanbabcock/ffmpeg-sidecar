@@ -204,15 +204,11 @@ fn test_duration() {
     .iter()
     .unwrap()
     .for_each(|e| {
-      match &e {
-        FfmpegEvent::OutputFrame(_) | FfmpegEvent::OutputChunk(_) => {}
-        e => println!("{:?}", e),
-      }
       if let FfmpegEvent::ParsedDuration(duration) = e {
         println!("Duration: {:?}", duration);
         match duration_received {
           false => {
-            assert!(duration.duration == 10.0);
+            assert!(duration.duration == 5.0);
             duration_received = true
           }
           true => panic!("Received multiple duration events."),
