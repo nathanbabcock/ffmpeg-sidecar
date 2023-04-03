@@ -436,9 +436,8 @@ mod tests {
     let stdout = cmd.stdout.unwrap();
     let mut parser = FfmpegLogParser::new(stdout);
     while let Ok(event) = parser.parse_next_event() {
-      match event {
-        FfmpegEvent::ParsedVersion(_) => return,
-        _ => {}
+      if let FfmpegEvent::ParsedVersion(_) = event {
+        return;
       }
     }
     panic!() // should have found a version
@@ -456,9 +455,8 @@ mod tests {
     let stdout = cmd.stdout.unwrap();
     let mut parser = FfmpegLogParser::new(stdout);
     while let Ok(event) = parser.parse_next_event() {
-      match event {
-        FfmpegEvent::ParsedConfiguration(_) => return,
-        _ => {}
+      if let FfmpegEvent::ParsedConfiguration(_) = event {
+        return;
       }
     }
     panic!() // should have found a configuration
