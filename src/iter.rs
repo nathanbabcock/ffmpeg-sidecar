@@ -35,6 +35,17 @@ pub struct FfmpegMetadata {
   completed: bool,
 }
 
+impl FfmpegMetadata {
+  /// A shortcut to obtain the expected duration (in seconds) of an FFmpeg job.
+  ///
+  /// Usually this is the duration of the first input stream. Theoretically
+  /// different streams could have different (or conflicting) durations, but
+  /// this handles the common case.
+  pub fn duration(&self) -> Option<f64> {
+    self.inputs[0].duration
+  }
+}
+
 impl FfmpegIterator {
   pub fn new(child: &mut FfmpegChild) -> Result<Self> {
     let stderr = child.take_stderr().ok_or_else(|| Error::msg("No stderr channel\n - Did you call `take_stderr` elsewhere?\n - Did you forget to call `.stderr(Stdio::piped)` on the `ChildProcess`?"))?;
