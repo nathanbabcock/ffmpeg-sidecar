@@ -26,10 +26,10 @@ pub struct FfmpegIterator {
 #[derive(Debug, Clone, PartialEq)]
 pub struct FfmpegMetadata {
   expected_output_streams: usize,
-  outputs: Vec<FfmpegOutput>,
-  output_streams: Vec<AVStream>,
-  inputs: Vec<FfmpegInput>,
-  input_streams: Vec<AVStream>,
+  pub outputs: Vec<FfmpegOutput>,
+  pub output_streams: Vec<AVStream>,
+  pub inputs: Vec<FfmpegInput>,
+  pub input_streams: Vec<AVStream>,
 
   /// Whether all metadata from the parent process has been gathered into this struct
   completed: bool,
@@ -110,12 +110,32 @@ impl FfmpegIterator {
   }
 
   /// Advance the iterator until all metadata has been collected, returning it.
-  pub fn collect_metadata(&mut self) -> FfmpegMetadata {
+  pub fn collect_metadata(&mut self) -> Result<FfmpegMetadata> {
+    let mut event_queue: Vec<FfmpegEvent> = Vec::new();
+
     while !self.metadata.completed {
-      self.next();
+      let event = self.next();
+      match event {
+        Some(e) => event_queue.push(e),
+        None => {
+          let errors = event_queue
+            .iter()
+            .filter_map(|e| match e {
+              FfmpegEvent::Error(e) | FfmpegEvent::Log(LogLevel::Error, e) => Some(e.to_string()),
+              _ => None,
+            })
+            .collect::<Vec<String>>()
+            .join("");
+          let msg = format!(
+            "Iterator ran out before metadata was gathered. The following errors occurred: {}",
+            errors
+          );
+          return Err(Error::msg(msg));
+        }
+      }
     }
 
-    self.metadata.clone()
+    Ok(self.metadata.clone())
   }
 
   //// Iterator filters

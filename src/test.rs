@@ -194,6 +194,7 @@ fn test_duration() {
 
   FfmpegCommand::new()
     .input("output/test.mp4")
+    .format("mpegts")
     .pipe_stdout()
     .spawn()
     .unwrap()
@@ -212,6 +213,23 @@ fn test_duration() {
     });
 
   assert!(duration_received);
+}
+
+#[test]
+/// TODO This test is order-dependent, relying on input from `test_to_file`.
+/// A better implementation would be use a future `pipeTo` method to generate
+/// its input in-memory in realtime.
+fn test_metadata_duration() {
+  let mut child = FfmpegCommand::new()
+    .input("output/test.mp4")
+    .format("mpegts")
+    .pipe_stdout()
+    .spawn()
+    .unwrap();
+
+  let metadata = child.iter().unwrap().collect_metadata().unwrap();
+  child.kill().unwrap();
+  assert!(!metadata.inputs.is_empty());
 }
 
 #[test]
