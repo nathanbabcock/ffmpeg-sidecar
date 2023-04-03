@@ -42,6 +42,7 @@ impl<R: Read> FfmpegLogParser<R> {
     let mut buf = Vec::<u8>::new();
     let bytes_read = read_until_any(&mut self.reader, &[b'\r', b'\n'], &mut buf);
     let line = from_utf8(buf.as_slice())?.trim();
+    let raw_log_message = line.to_string();
     match bytes_read {
       Ok(0) => Ok(FfmpegEvent::LogEOF),
       Ok(_) => {
@@ -51,7 +52,7 @@ impl<R: Read> FfmpegLogParser<R> {
           return Ok(FfmpegEvent::ParsedInput(FfmpegInput {
             index: input_number,
             duration: None,
-            raw_log_message: line.to_string(),
+            raw_log_message,
           }));
         } else if let Some(output) = try_parse_output(line) {
           self.cur_section = LogSection::Output(output.index);
@@ -64,19 +65,19 @@ impl<R: Read> FfmpegLogParser<R> {
         if let Some(version) = try_parse_version(line) {
           Ok(FfmpegEvent::ParsedVersion(FfmpegVersion {
             version,
-            raw_log_message: line.to_string(),
+            raw_log_message,
           }))
         } else if let Some(configuration) = try_parse_configuration(line) {
           Ok(FfmpegEvent::ParsedConfiguration(FfmpegConfiguration {
             configuration,
-            raw_log_message: line.to_string(),
+            raw_log_message,
           }))
         } else if let Some(duration) = try_parse_duration(line) {
           match self.cur_section {
             LogSection::Input(input_index) => Ok(FfmpegEvent::ParsedDuration(FfmpegDuration {
               input_index,
               duration,
-              raw_log_message: line.to_string(),
+              raw_log_message,
             })),
             _ => Ok(FfmpegEvent::Log(LogLevel::Info, line.to_string())),
           }
