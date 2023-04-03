@@ -229,7 +229,8 @@ fn test_metadata_duration() {
 
   let metadata = child.iter().unwrap().collect_metadata().unwrap();
   child.kill().unwrap();
-  assert!(!metadata.inputs.is_empty());
+
+  assert!(metadata.duration() == Some(5.0));
 }
 
 #[test]
