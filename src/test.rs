@@ -36,10 +36,7 @@ fn test_frame_count() {
     .unwrap();
 
   let frame_count = iter
-    .filter(|event| match event {
-      FfmpegEvent::OutputFrame(_) => true,
-      _ => false,
-    })
+    .filter(|event| matches!(event, FfmpegEvent::OutputFrame(_)))
     .count();
 
   assert_eq!(frame_count, expected_frame_count);
@@ -53,12 +50,11 @@ fn test_output_format() {
     .unwrap()
     .iter()
     .unwrap()
-    .for_each(|event| match event {
-      FfmpegEvent::OutputFrame(frame) => {
+    .for_each(|event| {
+      if let FfmpegEvent::OutputFrame(frame) = event {
         assert!(frame.pix_fmt == "rgb24");
         assert!(frame.data.len() as u32 == frame.width * frame.height * 3);
       }
-      _ => {}
     });
 }
 
