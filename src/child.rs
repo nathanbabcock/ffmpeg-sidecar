@@ -1,6 +1,6 @@
 use std::{
   io::{self, Write},
-  process::{Child, ChildStderr, ChildStdin, ChildStdout},
+  process::{Child, ChildStderr, ChildStdin, ChildStdout, ExitStatus},
 };
 
 use crate::error::{Error, Result};
@@ -95,6 +95,13 @@ impl FfmpegChild {
   /// Identical to `kill` in [`std::process::Child`].
   pub fn kill(&mut self) -> io::Result<()> {
     self.inner.kill()
+  }
+
+  /// Waits for the inner child process to finish execution.
+  ///
+  /// Identical to `wait` in [`std::process::Child`].
+  pub fn wait(&mut self) -> io::Result<ExitStatus> {
+    self.inner.wait()
   }
 
   /// Wrap a [`std::process::Child`] in a `FfmpegChild`. Should typically only
