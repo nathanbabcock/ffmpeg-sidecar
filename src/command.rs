@@ -554,6 +554,10 @@ impl FfmpegCommand {
   /// Spawn the ffmpeg command as a child process, wrapping it in a
   /// `FfmpegChild` interface.
   ///
+  /// Please note that if the result is not used with [wait()](FfmpegChild::wait)
+  /// the process is not cleaned up correctly resulting in a zombie process
+  /// until your main thread exits.
+  ///
   /// Identical to `spawn` in [`std::process::Command`].
   pub fn spawn(&mut self) -> io::Result<FfmpegChild> {
     self.inner.spawn().map(FfmpegChild::from_inner)
