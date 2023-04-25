@@ -1,6 +1,6 @@
 [package]
 name = "ffmpeg-sidecar"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 description = "Wrap a standalone FFmpeg binary in an intuitive Iterator interface."
 authors = ["Nathan Babcock <nathan.r.babcock@gmail.com>"]
