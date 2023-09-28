@@ -20,8 +20,10 @@ fn main() -> Result<()> {
 
   // Checking the version number before downloading is actually not necessary,
   // but it's a good way to check that the download URL is correct.
-  let latest_version = check_latest_version()?;
-  println!("Latest available version: {}", latest_version);
+  match check_latest_version() {
+    Ok(version) => println!("Latest available version: {}", version),
+    Err(_) => println!("Skipping version check on this platform."),
+  }
 
   // These defaults will automatically select the correct download URL for your
   // platform.
