@@ -184,6 +184,8 @@ pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> Result<()>
   let temp_folder = binary_folder.join(temp_dirname);
   create_dir_all(&temp_folder)?;
 
+  println!("Unpacking to: {:?}", temp_folder);
+
   // Extract archive
   Command::new("tar")
     .arg("-xf")
@@ -222,6 +224,8 @@ pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> Result<()>
   } else {
     return Err(Error::msg("Unsupported platform"));
   };
+
+  println!("Temp ffmpeg path: ${:?}", ffmpeg);
 
   // Move binaries
   rename(&ffmpeg, binary_folder.join(ffmpeg.file_name().ok_or(())?))?;
