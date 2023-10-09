@@ -36,20 +36,18 @@ pub fn ffmpeg_manifest_url() -> Result<&'static str> {
 /// URL for the latest published FFmpeg release. The correct URL for the target
 /// platform is baked in at compile time.
 pub fn ffmpeg_download_url() -> Result<&'static str> {
-  if cfg!(not(target_arch = "x86_64")) {
-    return Err(Error::msg(
-      "Downloads must be manually provided for non-x86_64 architectures",
-    ));
-  }
-
-  if cfg!(target_os = "windows") {
+  if cfg!(all(target_os = "windows", target_arch = "x86_64")) {
     Ok("https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip")
-  } else if cfg!(target_os = "macos") {
-    Ok("https://evermeet.cx/ffmpeg/getrelease")
-  } else if cfg!(target_os = "linux") {
+  } else if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
     Ok("https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz")
+  } else if cfg!(all(target_os = "macos", target_arch = "x86_64")) {
+    Ok("https://evermeet.cx/ffmpeg/getrelease")
+  } else if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
+    Ok("https://www.osxexperts.net/ffmpeg6arm.zip") // Mac M1
   } else {
-    Err(Error::msg("Unsupported platform"))
+    Err(Error::msg(
+      "Unsupported platform; you can provide your own URL instead and call download_ffmpeg_package directly.",
+    ))
   }
 }
 
@@ -197,25 +195,29 @@ pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> Result<()>
     .ok_or("Failed to unpack ffmpeg")?;
 
   // Move binaries
-  let inner_folder = read_dir(&temp_folder)?
-    .next()
-    .ok_or("Failed to get inner folder")??;
-
-  if !inner_folder.file_type()?.is_dir() {
-    return Err(Error::msg("No top level directory inside archive"));
-  }
-
   let (ffmpeg, ffplay, ffprobe) = if cfg!(target_os = "windows") {
+    let inner_folder = read_dir(&temp_folder)?
+      .next()
+      .ok_or("Failed to get inner folder")??;
     (
       inner_folder.path().join("bin/ffmpeg.exe"),
       inner_folder.path().join("bin/ffplay.exe"),
       inner_folder.path().join("bin/ffprobe.exe"),
     )
-  } else if cfg!(any(target_os = "linux", target_os = "macos")) {
+  } else if cfg!(target_os = "linux") {
+    let inner_folder = read_dir(&temp_folder)?
+      .next()
+      .ok_or("Failed to get inner folder")??;
     (
       inner_folder.path().join("./ffmpeg"),
-      inner_folder.path().join("./ffplay"), // <- this typically only exists in Windows builds
+      inner_folder.path().join("./ffplay"), // <- no ffplay on linux
       inner_folder.path().join("./ffprobe"),
+    )
+  } else if cfg!(target_os = "macos") {
+    (
+      temp_folder.join("ffmpeg"),
+      temp_folder.join("ffplay"),  // <-- no ffplay on mac
+      temp_folder.join("ffprobe"), // <-- no ffprobe on mac
     )
   } else {
     return Err(Error::msg("Unsupported platform"));
@@ -233,7 +235,7 @@ pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> Result<()>
   }
 
   // Delete archive and unpacked files
-  if temp_folder.exists() {
+  if temp_folder.exists() && temp_folder.is_dir() {
     remove_dir_all(&temp_folder)?;
   }
 

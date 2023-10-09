@@ -1,0 +1,22 @@
+name: Mac M1
+
+on:
+  push:
+    branches: ['main']
+  pull_request:
+    branches: ['main']
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    # https://github.blog/2023-10-02-introducing-the-new-apple-silicon-powered-m1-macos-larger-runner-for-github-actions/
+    runs-on: macos-13-xlarge
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Try auto-download
+        run: cargo run --example download_ffmpeg
+      - name: Build
+        run: cargo build --verbose
