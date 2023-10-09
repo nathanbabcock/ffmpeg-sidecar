@@ -32,6 +32,7 @@ fn main() -> Result<()> {
 
   // By default the download will use a `curl` command. You could also write
   // your own download function and use another package like `reqwest` instead.
+  println!("Downloading from: {:?}", download_url);
   let archive_path = download_ffmpeg_package(download_url, &destination)?;
   println!("Downloaded package: {:?}", archive_path);
 

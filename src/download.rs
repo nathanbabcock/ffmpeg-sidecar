@@ -198,12 +198,13 @@ pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> Result<()>
   let inner_folder = read_dir(&temp_folder)?
     .next()
     .ok_or("Failed to get inner folder")??;
-
-  if !inner_folder.file_type()?.is_dir() {
-    return Err(Error::msg("No top level directory inside archive"));
-  }
-
-  let (ffmpeg, ffplay, ffprobe) = if cfg!(target_os = "windows") {
+  let (ffmpeg, ffplay, ffprobe) = if cfg!(all(target_os = "macos", target_arch = "x86_64")) {
+    (
+      temp_folder.join("ffmpeg"),
+      temp_folder.join("ffplay"),  // <-- no ffplay on mac m1
+      temp_folder.join("ffprobe"), // <-- no ffprobe on mac m1
+    )
+  } else if cfg!(target_os = "windows") {
     (
       inner_folder.path().join("bin/ffmpeg.exe"),
       inner_folder.path().join("bin/ffplay.exe"),
