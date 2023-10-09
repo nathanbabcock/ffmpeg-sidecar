@@ -40,6 +40,7 @@ pub mod command;
 pub mod download;
 pub mod error;
 pub mod event;
+pub mod ffprobe;
 pub mod iter;
 pub mod log_parser;
 pub mod metadata;
