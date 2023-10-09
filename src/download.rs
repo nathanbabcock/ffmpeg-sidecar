@@ -195,13 +195,7 @@ pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> Result<()>
     .ok_or("Failed to unpack ffmpeg")?;
 
   // Move binaries
-  let (ffmpeg, ffplay, ffprobe) = if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
-    (
-      temp_folder.join("ffmpeg"),
-      temp_folder.join("ffplay"),  // <-- no ffplay on mac m1
-      temp_folder.join("ffprobe"), // <-- no ffprobe on mac m1
-    )
-  } else if cfg!(target_os = "windows") {
+  let (ffmpeg, ffplay, ffprobe) = if cfg!(target_os = "windows") {
     let inner_folder = read_dir(&temp_folder)?
       .next()
       .ok_or("Failed to get inner folder")??;
@@ -210,14 +204,20 @@ pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> Result<()>
       inner_folder.path().join("bin/ffplay.exe"),
       inner_folder.path().join("bin/ffprobe.exe"),
     )
-  } else if cfg!(any(target_os = "linux", target_os = "macos")) {
+  } else if cfg!(target_os = "linux") {
     let inner_folder = read_dir(&temp_folder)?
       .next()
       .ok_or("Failed to get inner folder")??;
     (
       inner_folder.path().join("./ffmpeg"),
-      inner_folder.path().join("./ffplay"), // <- this typically only exists in Windows builds
+      inner_folder.path().join("./ffplay"), // <- no ffplay on linux
       inner_folder.path().join("./ffprobe"),
+    )
+  } else if cfg!(target_os = "macos") {
+    (
+      temp_folder.join("ffmpeg"),
+      temp_folder.join("ffplay"),  // <-- no ffplay on mac
+      temp_folder.join("ffprobe"), // <-- no ffprobe on mac
     )
   } else {
     return Err(Error::msg("Unsupported platform"));
