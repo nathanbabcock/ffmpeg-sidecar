@@ -184,8 +184,6 @@ pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> Result<()>
   let temp_folder = binary_folder.join(temp_dirname);
   create_dir_all(&temp_folder)?;
 
-  println!("Unpacking to: {:?}", temp_folder);
-
   // Extract archive
   Command::new("tar")
     .arg("-xf")
@@ -197,11 +195,11 @@ pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> Result<()>
     .ok_or("Failed to unpack ffmpeg")?;
 
   // Move binaries
-  let (ffmpeg, ffplay, ffprobe) = if cfg!(all(target_os = "macos", target_arch = "x86_64")) {
+  let (ffmpeg, ffplay, ffprobe) = if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
     (
-      temp_folder.join("./ffmpeg"),
-      temp_folder.join("./ffplay"),  // <-- no ffplay on mac m1
-      temp_folder.join("./ffprobe"), // <-- no ffprobe on mac m1
+      temp_folder.join("ffmpeg"),
+      temp_folder.join("ffplay"),  // <-- no ffplay on mac m1
+      temp_folder.join("ffprobe"), // <-- no ffprobe on mac m1
     )
   } else if cfg!(target_os = "windows") {
     let inner_folder = read_dir(&temp_folder)?
@@ -224,8 +222,6 @@ pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> Result<()>
   } else {
     return Err(Error::msg("Unsupported platform"));
   };
-
-  println!("Temp ffmpeg path: ${:?}", ffmpeg);
 
   // Move binaries
   rename(&ffmpeg, binary_folder.join(ffmpeg.file_name().ok_or(())?))?;
