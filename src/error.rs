@@ -3,6 +3,7 @@ use std::fmt::{Display, Formatter};
 use std::io;
 use std::result::Result as StdResult;
 use std::str::Utf8Error;
+use std::string::FromUtf8Error;
 
 /// Shorthand alias for `Result<T, Error>` using `ffmpeg_sidecar` error type.
 pub type Result<T> = StdResult<T, Error>;
@@ -67,6 +68,12 @@ impl From<io::Error> for Error {
 
 impl From<Utf8Error> for Error {
   fn from(e: Utf8Error) -> Self {
+    Error::from_std(e)
+  }
+}
+
+impl From<FromUtf8Error> for Error {
+  fn from(e: FromUtf8Error) -> Self {
     Error::from_std(e)
   }
 }

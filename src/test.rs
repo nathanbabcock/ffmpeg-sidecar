@@ -1,6 +1,7 @@
 use crate::{
   command::{ffmpeg_is_installed, FfmpegCommand},
   event::FfmpegEvent,
+  ffprobe::{ffprobe_path, ffprobe_version},
   version::ffmpeg_version,
 };
 
@@ -297,4 +298,10 @@ fn test_frame_timestamp() {
       last_timestamp = Some(frame.timestamp);
     });
   assert!(approx_eq(last_timestamp.unwrap(), 0.9, 0.001));
+}
+
+#[test]
+fn test_ffprobe_version() {
+  println!("{:?}", ffprobe_path());
+  println!("{:?}", ffprobe_version().unwrap());
 }
