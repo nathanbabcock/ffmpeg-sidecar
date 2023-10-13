@@ -1,10 +1,5 @@
-use crate::{
-  error::{Error, Result},
-  event::FfmpegEvent,
-  log_parser::FfmpegLogParser,
-  paths::sidecar_path,
-};
-use std::{ffi::OsStr, path::PathBuf};
+use crate::error::{Error, Result};
+use std::{env::current_exe, ffi::OsStr, path::PathBuf};
 use std::{
   path::Path,
   process::{Command, Stdio},
@@ -15,13 +10,28 @@ use std::{
 /// distributions include FFprobe.
 pub fn ffprobe_path() -> PathBuf {
   let default = Path::new("ffprobe").to_path_buf();
-  match sidecar_path() {
+  match ffprobe_sidecar_path() {
     Ok(sidecar_path) => match sidecar_path.exists() {
       true => sidecar_path,
       false => default,
     },
     Err(_) => default,
   }
+}
+
+/// The (expected) path to an FFmpeg binary adjacent to the Rust binary.
+///
+/// The extension between platforms, with Windows using `.exe`, while Mac and
+/// Linux have no extension.
+pub fn ffprobe_sidecar_path() -> Result<PathBuf> {
+  let mut path = current_exe()?
+    .parent()
+    .ok_or("Can't get parent of current_exe")?
+    .join("ffprobe");
+  if cfg!(windows) {
+    path.set_extension("exe");
+  }
+  Ok(path)
 }
 
 /// Alias for `ffprobe -version`, parsing the version number and returning it.
@@ -32,26 +42,11 @@ pub fn ffprobe_version() -> Result<String> {
 /// Lower level variant of `ffprobe_version` that exposes a customized the path
 /// to the ffmpeg binary.
 pub fn ffprobe_version_with_path<S: AsRef<OsStr>>(path: S) -> Result<String> {
-  let mut cmd = Command::new(&path)
-    .arg("-version")
-    .stdout(Stdio::piped()) // not stderr when calling `-version`
-    .spawn()?;
-  let stdout = cmd.stdout.take().ok_or("No standard output channel")?;
-  let mut parser = FfmpegLogParser::new(stdout);
+  let output = Command::new(&path).arg("-version").output()?;
 
-  let mut version: Option<String> = None;
-  while let Ok(event) = parser.parse_next_event() {
-    match event {
-      FfmpegEvent::ParsedVersion(v) => version = Some(v.version),
-      FfmpegEvent::LogEOF => break,
-      _ => {}
-    }
-  }
-  let exit_status = cmd.wait()?;
-  if !exit_status.success() {
-    return Err(Error::msg("ffprobe -version exited with non-zero status"));
-  }
-  version.ok_or_else(|| Error::msg("Failed to parse ffprobe version"))
+  // note:version parsing is not implemented for ffprobe
+
+  String::from_utf8(output.stdout).map_err(Error::from)
 }
 
 /// Verify whether ffprobe is installed on the system. This will return true if
