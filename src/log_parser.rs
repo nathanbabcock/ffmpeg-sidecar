@@ -5,7 +5,6 @@ use std::{
 
 use crate::{
   comma_iter::CommaIter,
-  error::{Error, Result},
   event::{
     AVStream, FfmpegConfiguration, FfmpegDuration, FfmpegEvent, FfmpegInput, FfmpegOutput,
     FfmpegProgress, FfmpegVersion, LogLevel,
@@ -38,14 +37,14 @@ impl<R: Read> FfmpegLogParser<R> {
   /// - `\n` (MacOS),
   /// - `\r\n` (Windows)
   /// - `\r` (Windows, progress updates which overwrite the previous line)
-  pub fn parse_next_event(&mut self) -> Result<FfmpegEvent> {
+  pub fn parse_next_event(&mut self) -> anyhow::Result<FfmpegEvent> {
     let mut buf = Vec::<u8>::new();
     let bytes_read = read_until_any(&mut self.reader, &[b'\r', b'\n'], &mut buf);
     let line = from_utf8(buf.as_slice())?.trim();
     let raw_log_message = line.to_string();
-    match bytes_read {
-      Ok(0) => Ok(FfmpegEvent::LogEOF),
-      Ok(_) => {
+    match bytes_read? {
+      0 => Ok(FfmpegEvent::LogEOF),
+      _ => {
         // Track log section
         if let Some(input_number) = try_parse_input(line) {
           self.cur_section = LogSection::Input(input_number);
@@ -87,7 +86,7 @@ impl<R: Read> FfmpegLogParser<R> {
           match self.cur_section {
             LogSection::Input(_) => Ok(FfmpegEvent::ParsedInputStream(stream)),
             LogSection::Output(_) => Ok(FfmpegEvent::ParsedOutputStream(stream)),
-            LogSection::Other | LogSection::StreamMapping => Err(Error::msg(format!(
+            LogSection::Other | LogSection::StreamMapping => Err(anyhow::Error::msg(format!(
               "Unexpected stream specification: {}",
               line
             ))),
@@ -107,7 +106,6 @@ impl<R: Read> FfmpegLogParser<R> {
           Ok(FfmpegEvent::Log(LogLevel::Unknown, line.to_string()))
         }
       }
-      Err(e) => Err(Error::from_std(e)),
     }
   }
 

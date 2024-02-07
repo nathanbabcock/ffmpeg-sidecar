@@ -3,7 +3,8 @@ use std::{
   process::{Child, ChildStderr, ChildStdin, ChildStdout, ExitStatus},
 };
 
-use crate::error::{Error, Result};
+use anyhow::Context;
+
 use crate::iter::FfmpegIterator;
 
 /// A wrapper around [`std::process::Child`] containing a spawned FFmpeg command.
@@ -22,7 +23,7 @@ impl FfmpegChild {
   /// - Progress updates
   /// - Errors and warnings
   /// - Raw output frames
-  pub fn iter(&mut self) -> Result<FfmpegIterator> {
+  pub fn iter(&mut self) -> anyhow::Result<FfmpegIterator> {
     FfmpegIterator::new(self)
   }
 
@@ -66,12 +67,12 @@ impl FfmpegChild {
   /// q      quit
   /// s      Show QP histogram
   /// ```
-  pub fn send_stdin_command(&mut self, command: &[u8]) -> Result<()> {
+  pub fn send_stdin_command(&mut self, command: &[u8]) -> anyhow::Result<()> {
     let mut stdin = self
       .inner
       .stdin
       .take()
-      .ok_or_else(|| Error::msg("Missing child stdin"))?;
+      .context("Missing child stdin")?;
     stdin.write_all(command)?;
     self.inner.stdin.replace(stdin);
     Ok(())
@@ -83,7 +84,7 @@ impl FfmpegChild {
   /// This method returns after the command has been sent; the actual shut down
   /// may take a few more frames as ffmpeg flushes its buffers and writes the
   /// trailer, if applicable.
-  pub fn quit(&mut self) -> Result<()> {
+  pub fn quit(&mut self) -> anyhow::Result<()> {
     self.send_stdin_command(b"q")
   }
 

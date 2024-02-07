@@ -1,8 +1,9 @@
-use crate::error::Result;
 use std::{
   env::current_exe,
   path::{Path, PathBuf},
 };
+
+use anyhow::Context;
 
 /// Returns the default path of the FFmpeg executable, to be used as the
 /// argument to `Command::new`. It should first attempt to locate an FFmpeg
@@ -25,10 +26,10 @@ pub fn ffmpeg_path() -> PathBuf {
 ///
 /// The extension between platforms, with Windows using `.exe`, while Mac and
 /// Linux have no extension.
-pub fn sidecar_path() -> Result<PathBuf> {
+pub fn sidecar_path() -> anyhow::Result<PathBuf> {
   let mut path = current_exe()?
     .parent()
-    .ok_or("Can't get parent of current_exe")?
+    .context("Can't get parent of current_exe")?
     .join("ffmpeg");
   if cfg!(windows) {
     path.set_extension("exe");
@@ -37,11 +38,11 @@ pub fn sidecar_path() -> Result<PathBuf> {
 }
 
 /// By default, downloads all temporary files to the same directory as the Rust executable.
-pub fn sidecar_dir() -> Result<PathBuf> {
+pub fn sidecar_dir() -> anyhow::Result<PathBuf> {
   Ok(
     sidecar_path()?
       .parent()
-      .ok_or("invalid sidecar path")?
+      .context("invalid sidecar path")?
       .to_path_buf(),
   )
 }

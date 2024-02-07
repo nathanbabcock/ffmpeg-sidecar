@@ -1,12 +1,11 @@
 use ffmpeg_sidecar::{
   command::ffmpeg_is_installed,
   download::{check_latest_version, download_ffmpeg_package, ffmpeg_download_url, unpack_ffmpeg},
-  error::Result,
   paths::sidecar_dir,
   version::ffmpeg_version,
 };
 
-fn main() -> Result<()> {
+fn main() -> anyhow::Result<()> {
   if ffmpeg_is_installed() {
     println!("FFmpeg is already installed! 🎉");
     println!("For demo purposes, we'll re-download and unpack it anyway.");
