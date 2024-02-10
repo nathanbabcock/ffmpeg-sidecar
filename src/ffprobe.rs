@@ -1,9 +1,10 @@
-use crate::error::{Error, Result};
 use std::{env::current_exe, ffi::OsStr, path::PathBuf};
 use std::{
   path::Path,
   process::{Command, Stdio},
 };
+
+use anyhow::Context;
 
 /// Returns the path of the downloaded FFprobe executable, or falls back to
 /// assuming its installed in the system path. Note that not all FFmpeg
@@ -23,10 +24,10 @@ pub fn ffprobe_path() -> PathBuf {
 ///
 /// The extension between platforms, with Windows using `.exe`, while Mac and
 /// Linux have no extension.
-pub fn ffprobe_sidecar_path() -> Result<PathBuf> {
+pub fn ffprobe_sidecar_path() -> anyhow::Result<PathBuf> {
   let mut path = current_exe()?
     .parent()
-    .ok_or("Can't get parent of current_exe")?
+    .context("Can't get parent of current_exe")?
     .join("ffprobe");
   if cfg!(windows) {
     path.set_extension("exe");
@@ -35,18 +36,18 @@ pub fn ffprobe_sidecar_path() -> Result<PathBuf> {
 }
 
 /// Alias for `ffprobe -version`, parsing the version number and returning it.
-pub fn ffprobe_version() -> Result<String> {
+pub fn ffprobe_version() -> anyhow::Result<String> {
   ffprobe_version_with_path(ffprobe_path())
 }
 
 /// Lower level variant of `ffprobe_version` that exposes a customized the path
 /// to the ffmpeg binary.
-pub fn ffprobe_version_with_path<S: AsRef<OsStr>>(path: S) -> Result<String> {
+pub fn ffprobe_version_with_path<S: AsRef<OsStr>>(path: S) -> anyhow::Result<String> {
   let output = Command::new(&path).arg("-version").output()?;
 
   // note:version parsing is not implemented for ffprobe
 
-  String::from_utf8(output.stdout).map_err(Error::from)
+  Ok(String::from_utf8(output.stdout)?)
 }
 
 /// Verify whether ffprobe is installed on the system. This will return true if

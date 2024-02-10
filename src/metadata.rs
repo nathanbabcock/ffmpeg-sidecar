@@ -1,4 +1,3 @@
-use crate::error::Result;
 use crate::event::{AVStream, FfmpegEvent, FfmpegInput, FfmpegOutput};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -44,9 +43,9 @@ impl FfmpegMetadata {
     self.inputs[0].duration
   }
 
-  pub fn handle_event(&mut self, item: &Option<FfmpegEvent>) -> Result<()> {
+  pub fn handle_event(&mut self, item: &Option<FfmpegEvent>) -> anyhow::Result<()> {
     if self.is_completed() {
-      return Err("Metadata is already completed".into());
+      anyhow::bail!("Metadata is already completed")
     }
 
     match item {
