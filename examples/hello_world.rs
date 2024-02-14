@@ -1,11 +1,11 @@
-use ffmpeg_sidecar::{command::FfmpegCommand, error::Result, event::FfmpegEvent};
+use ffmpeg_sidecar::{command::FfmpegCommand, event::FfmpegEvent};
 
 /// Iterates over the frames of a `testsrc`.
 ///
 /// ```console
 /// cargo run --example hello_world
 /// ```
-fn main() -> Result<()> {
+fn main() -> anyhow::Result<()> {
   FfmpegCommand::new() // <- Builder API like `std::process::Command`
     .testsrc() // <- Discoverable aliases for FFmpeg args
     .rawvideo() // <- Convenient argument presets

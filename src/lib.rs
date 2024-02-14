@@ -3,9 +3,9 @@
 //! ## Example
 //!
 //! ```rust
-//! use ffmpeg_sidecar::{command::FfmpegCommand, error::Result, event::FfmpegEvent};
+//! use ffmpeg_sidecar::{command::FfmpegCommand, event::FfmpegEvent};
 //!
-//! fn main() -> Result<()> {
+//! fn main() -> anyhow::Result<()> {
 //!   FfmpegCommand::new() // <- Builder API like `std::process::Command`
 //!     .testsrc()  // <- Discoverable aliases for FFmpeg args
 //!     .rawvideo() // <- Convenient argument presets
@@ -38,7 +38,6 @@ pub mod child;
 pub mod comma_iter;
 pub mod command;
 pub mod download;
-pub mod error;
 pub mod event;
 pub mod ffprobe;
 pub mod iter;

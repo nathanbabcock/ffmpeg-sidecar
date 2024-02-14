@@ -5,9 +5,10 @@ use std::{
   thread::JoinHandle,
 };
 
+use anyhow::Context;
+
 use crate::{
   child::FfmpegChild,
-  error::{Error, Result},
   event::{AVStream, FfmpegEvent, FfmpegOutput, FfmpegProgress, LogLevel, OutputVideoFrame},
   log_parser::FfmpegLogParser,
   metadata::FfmpegMetadata,
@@ -23,8 +24,8 @@ pub struct FfmpegIterator {
 }
 
 impl FfmpegIterator {
-  pub fn new(child: &mut FfmpegChild) -> Result<Self> {
-    let stderr = child.take_stderr().ok_or_else(|| Error::msg("No stderr channel\n - Did you call `take_stderr` elsewhere?\n - Did you forget to call `.stderr(Stdio::piped)` on the `ChildProcess`?"))?;
+  pub fn new(child: &mut FfmpegChild) -> anyhow::Result<Self> {
+    let stderr = child.take_stderr().context("No stderr channel\n - Did you call `take_stderr` elsewhere?\n - Did you forget to call `.stderr(Stdio::piped)` on the `ChildProcess`?")?;
     let (tx, rx) = sync_channel::<FfmpegEvent>(0);
     spawn_stderr_thread(stderr, tx.clone());
     let stdout = child.take_stdout();
@@ -40,19 +41,19 @@ impl FfmpegIterator {
   /// Called after all metadata has been obtained to spawn the thread that will
   /// handle output. The metadata is needed to determine the output format and
   /// other parameters.
-  fn start_stdout(&mut self) -> Result<()> {
+  fn start_stdout(&mut self) -> anyhow::Result<()> {
     // No output detected
     if self.metadata.output_streams.is_empty() || self.metadata.outputs.is_empty() {
-      let err = Error::msg("No output streams found");
+      let err = "No output streams found";
       self.tx.take(); // drop the tx so that the channel closes
-      return Err(err);
+      anyhow::bail!(err)
     }
 
     // Handle stdout
     if let Some(stdout) = self.stdout.take() {
       spawn_stdout_thread(
         stdout,
-        self.tx.take().ok_or("missing channel tx")?,
+        self.tx.take().context("missing channel tx")?,
         self.metadata.output_streams.clone(),
         self.metadata.outputs.clone(),
       );
@@ -62,7 +63,7 @@ impl FfmpegIterator {
   }
 
   /// Advance the iterator until all metadata has been collected, returning it.
-  pub fn collect_metadata(&mut self) -> Result<FfmpegMetadata> {
+  pub fn collect_metadata(&mut self) -> anyhow::Result<FfmpegMetadata> {
     let mut event_queue: Vec<FfmpegEvent> = Vec::new();
 
     while !self.metadata.is_completed() {
@@ -78,11 +79,10 @@ impl FfmpegIterator {
             })
             .collect::<Vec<String>>()
             .join("");
-          let msg = format!(
-            "Iterator ran out before metadata was gathered. The following errors occurred: {}",
-            errors
-          );
-          return Err(Error::msg(msg));
+
+          anyhow::bail!(
+            "Iterator ran out before metadata was gathered. The following errors occurred: {errors}",
+          )
         }
       }
     }

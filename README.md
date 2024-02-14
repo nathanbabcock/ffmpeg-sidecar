@@ -8,7 +8,7 @@
 
 ## Features
 
-- ✨ Zero dependencies
+- ✨ Minimal dependencies
 - ⚡ Automatic FFmpeg CLI download (if needed)
 - 🤗 Support for Windows, MacOS, and Linux
 - 🧪 Thoroughly unit tested
