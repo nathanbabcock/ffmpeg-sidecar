@@ -61,8 +61,6 @@ download it at runtime.
 
 ### 1. Cargo Install
 
-On the Rust side, it has **zero** Cargo dependencies! 🎉
-
 ```console
 cargo add ffmpeg-sidecar
 ```
