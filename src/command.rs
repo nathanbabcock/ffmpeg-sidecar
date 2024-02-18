@@ -466,7 +466,7 @@ impl FfmpegCommand {
   /// Note that with this option it is possible to use only lavfi sources
   /// without normal input files.
   pub fn filter_complex<S: AsRef<str>>(&mut self, filtergraph: S) -> &mut Self {
-    self.arg("-filtergraph");
+    self.arg("-filter_complex");
     self.arg(filtergraph.as_ref());
     self
   }
