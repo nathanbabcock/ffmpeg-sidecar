@@ -305,3 +305,19 @@ fn test_ffprobe_version() {
   println!("{:?}", ffprobe_path());
   println!("{:?}", ffprobe_version().unwrap());
 }
+
+#[test]
+fn test_filter_complex() {
+  let num_frames = FfmpegCommand::new()
+    .format("lavfi")
+    .input("testsrc=duration=1:rate=10")
+    .rawvideo()
+    .filter_complex("fps=5")
+    .spawn()
+    .unwrap()
+    .iter()
+    .unwrap()
+    .filter_frames()
+    .count();
+  assert!(num_frames == 5);
+}
