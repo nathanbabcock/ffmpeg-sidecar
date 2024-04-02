@@ -86,9 +86,9 @@ of your client application.
 Read raw video frames.
 
 ```rust
-use ffmpeg_sidecar::{command::FfmpegCommand, error::Result, event::FfmpegEvent};
+use ffmpeg_sidecar::{command::FfmpegCommand, event::FfmpegEvent};
 
-fn main() -> Result<()> {
+fn main() -> anyhow::Result<()> { 
   FfmpegCommand::new() // <- Builder API like `std::process::Command`
     .testsrc()  // <- Discoverable aliases for FFmpeg args
     .rawvideo() // <- Convenient argument presets
