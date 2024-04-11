@@ -204,6 +204,32 @@ impl FfmpegCommand {
   //// Video option aliases
   //// https://ffmpeg.org/ffmpeg.html#Video-Options
 
+  /// Alias for '-crf:v' argument.
+  ///
+  /// Set CRF (Constant Rate Factor) for quality-based VBR (Variable BitRate)
+  ///
+  /// Use this rate control mode if you want to keep the best quality and care
+  /// less about the file size. Lower values means better quality with
+  /// bigger average bitrate (0 usually means lossless).
+  ///
+  /// Possible values depend on codec:
+  ///   * 0-51 for h264 (default is 23), see [ffmpeg encoding guide for h264
+  /// for more details](https://trac.ffmpeg.org/wiki/Encode/H.264#crf)
+  ///   * 0-51 for h265 (default is 28), see [ffmpeg encoding guide for h265
+  /// for more details](https://trac.ffmpeg.org/wiki/Encode/H.265#ConstantRateFactorCRF)
+  ///   * 0-63 for vp9  (no default, 31 is recommended for 1080p HD video),
+  /// see [ffmpeg encoding guide for vp9 for more details](https://trac.ffmpeg.org/wiki/Encode/VP9#constrainedq)
+  ///   * 0-63 for av1(libaom-av1) (no default), see [ffmpeg encoding guide
+  /// for libaom for more details](https://trac.ffmpeg.org/wiki/Encode/AV1#ConstantQuality)
+  ///   * 0-63 for av1(libsvtav1) (default is 30), see [ffmpeg encoding guide
+  /// for svt-av1 for mode details](https://trac.ffmpeg.org/wiki/Encode/AV1#CRF)
+  ///
+  pub fn crf(&mut self, crf: u32) -> &mut Self {
+    self.arg("-crf:v");
+    self.arg(crf.to_string());
+    self
+  }
+
   /// Alias for `-frames:v` argument.
   ///
   /// Stop writing to the stream after `framecount` frames.
@@ -212,6 +238,35 @@ impl FfmpegCommand {
   pub fn frames(&mut self, framecount: u32) -> &mut Self {
     self.arg("-frames:v");
     self.arg(framecount.to_string());
+    self
+  }
+
+  /// Alias for `-preset:v` argument.
+  ///
+  /// Set preset which is basically trade-off between encoding speed and
+  /// compression ratio.
+  ///
+  /// For h264 and h265 allowed values are:
+  ///   * ultrafast
+  ///   * superfast
+  ///   * veryfast
+  ///   * faster
+  ///   * medium (default preset)
+  ///   * slow
+  ///   * slower
+  ///   * veryslow
+  ///   * placebo
+  ///
+  /// For svt-av1 supported values 0-13 (higher number providing a higher
+  /// encoding speed). Prior to version 0.9.0 valid values was 0-8.
+  ///
+  /// For libaom supported values 0-11 (higher number providing a higher
+  /// encoding speed)
+  ///
+  /// VP9 has no presets
+  pub fn preset<S: AsRef<str>>(&mut self, preset: S) -> &mut Self {
+    self.arg("-preset:v");
+    self.arg(preset.as_ref());
     self
   }
 
