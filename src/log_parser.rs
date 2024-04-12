@@ -417,9 +417,12 @@ pub fn try_parse_progress(mut string: &str) -> Option<FfmpegProgress> {
     .split("size=") // captures "Lsize=" AND "size="
     .nth(1)?
     .split_whitespace()
-    .next()?
-    .trim()
-    .strip_suffix("kB")?
+    .next()
+    .map(|s| s.trim())
+    .and_then(|s| {
+      s.strip_suffix("KiB") // FFmpeg v7.0 and later
+        .or_else(|| s.strip_suffix("kB")) // FFmpeg v6.0 and prior
+    })?
     .parse::<u32>()
     .ok()?;
   let time = string
@@ -560,5 +563,20 @@ mod tests {
       }
     }
     assert!(num_events > 1);
+  }
+
+  /// Test case for https://github.com/nathanbabcock/ffmpeg-sidecar/issues/31
+  /// Covers regression in progress parsing introduced in FFmpeg 7.0
+  #[test]
+  fn test_parse_progress_v7() {
+    let line = "[info] frame=    5 fps=0.0 q=-1.0 Lsize=      10KiB time=00:00:03.00 bitrate=  27.2kbits/s speed= 283x\n";
+    let progress = try_parse_progress(line).unwrap();
+    assert!(progress.frame == 5);
+    assert!(progress.fps == 0.0);
+    assert!(progress.q == -1.0);
+    assert!(progress.size_kb == 10);
+    assert!(progress.time == "00:00:03.00");
+    assert!(progress.bitrate_kbps == 27.2);
+    assert!(progress.speed == 283.0);
   }
 }
