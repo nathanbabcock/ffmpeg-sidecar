@@ -567,6 +567,7 @@ mod tests {
 
   /// Test case for https://github.com/nathanbabcock/ffmpeg-sidecar/issues/31
   /// Covers regression in progress parsing introduced in FFmpeg 7.0
+  /// The string format for `Lsize` units went from `kB` to `KiB`
   #[test]
   fn test_parse_progress_v7() {
     let line = "[info] frame=    5 fps=0.0 q=-1.0 Lsize=      10KiB time=00:00:03.00 bitrate=  27.2kbits/s speed= 283x\n";
