@@ -34,6 +34,8 @@ pub fn ffmpeg_manifest_url() -> anyhow::Result<&'static str> {
 pub fn ffmpeg_download_url() -> anyhow::Result<&'static str> {
   if cfg!(all(target_os = "windows", target_arch = "x86_64")) {
     Ok("https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip")
+  } else if cfg!(all(target_os = "windows", target_arch = "aarch64")) {
+    Ok("https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip")
   } else if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
     Ok("https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz")
   } else if cfg!(all(target_os = "macos", target_arch = "x86_64")) {
@@ -115,10 +117,7 @@ pub fn curl(url: &str) -> anyhow::Result<String> {
     .stdout(Stdio::piped())
     .spawn()?;
 
-  let stdout = child
-    .stdout
-    .take()
-    .context("Failed to get stdout")?;
+  let stdout = child.stdout.take().context("Failed to get stdout")?;
 
   let mut string = String::new();
   std::io::BufReader::new(stdout).read_to_string(&mut string)?;
@@ -159,9 +158,7 @@ pub fn download_ffmpeg_package(url: &str, download_dir: &Path) -> anyhow::Result
 
   let archive_path = download_dir.join(filename);
 
-  let archive_filename = archive_path
-    .to_str()
-    .context("invalid download path")?;
+  let archive_filename = archive_path.to_str().context("invalid download path")?;
 
   let exit_status = curl_to_file(url, archive_filename)?;
 
