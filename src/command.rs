@@ -609,12 +609,23 @@ impl FfmpegCommand {
   /// Spawn the ffmpeg command as a child process, wrapping it in a
   /// `FfmpegChild` interface.
   ///
-  /// Please note that if the result is not used with [wait()](FfmpegChild::wait)
+  /// Please note that if the result is not used with [`wait()`](FfmpegChild::wait)
   /// the process is not cleaned up correctly resulting in a zombie process
   /// until your main thread exits.
   ///
   /// Identical to `spawn` in [`std::process::Command`].
   pub fn spawn(&mut self) -> io::Result<FfmpegChild> {
+    // Disable overwrite if the user hasn't chosen another setting
+    // The interactive "Would you like to overwrite?" prompt is problematic,
+    // Since it won't be parsed by the log parser and the process will appear
+    // to hang indefinitely without any indication of what's happening.
+    if !self
+      .get_args()
+      .any(|arg| arg == "-y" || arg == "-n" || arg == "-nostdin")
+    {
+      self.no_overwrite();
+    }
+
     self.inner.spawn().map(FfmpegChild::from_inner)
   }
 
@@ -659,6 +670,7 @@ impl FfmpegCommand {
     // Configure `FfmpegCommand`
     let mut ffmpeg_command = Self { inner };
     ffmpeg_command.set_expected_loglevel();
+    // todo: ffmpeg_command.no_overwrite();
     ffmpeg_command
   }
 
