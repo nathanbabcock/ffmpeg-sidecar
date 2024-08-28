@@ -2,7 +2,11 @@ use ffmpeg_sidecar::{
   command::ffmpeg_is_installed,
   download::{check_latest_version, download_ffmpeg_package, ffmpeg_download_url, unpack_ffmpeg},
   paths::sidecar_dir,
-  version::ffmpeg_version,
+  version::ffmpeg_version_with_path,
+};
+use std::{
+  env::current_exe,
+  path::{Component, PathBuf},
 };
 
 fn main() -> anyhow::Result<()> {
@@ -27,7 +31,11 @@ fn main() -> anyhow::Result<()> {
   // These defaults will automatically select the correct download URL for your
   // platform.
   let download_url = ffmpeg_download_url()?;
-  let destination = sidecar_dir()?;
+  let cli_arg = std::env::args().nth(1);
+  let destination = match cli_arg {
+    Some(arg) => resolve_relative_path(current_exe()?.parent().unwrap().join(arg)),
+    None => sidecar_dir()?,
+  };
 
   // By default the download will use a `curl` command. You could also write
   // your own download function and use another package like `reqwest` instead.
@@ -40,9 +48,26 @@ fn main() -> anyhow::Result<()> {
   unpack_ffmpeg(&archive_path, &destination)?;
 
   // Use the freshly installed FFmpeg to check the version number
-  let version = ffmpeg_version()?;
+  let version = ffmpeg_version_with_path(destination.join("ffmpeg"))?;
   println!("FFmpeg version: {}", version);
 
   println!("Done! 🏁");
   Ok(())
+}
+
+fn resolve_relative_path(path_buf: PathBuf) -> PathBuf {
+  let mut components: Vec<PathBuf> = vec![];
+  for component in path_buf.as_path().components() {
+    match component {
+      Component::Prefix(_) | Component::RootDir => components.push(component.as_os_str().into()),
+      Component::CurDir => (),
+      Component::ParentDir => {
+        if !components.is_empty() {
+          components.pop();
+        }
+      }
+      Component::Normal(component) => components.push(component.into()),
+    }
+  }
+  PathBuf::from_iter(components)
 }
