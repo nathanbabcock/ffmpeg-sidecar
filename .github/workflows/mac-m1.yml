@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Try auto-download
-        run: cargo run --example download_ffmpeg
+        run: cargo run --example download_ffmpeg -- ../deps
       - name: Build
         run: cargo build --verbose
       - name: Run tests

@@ -4,6 +4,7 @@ use ffmpeg_sidecar::{
   paths::sidecar_dir,
   version::ffmpeg_version,
 };
+use std::{env::current_exe, path};
 
 fn main() -> anyhow::Result<()> {
   if ffmpeg_is_installed() {
@@ -27,7 +28,11 @@ fn main() -> anyhow::Result<()> {
   // These defaults will automatically select the correct download URL for your
   // platform.
   let download_url = ffmpeg_download_url()?;
-  let destination = sidecar_dir()?;
+  let cli_arg = std::env::args().nth(1);
+  let destination = match cli_arg {
+    Some(arg) => path::absolute(current_exe()?.parent().unwrap().join(arg))?,
+    None => sidecar_dir()?,
+  };
 
   // By default the download will use a `curl` command. You could also write
   // your own download function and use another package like `reqwest` instead.
