@@ -4,7 +4,10 @@ use ffmpeg_sidecar::{
   paths::sidecar_dir,
   version::ffmpeg_version,
 };
-use std::{env::current_exe, path};
+use std::{
+  env::current_exe,
+  path::{self, Component, Path, PathBuf},
+};
 
 fn main() -> anyhow::Result<()> {
   if ffmpeg_is_installed() {
@@ -30,7 +33,7 @@ fn main() -> anyhow::Result<()> {
   let download_url = ffmpeg_download_url()?;
   let cli_arg = std::env::args().nth(1);
   let destination = match cli_arg {
-    Some(arg) => path::absolute(current_exe()?.parent().unwrap().join(arg))?,
+    Some(arg) => resolve_relative_path(current_exe()?.parent().unwrap().join(arg)),
     None => sidecar_dir()?,
   };
 
@@ -50,4 +53,21 @@ fn main() -> anyhow::Result<()> {
 
   println!("Done! 🏁");
   Ok(())
+}
+
+fn resolve_relative_path(path_buf: PathBuf) -> PathBuf {
+  let mut components: Vec<PathBuf> = vec![];
+  for component in path_buf.as_path().components() {
+    match component {
+      Component::Prefix(_) | Component::RootDir => components.push(component.as_os_str().into()),
+      Component::CurDir => (),
+      Component::ParentDir => {
+        if !components.is_empty() {
+          components.pop();
+        }
+      }
+      Component::Normal(component) => components.push(component.into()),
+    }
+  }
+  PathBuf::from_iter(components)
 }
