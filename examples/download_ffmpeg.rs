@@ -2,11 +2,11 @@ use ffmpeg_sidecar::{
   command::ffmpeg_is_installed,
   download::{check_latest_version, download_ffmpeg_package, ffmpeg_download_url, unpack_ffmpeg},
   paths::sidecar_dir,
-  version::ffmpeg_version,
+  version::ffmpeg_version_with_path,
 };
 use std::{
   env::current_exe,
-  path::{self, Component, Path, PathBuf},
+  path::{Component, PathBuf},
 };
 
 fn main() -> anyhow::Result<()> {
@@ -48,7 +48,7 @@ fn main() -> anyhow::Result<()> {
   unpack_ffmpeg(&archive_path, &destination)?;
 
   // Use the freshly installed FFmpeg to check the version number
-  let version = ffmpeg_version()?;
+  let version = ffmpeg_version_with_path(destination.join("ffmpeg"))?;
   println!("FFmpeg version: {}", version);
 
   println!("Done! 🏁");
