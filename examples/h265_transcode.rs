@@ -56,7 +56,7 @@ fn main() {
     // `for_each` blocks through the end of the iterator,
     // so we run it in another thread.
     transformed_frames.for_each(|f| {
-      stdin.write(&f.data).ok();
+      stdin.write_all(&f.data).ok();
     });
   });
 
