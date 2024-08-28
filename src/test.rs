@@ -1,7 +1,6 @@
 use crate::{
   command::{ffmpeg_is_installed, FfmpegCommand},
   event::FfmpegEvent,
-  ffprobe::{ffprobe_path, ffprobe_version},
   version::ffmpeg_version,
 };
 
