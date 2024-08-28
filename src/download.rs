@@ -134,8 +134,12 @@ pub fn curl_to_file(url: &str, destination: &str) -> anyhow::Result<ExitStatus> 
 /// Makes an HTTP request to obtain the latest version available online,
 /// automatically choosing the correct URL for the current platform.
 pub fn check_latest_version() -> anyhow::Result<String> {
-  let string = curl(ffmpeg_manifest_url()?)?;
+  // Mac M1 doesn't have a manifest URL, so match the version provided in `ffmpeg_download_url`
+  if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
+    return Ok("7.0".to_string());
+  }
 
+  let string = curl(ffmpeg_manifest_url()?)?;
   if cfg!(target_os = "windows") {
     Ok(string)
   } else if cfg!(target_os = "macos") {
