@@ -214,16 +214,15 @@ impl FfmpegCommand {
   ///
   /// Possible values depend on codec:
   ///   * 0-51 for h264 (default is 23), see [ffmpeg encoding guide for h264
-  /// for more details](https://trac.ffmpeg.org/wiki/Encode/H.264#crf)
+  ///     for more details](https://trac.ffmpeg.org/wiki/Encode/H.264#crf)
   ///   * 0-51 for h265 (default is 28), see [ffmpeg encoding guide for h265
-  /// for more details](https://trac.ffmpeg.org/wiki/Encode/H.265#ConstantRateFactorCRF)
+  ///     for more details](https://trac.ffmpeg.org/wiki/Encode/H.265#ConstantRateFactorCRF)
   ///   * 0-63 for vp9  (no default, 31 is recommended for 1080p HD video),
-  /// see [ffmpeg encoding guide for vp9 for more details](https://trac.ffmpeg.org/wiki/Encode/VP9#constrainedq)
+  ///     see [ffmpeg encoding guide for vp9 for more details](https://trac.ffmpeg.org/wiki/Encode/VP9#constrainedq)
   ///   * 0-63 for av1(libaom-av1) (no default), see [ffmpeg encoding guide
-  /// for libaom for more details](https://trac.ffmpeg.org/wiki/Encode/AV1#ConstantQuality)
+  ///     for libaom for more details](https://trac.ffmpeg.org/wiki/Encode/AV1#ConstantQuality)
   ///   * 0-63 for av1(libsvtav1) (default is 30), see [ffmpeg encoding guide
-  /// for svt-av1 for mode details](https://trac.ffmpeg.org/wiki/Encode/AV1#CRF)
-  ///
+  ///     for svt-av1 for mode details](https://trac.ffmpeg.org/wiki/Encode/AV1#CRF)
   pub fn crf(&mut self, crf: u32) -> &mut Self {
     self.arg("-crf:v");
     self.arg(crf.to_string());
@@ -345,18 +344,18 @@ impl FfmpegCommand {
   /// - `none`: Do not use any hardware acceleration (the default).
   /// - `auto`: Automatically select the hardware acceleration method.
   /// - `vdpau`: Use VDPAU (Video Decode and Presentation API for Unix) hardware
-  /// acceleration.
+  ///   acceleration.
   /// - `dxva2`: Use DXVA2 (DirectX Video Acceleration) hardware acceleration.
   /// - `d3d11va`: Use D3D11VA (DirectX Video Acceleration) hardware
   ///   acceleration.
   /// - `vaapi`: Use VAAPI (Video Acceleration API) hardware acceleration.
   /// - `qsv`: Use the Intel QuickSync Video acceleration for video transcoding.
   ///   - Unlike most other values, this option does not enable accelerated
-  /// decoding (that is used automatically whenever a qsv decoder is selected),
-  /// but accelerated transcoding, without copying the frames into the system
-  /// memory.
+  ///     decoding (that is used automatically whenever a qsv decoder is selected),
+  ///     but accelerated transcoding, without copying the frames into the system
+  ///     memory.
   ///   - For it to work, both the decoder and the encoder must support QSV
-  /// acceleration and no filters must be used.
+  ///     acceleration and no filters must be used.
   ///
   /// This option has no effect if the selected hwaccel is not available or not
   /// supported by the chosen decoder.
