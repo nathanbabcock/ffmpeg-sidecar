@@ -39,7 +39,7 @@ pub fn ffmpeg_download_url() -> anyhow::Result<&'static str> {
   } else if cfg!(all(target_os = "macos", target_arch = "x86_64")) {
     Ok("https://evermeet.cx/ffmpeg/getrelease")
   } else if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
-    Ok("https://www.osxexperts.net/ffmpeg6arm.zip") // Mac M1
+    Ok("https://www.osxexperts.net/ffmpeg7arm.zip") // Mac M1
   } else {
     anyhow::bail!("Unsupported platform; you can provide your own URL instead and call download_ffmpeg_package directly.")
   }
@@ -115,10 +115,7 @@ pub fn curl(url: &str) -> anyhow::Result<String> {
     .stdout(Stdio::piped())
     .spawn()?;
 
-  let stdout = child
-    .stdout
-    .take()
-    .context("Failed to get stdout")?;
+  let stdout = child.stdout.take().context("Failed to get stdout")?;
 
   let mut string = String::new();
   std::io::BufReader::new(stdout).read_to_string(&mut string)?;
@@ -159,9 +156,7 @@ pub fn download_ffmpeg_package(url: &str, download_dir: &Path) -> anyhow::Result
 
   let archive_path = download_dir.join(filename);
 
-  let archive_filename = archive_path
-    .to_str()
-    .context("invalid download path")?;
+  let archive_filename = archive_path.to_str().context("invalid download path")?;
 
   let exit_status = curl_to_file(url, archive_filename)?;
 
