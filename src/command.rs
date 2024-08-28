@@ -606,6 +606,18 @@ impl FfmpegCommand {
     self.inner.get_args()
   }
 
+  /// Appends `-n` (no overwrite) to the args list if needed.
+  /// The interactive "Would you like to overwrite?" prompt is problematic,
+  /// since it won't be parsed by the log parser and the process will appear
+  /// to hang indefinitely without any indication of what's happening.
+  pub fn prevent_overwrite_prompt(&mut self) -> &mut Self {
+    let is_overwrite_arg = |arg| arg == "-y" || arg == "-n" || arg == "-nostdin";
+    if !self.get_args().any(is_overwrite_arg) {
+      self.no_overwrite();
+    }
+    self
+  }
+
   /// Spawn the ffmpeg command as a child process, wrapping it in a
   /// `FfmpegChild` interface.
   ///
@@ -615,17 +627,7 @@ impl FfmpegCommand {
   ///
   /// Identical to `spawn` in [`std::process::Command`].
   pub fn spawn(&mut self) -> io::Result<FfmpegChild> {
-    // Disable overwrite if the user hasn't chosen another setting
-    // The interactive "Would you like to overwrite?" prompt is problematic,
-    // Since it won't be parsed by the log parser and the process will appear
-    // to hang indefinitely without any indication of what's happening.
-    if !self
-      .get_args()
-      .any(|arg| arg == "-y" || arg == "-n" || arg == "-nostdin")
-    {
-      self.no_overwrite();
-    }
-
+    self.prevent_overwrite_prompt();
     self.inner.spawn().map(FfmpegChild::from_inner)
   }
 

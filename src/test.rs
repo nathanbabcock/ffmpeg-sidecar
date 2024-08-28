@@ -1,3 +1,5 @@
+use std::{sync::mpsc, thread, time::Duration};
+
 use crate::{
   command::{ffmpeg_is_installed, FfmpegCommand},
   event::FfmpegEvent,
@@ -320,4 +322,136 @@ fn test_filter_complex() {
     .filter_frames()
     .count();
   assert!(num_frames == 5);
+}
+
+/// Should not hang prompting for user input on overwrite
+/// https://github.com/nathanbabcock/ffmpeg-sidecar/issues/35
+#[test]
+fn test_overwrite_fallback() -> anyhow::Result<()> {
+  let output_path = "output/test_overwrite_fallback.jpg";
+  let timeout_ms = 1000;
+
+  let write_file_with_timeout = || {
+    let mut command = FfmpegCommand::new();
+    command.testsrc().frames(1).output(output_path);
+    spawn_with_timeout(&mut command, timeout_ms)
+  };
+
+  write_file_with_timeout()?;
+  let time1 = std::fs::metadata(output_path)?.modified()?;
+
+  write_file_with_timeout()?;
+  let time2 = std::fs::metadata(output_path)?.modified()?;
+
+  assert_eq!(time1, time2);
+
+  Ok(())
+}
+
+#[test]
+fn test_overwrite_nostdin() -> anyhow::Result<()> {
+  let output_path = "output/test_overwrite_nostdin.jpg";
+
+  let write_file = || -> anyhow::Result<_> {
+    FfmpegCommand::new()
+      .arg("-nostdin")
+      .testsrc()
+      .frames(1)
+      .output(output_path)
+      .spawn()?
+      .wait()
+      .map_err(Into::into)
+  };
+
+  write_file()?;
+  let time1 = std::fs::metadata(output_path)?.modified()?;
+
+  write_file()?;
+  let time2 = std::fs::metadata(output_path)?.modified()?;
+
+  assert_eq!(time1, time2);
+
+  Ok(())
+}
+
+#[test]
+fn test_overwrite() -> anyhow::Result<()> {
+  let output_path = "output/test_overwrite.jpg";
+
+  let write_file = || -> anyhow::Result<_> {
+    FfmpegCommand::new()
+      .overwrite()
+      .testsrc()
+      .frames(1)
+      .output(output_path)
+      .spawn()?
+      .wait()
+      .map_err(Into::into)
+  };
+
+  write_file()?;
+  let time1 = std::fs::metadata(output_path)?.modified()?;
+
+  write_file()?;
+  let time2 = std::fs::metadata(output_path)?.modified()?;
+
+  assert_ne!(time1, time2);
+
+  Ok(())
+}
+
+#[test]
+fn test_no_overwrite() -> anyhow::Result<()> {
+  let output_path = "output/test_no_overwrite.jpg"; // same file, ok if it exists
+
+  let write_file = || -> anyhow::Result<_> {
+    FfmpegCommand::new()
+      .no_overwrite()
+      .testsrc()
+      .frames(1)
+      .output(output_path)
+      .spawn()?
+      .wait()
+      .map_err(Into::into)
+  };
+
+  write_file()?;
+  let time1 = std::fs::metadata(output_path)?.modified()?;
+
+  write_file()?;
+  let time2 = std::fs::metadata(output_path)?.modified()?;
+
+  assert_eq!(time1, time2);
+
+  Ok(())
+}
+
+/// Returns `Err` if the timeout thread finishes before the FFmpeg process
+fn spawn_with_timeout(command: &mut FfmpegCommand, timeout: u64) -> anyhow::Result<()> {
+  let (sender, receiver) = mpsc::channel();
+
+  // Thread 1: Waits for 1000ms and sends a message
+  let timeout_sender = sender.clone();
+  thread::spawn(move || {
+    thread::sleep(Duration::from_millis(timeout));
+    timeout_sender.send("timeout").ok();
+  });
+
+  // Thread 2: Consumes the FFmpeg events and sends a message
+  let mut ffmpeg_child = command.spawn()?;
+  let iter = ffmpeg_child.iter()?;
+  thread::spawn(move || {
+    iter.for_each(|_| {});
+    // Note: `.wait()` would not work here, because it closes `stdin` automatically
+    sender.send("ffmpeg").ok();
+  });
+
+  // Race the two threads
+  let finished_first = receiver.recv()?;
+  ffmpeg_child.kill()?;
+  match finished_first {
+    "timeout" => anyhow::bail!("Timeout thread expired before FFmpeg"),
+    "ffmpeg" => Ok(()),
+    _ => anyhow::bail!("Unknown message received"),
+  }
 }
