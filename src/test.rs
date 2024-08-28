@@ -301,12 +301,6 @@ fn test_frame_timestamp() {
 }
 
 #[test]
-fn test_ffprobe_version() {
-  println!("{:?}", ffprobe_path());
-  println!("{:?}", ffprobe_version().unwrap());
-}
-
-#[test]
 fn test_filter_complex() {
   let num_frames = FfmpegCommand::new()
     .format("lavfi")
