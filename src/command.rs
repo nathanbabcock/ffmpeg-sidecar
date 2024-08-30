@@ -609,7 +609,7 @@ impl FfmpegCommand {
   /// The interactive "Would you like to overwrite?" prompt is problematic,
   /// since it won't be parsed by the log parser and the process will appear
   /// to hang indefinitely without any indication of what's happening.
-  pub fn prevent_overwrite_prompt(&mut self) -> &mut Self {
+  fn prevent_overwrite_prompt(&mut self) -> &mut Self {
     let is_overwrite_arg = |arg| arg == "-y" || arg == "-n" || arg == "-nostdin";
     if !self.get_args().any(is_overwrite_arg) {
       self.no_overwrite();
