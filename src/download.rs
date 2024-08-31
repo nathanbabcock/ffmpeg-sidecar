@@ -7,7 +7,10 @@ use std::{
 
 use anyhow::Context;
 
-use crate::{command::ffmpeg_is_installed, paths::sidecar_dir};
+use crate::{
+  command::{ffmpeg_is_installed, BackgroundCommand},
+  paths::sidecar_dir,
+};
 
 pub const UNPACK_DIRNAME: &str = "ffmpeg_release_temp";
 
@@ -110,6 +113,7 @@ pub fn parse_linux_version(version: &str) -> Option<String> {
 /// Invoke cURL on the command line to download a file, returning it as a string.
 pub fn curl(url: &str) -> anyhow::Result<String> {
   let mut child = Command::new("curl")
+    .create_no_window()
     .args(["-L", url])
     .stderr(Stdio::null())
     .stdout(Stdio::piped())
@@ -125,6 +129,7 @@ pub fn curl(url: &str) -> anyhow::Result<String> {
 /// Invoke cURL on the command line to download a file, writing to a file.
 pub fn curl_to_file(url: &str, destination: &str) -> anyhow::Result<ExitStatus> {
   Command::new("curl")
+    .create_no_window()
     .args(["-L", url])
     .args(["-o", destination])
     .status()
@@ -180,6 +185,7 @@ pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> anyhow::Re
 
   // Extract archive
   Command::new("tar")
+    .create_no_window()
     .arg("-xf")
     .arg(from_archive)
     .current_dir(&temp_folder)

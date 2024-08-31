@@ -499,7 +499,7 @@ pub fn parse_time_str(str: &str) -> Option<f64> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::paths::ffmpeg_path;
+  use crate::{command::BackgroundCommand, paths::ffmpeg_path};
   use std::{
     io::{Cursor, Seek, SeekFrom, Write},
     process::{Command, Stdio},
@@ -508,6 +508,7 @@ mod tests {
   #[test]
   fn test_parse_version() {
     let cmd = Command::new(ffmpeg_path())
+      .create_no_window()
       .arg("-version")
       .stdout(Stdio::piped())
       // ⚠ notice that ffmpeg emits on stdout when `-version` or `-help` is passed!
@@ -527,6 +528,7 @@ mod tests {
   #[test]
   fn test_parse_configuration() {
     let cmd = Command::new(ffmpeg_path())
+      .create_no_window()
       .arg("-version")
       .stdout(Stdio::piped())
       // ⚠ notice that ffmpeg emits on stdout when `-version` or `-help` is passed!

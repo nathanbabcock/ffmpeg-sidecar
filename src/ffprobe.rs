@@ -1,10 +1,10 @@
+use crate::command::BackgroundCommand;
+use anyhow::Context;
 use std::{env::current_exe, ffi::OsStr, path::PathBuf};
 use std::{
   path::Path,
   process::{Command, Stdio},
 };
-
-use anyhow::Context;
 
 /// Returns the path of the downloaded FFprobe executable, or falls back to
 /// assuming its installed in the system path. Note that not all FFmpeg
@@ -55,6 +55,7 @@ pub fn ffprobe_version_with_path<S: AsRef<OsStr>>(path: S) -> anyhow::Result<Str
 /// executable.
 pub fn ffprobe_is_installed() -> bool {
   Command::new(ffprobe_path())
+    .create_no_window()
     .arg("-version")
     .stderr(Stdio::null())
     .stdout(Stdio::null())
