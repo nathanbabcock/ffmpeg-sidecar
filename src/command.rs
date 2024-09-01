@@ -647,8 +647,12 @@ impl FfmpegCommand {
     self
   }
 
-  /// Disable subprocess console window creation on Windows.
-  /// Called automatically in the constructor.
+  /// Disable creating a new console window for the spawned process on Windows.
+  /// Has no effect on other platforms. This can be useful when spawning a command
+  /// from a GUI program.
+  ///
+  /// This is called automatically in the constructor. To override, use
+  /// `CommandExt::creation_flags()` directly on the inner `Command`.
   pub fn create_no_window(&mut self) -> &mut Self {
     self.as_inner_mut().create_no_window();
     self
