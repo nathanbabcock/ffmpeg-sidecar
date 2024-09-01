@@ -647,12 +647,10 @@ impl FfmpegCommand {
     self
   }
 
-  /// Disable creating a new console window for the spawned process on Windows.
-  /// Has no effect on other platforms. This can be useful when spawning FFmpeg
-  /// from a GUI program.
+  /// Disable subprocess console window creation on Windows.
+  /// Called automatically in the constructor.
   pub fn create_no_window(&mut self) -> &mut Self {
-    #[cfg(target_os = "windows")]
-    std::os::windows::process::CommandExt::creation_flags(self.as_inner_mut(), 0x08000000);
+    self.as_inner_mut().create_no_window();
     self
   }
 
@@ -671,7 +669,7 @@ impl FfmpegCommand {
     // Configure `FfmpegCommand`
     let mut ffmpeg_command = Self { inner };
     ffmpeg_command.set_expected_loglevel();
-    // todo: ffmpeg_command.no_overwrite();
+    ffmpeg_command.create_no_window();
     ffmpeg_command
   }
 
@@ -724,9 +722,25 @@ impl From<FfmpegCommand> for Command {
 pub fn ffmpeg_is_installed() -> bool {
   Command::new(ffmpeg_path())
     .arg("-version")
+    .create_no_window()
     .stderr(Stdio::null())
     .stdout(Stdio::null())
     .status()
     .map(|s| s.success())
     .unwrap_or_else(|_| false)
+}
+
+pub(crate) trait BackgroundCommand {
+  fn create_no_window(&mut self) -> &mut Self;
+}
+
+impl BackgroundCommand for Command {
+  /// Disable creating a new console window for the spawned process on Windows.
+  /// Has no effect on other platforms. This can be useful when spawning a command
+  /// from a GUI program.
+  fn create_no_window(&mut self) -> &mut Self {
+    #[cfg(target_os = "windows")]
+    std::os::windows::process::CommandExt::creation_flags(self, 0x08000000);
+    self
+  }
 }
