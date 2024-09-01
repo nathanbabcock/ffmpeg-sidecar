@@ -43,7 +43,10 @@ pub fn ffprobe_version() -> anyhow::Result<String> {
 /// Lower level variant of `ffprobe_version` that exposes a customized the path
 /// to the ffmpeg binary.
 pub fn ffprobe_version_with_path<S: AsRef<OsStr>>(path: S) -> anyhow::Result<String> {
-  let output = Command::new(&path).arg("-version").output()?;
+  let output = Command::new(&path)
+    .arg("-version")
+    .create_no_window()
+    .output()?;
 
   // note:version parsing is not implemented for ffprobe
 
