@@ -1,5 +1,6 @@
 use std::{
-  fs::{create_dir_all, read_dir, remove_dir_all, remove_file, rename},
+  fs::{create_dir_all, read_dir, remove_dir_all, remove_file, rename, File},
+  io,
   path::{Path, PathBuf},
   process::Command,
 };
@@ -160,9 +161,9 @@ pub fn download_ffmpeg_package(url: &str, download_dir: &Path) -> anyhow::Result
   }
 
   let mut file =
-    std::fs::File::create(&archive_path).context("Failed to create file for ffmpeg download")?;
+    File::create(&archive_path).context("Failed to create file for ffmpeg download")?;
 
-  std::io::copy(
+  io::copy(
     &mut response
       .bytes()
       .context("Failed to read response bytes")?
