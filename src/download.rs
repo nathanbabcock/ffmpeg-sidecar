@@ -2,7 +2,7 @@ use std::{
   fs::{create_dir_all, read_dir, remove_dir_all, remove_file, rename, File},
   io::{copy, Read},
   path::{Path, PathBuf},
-  process::{Command, ExitStatus, Stdio},
+  process::{Command, Stdio},
 };
 
 use anyhow::Context;
