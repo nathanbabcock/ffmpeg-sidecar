@@ -1,8 +1,7 @@
 use std::{
   fs::{create_dir_all, read_dir, remove_dir_all, remove_file, rename},
-  io::Read,
   path::{Path, PathBuf},
-  process::{Command, ExitStatus, Stdio},
+  process::Command,
 };
 
 use anyhow::Context;
@@ -54,6 +53,7 @@ pub fn ffmpeg_download_url() -> anyhow::Result<&'static str> {
 ///
 /// If FFmpeg is already installed, the method exits early without downloading
 /// anything.
+#[cfg(feature = "download_ffmpeg")]
 pub fn auto_download() -> anyhow::Result<()> {
   if ffmpeg_is_installed() {
     return Ok(());
@@ -110,32 +110,6 @@ pub fn parse_linux_version(version: &str) -> Option<String> {
     .map(|s| s.to_string())
 }
 
-/// Invoke cURL on the command line to download a file, returning it as a string.
-pub fn curl(url: &str) -> anyhow::Result<String> {
-  let mut child = Command::new("curl")
-    .create_no_window()
-    .args(["-L", url])
-    .stderr(Stdio::null())
-    .stdout(Stdio::piped())
-    .spawn()?;
-
-  let stdout = child.stdout.take().context("Failed to get stdout")?;
-
-  let mut string = String::new();
-  std::io::BufReader::new(stdout).read_to_string(&mut string)?;
-  Ok(string)
-}
-
-/// Invoke cURL on the command line to download a file, writing to a file.
-pub fn curl_to_file(url: &str, destination: &str) -> anyhow::Result<ExitStatus> {
-  Command::new("curl")
-    .create_no_window()
-    .args(["-L", url])
-    .args(["-o", destination])
-    .status()
-    .map_err(Into::into)
-}
-
 /// Makes an HTTP request to obtain the latest version available online,
 /// automatically choosing the correct URL for the current platform.
 pub fn check_latest_version() -> anyhow::Result<String> {
@@ -144,7 +118,19 @@ pub fn check_latest_version() -> anyhow::Result<String> {
     return Ok("7.0".to_string());
   }
 
-  let string = curl(ffmpeg_manifest_url()?)?;
+  let manifest_url = ffmpeg_manifest_url()?;
+  let response = reqwest::blocking::get(manifest_url)
+    .context("Failed to make a request for the latest version")?;
+
+  if !response.status().is_success() {
+    anyhow::bail!(
+      "Failed to get the latest version, status: {}",
+      response.status()
+    );
+  }
+
+  let string = response.text().context("Failed to read response text")?;
+
   if cfg!(target_os = "windows") {
     Ok(string)
   } else if cfg!(target_os = "macos") {
@@ -158,6 +144,7 @@ pub fn check_latest_version() -> anyhow::Result<String> {
 
 /// Invoke `curl` to download an archive (ZIP on windows, TAR on linux and mac)
 /// from the latest published release online.
+#[cfg(feature = "download_ffmpeg")]
 pub fn download_ffmpeg_package(url: &str, download_dir: &Path) -> anyhow::Result<PathBuf> {
   let filename = Path::new(url)
     .file_name()
@@ -165,13 +152,24 @@ pub fn download_ffmpeg_package(url: &str, download_dir: &Path) -> anyhow::Result
 
   let archive_path = download_dir.join(filename);
 
-  let archive_filename = archive_path.to_str().context("invalid download path")?;
+  let response =
+    reqwest::blocking::get(url).context("Failed to make a request to download ffmpeg")?;
 
-  let exit_status = curl_to_file(url, archive_filename)?;
-
-  if !exit_status.success() {
-    anyhow::bail!("Failed to download ffmpeg");
+  if !response.status().is_success() {
+    anyhow::bail!("Failed to download ffmpeg, status: {}", response.status());
   }
+
+  let mut file =
+    std::fs::File::create(&archive_path).context("Failed to create file for ffmpeg download")?;
+
+  std::io::copy(
+    &mut response
+      .bytes()
+      .context("Failed to read response bytes")?
+      .as_ref(),
+    &mut file,
+  )
+  .context("Failed to write ffmpeg download to file")?;
 
   Ok(archive_path)
 }
