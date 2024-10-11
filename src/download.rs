@@ -211,15 +211,11 @@ pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> anyhow::Re
   let temp_folder = binary_folder.join(temp_dirname);
   create_dir_all(&temp_folder)?;
 
-  // Extract archive
-  Command::new("tar")
-    .create_no_window()
-    .arg("-xf")
-    .arg(from_archive)
-    .current_dir(&temp_folder)
-    .status()?
-    .success()
-    .then_some(())
+  // Extract archive using the tar crate
+  let file = File::open(from_archive).context("Failed to open archive file")?;
+  let mut archive = zip::ZipArchive::new(file).context("Failed to read ZIP archive")?;
+  archive
+    .extract(&temp_folder)
     .context("Failed to unpack ffmpeg")?;
 
   // Move binaries

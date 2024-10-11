@@ -19,5 +19,7 @@ crate-type = ["lib"]
 
 [dependencies]
 anyhow = "1.0.79"
+tar = "0.4.42"
+zip = "2.2.0"
 reqwest = { version = "0.12.8", optional = true, features = ["blocking"]}
 
