@@ -113,6 +113,7 @@ pub fn parse_linux_version(version: &str) -> Option<String> {
 
 /// Makes an HTTP request to obtain the latest version available online,
 /// automatically choosing the correct URL for the current platform.
+#[cfg(feature = "download_ffmpeg")]
 pub fn check_latest_version() -> anyhow::Result<String> {
   // Mac M1 doesn't have a manifest URL, so match the version provided in `ffmpeg_download_url`
   if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
