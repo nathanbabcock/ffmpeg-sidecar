@@ -1,8 +1,8 @@
 use std::{
   fs::{create_dir_all, read_dir, remove_dir_all, remove_file, rename, File},
-  io,
+  io::{copy, Read},
   path::{Path, PathBuf},
-  process::Command,
+  process::{Command, ExitStatus, Stdio},
 };
 
 use anyhow::Context;
@@ -111,6 +111,34 @@ pub fn parse_linux_version(version: &str) -> Option<String> {
     .map(|s| s.to_string())
 }
 
+/// Invoke cURL on the command line to download a file, returning it as a string.
+#[deprecated]
+pub fn curl(url: &str) -> anyhow::Result<String> {
+  let mut child = Command::new("curl")
+    .create_no_window()
+    .args(["-L", url])
+    .stderr(Stdio::null())
+    .stdout(Stdio::piped())
+    .spawn()?;
+
+  let stdout = child.stdout.take().context("Failed to get stdout")?;
+
+  let mut string = String::new();
+  std::io::BufReader::new(stdout).read_to_string(&mut string)?;
+  Ok(string)
+}
+
+/// Invoke cURL on the command line to download a file, writing to a file.
+#[deprecated]
+pub fn curl_to_file(url: &str, destination: &str) -> anyhow::Result<ExitStatus> {
+  Command::new("curl")
+    .create_no_window()
+    .args(["-L", url])
+    .args(["-o", destination])
+    .status()
+    .map_err(Into::into)
+}
+
 /// Makes an HTTP request to obtain the latest version available online,
 /// automatically choosing the correct URL for the current platform.
 #[cfg(feature = "download_ffmpeg")]
@@ -164,7 +192,7 @@ pub fn download_ffmpeg_package(url: &str, download_dir: &Path) -> anyhow::Result
   let mut file =
     File::create(&archive_path).context("Failed to create file for ffmpeg download")?;
 
-  io::copy(
+  copy(
     &mut response
       .bytes()
       .context("Failed to read response bytes")?
