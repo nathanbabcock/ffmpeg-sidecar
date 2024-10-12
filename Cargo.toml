@@ -10,8 +10,14 @@ repository = "https://github.com/nathanbabcock/ffmpeg-sidecar"
 readme = "README.md"
 license = "MIT"
 
+[features]
+default = ["download_ffmpeg"]
+download_ffmpeg = ["reqwest"]
+
 [lib]
 crate-type = ["lib"]
 
 [dependencies]
 anyhow = "1.0.79"
+reqwest = { version = "0.12.8", optional = true, features = ["blocking"]}
+
