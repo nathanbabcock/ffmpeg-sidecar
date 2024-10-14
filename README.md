@@ -88,12 +88,12 @@ Read raw video frames.
 ```rust
 use ffmpeg_sidecar::{command::FfmpegCommand, event::FfmpegEvent};
 
-fn main() -> anyhow::Result<()> { 
+fn main() -> anyhow::Result<()> {
   FfmpegCommand::new() // <- Builder API like `std::process::Command`
-    .testsrc()  // <- Discoverable aliases for FFmpeg args
+    .testsrc() // <- Discoverable aliases for FFmpeg args
     .rawvideo() // <- Convenient argument presets
-    .spawn()?   // <- Uses an ordinary `std::process::Child`
-    .iter()?    // <- Iterator over all log messages and video output
+    .spawn()? // <- Uses an ordinary `std::process::Child`
+    .iter()? // <- Iterator over all log messages and video output
     .for_each(|event: FfmpegEvent| {
       match event {
         FfmpegEvent::OutputFrame(frame) => {
@@ -105,6 +105,19 @@ fn main() -> anyhow::Result<()> {
         }
         FfmpegEvent::Log(_level, msg) => {
           eprintln!("[ffmpeg] {}", msg); // <- granular log message from stderr
+        }
+        FfmpegEvent::ParsedInputStream(stream) => {
+          if stream.is_video() {
+            let video_data = stream.video_data();
+            println!(
+              "Found video stream with index {} in input {} that has fps {}, width {}px, height {}px.",
+              stream.stream_index,
+              stream.parent_index,
+              video_data.fps,
+              video_data.width,
+              video_data.height
+            );
+          }
         }
         _ => {}
       }
