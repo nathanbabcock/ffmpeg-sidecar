@@ -12,14 +12,17 @@ license = "MIT"
 
 [features]
 default = ["download_ffmpeg"]
-download_ffmpeg = ["reqwest"]
+download_ffmpeg = ["reqwest", "tar_linux", "zip_non_linux"]
 
 [lib]
 crate-type = ["lib"]
 
+[target.'cfg(target_os = "linux")'.dependencies]
+tar = { version = "0.4.42" }
+
+[target.'cfg(not(target_os = "linux"))'.dependencies]
+zip = { version = "2.2.0" }
+
 [dependencies]
 anyhow = "1.0.79"
-tar = "0.4.42"
-zip = "2.2.0"
 reqwest = { version = "0.12.8", optional = true, features = ["blocking"]}
-

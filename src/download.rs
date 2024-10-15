@@ -40,7 +40,7 @@ pub fn ffmpeg_download_url() -> anyhow::Result<&'static str> {
   } else if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
     Ok("https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz")
   } else if cfg!(all(target_os = "macos", target_arch = "x86_64")) {
-    Ok("https://evermeet.cx/ffmpeg/getrelease")
+    Ok("https://evermeet.cx/ffmpeg/getrelease/zip")
   } else if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
     Ok("https://www.osxexperts.net/ffmpeg7arm.zip") // Mac M1
   } else {
@@ -213,10 +213,20 @@ pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> anyhow::Re
 
   // Extract archive using the tar crate
   let file = File::open(from_archive).context("Failed to open archive file")?;
-  let mut archive = zip::ZipArchive::new(file).context("Failed to read ZIP archive")?;
-  archive
-    .extract(&temp_folder)
-    .context("Failed to unpack ffmpeg")?;
+  #[cfg(target_os = "linux")]
+  {
+    let mut archive = tar::Archive::new(file);
+    archive
+      .unpack(&temp_folder)
+      .context("Failed to unpack ffmpeg")?;
+  }
+  #[cfg(not(target_os = "linux"))]
+  {
+    let mut archive = zip::ZipArchive::new(file).context("Failed to read ZIP archive")?;
+    archive
+      .extract(&temp_folder)
+      .context("Failed to unpack ffmpeg")?;
+  }
 
   // Move binaries
   let (ffmpeg, ffplay, ffprobe) = if cfg!(target_os = "windows") {
