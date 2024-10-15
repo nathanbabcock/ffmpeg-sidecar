@@ -12,7 +12,7 @@ license = "MIT"
 
 [features]
 default = ["download_ffmpeg"]
-download_ffmpeg = ["reqwest", "tar_linux", "zip_non_linux"]
+download_ffmpeg = ["reqwest"]
 
 [lib]
 crate-type = ["lib"]
