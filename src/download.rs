@@ -220,7 +220,7 @@ pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> anyhow::Re
 
     archive
       .unpack(&temp_folder)
-      .context("Failed to unpack ffmpeg");
+      .context("Failed to unpack ffmpeg")?;
   }
   #[cfg(not(target_os = "linux"))]
   {
