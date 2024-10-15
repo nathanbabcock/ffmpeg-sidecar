@@ -219,7 +219,7 @@ pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> anyhow::Re
     let mut archive = tar::Archive::new(tar_xz);
 
     archive
-      .unpack(output_dir)
+      .unpack(temp_folder)
       .context("Failed to unpack ffmpeg");
   }
   #[cfg(not(target_os = "linux"))]
