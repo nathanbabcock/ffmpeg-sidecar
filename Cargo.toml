@@ -18,10 +18,11 @@ download_ffmpeg = ["reqwest"]
 crate-type = ["lib"]
 
 [target.'cfg(target_os = "linux")'.dependencies]
-tar = { version = "0.4.42" }
+tar = "0.4.42"
+xz2 = "0.1.7"
 
 [target.'cfg(not(target_os = "linux"))'.dependencies]
-zip = { version = "2.2.0" }
+zip = "2.2.0"
 
 [dependencies]
 anyhow = "1.0.79"
