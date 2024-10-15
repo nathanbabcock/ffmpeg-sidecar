@@ -215,7 +215,6 @@ pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> anyhow::Re
   let file = File::open(from_archive).context("Failed to open archive file")?;
   #[cfg(target_os = "linux")]
   {
-    let file = File::open(file_path)?;
     let tar_xz = xz2::read::XzDecoder::new(file); // Use XzDecoder to handle the .xz decompression
     let mut archive = tar::Archive::new(tar_xz);
 
