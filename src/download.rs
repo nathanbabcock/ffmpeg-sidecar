@@ -211,19 +211,22 @@ pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> anyhow::Re
   let temp_folder = binary_folder.join(temp_dirname);
   create_dir_all(&temp_folder)?;
 
-  // Extract archive using the tar crate
   let file = File::open(from_archive).context("Failed to open archive file")?;
+
   #[cfg(target_os = "linux")]
   {
-    let tar_xz = xz2::read::XzDecoder::new(file); // Use XzDecoder to handle the .xz decompression
+    // Extracts .tar.xz file
+    let tar_xz = xz2::read::XzDecoder::new(file);
     let mut archive = tar::Archive::new(tar_xz);
 
     archive
       .unpack(&temp_folder)
       .context("Failed to unpack ffmpeg")?;
   }
+
   #[cfg(not(target_os = "linux"))]
   {
+    // Extracts .zip file
     let mut archive = zip::ZipArchive::new(file).context("Failed to read ZIP archive")?;
     archive
       .extract(&temp_folder)
