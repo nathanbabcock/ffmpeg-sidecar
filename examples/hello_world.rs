@@ -23,6 +23,18 @@ fn main() -> anyhow::Result<()> {
         FfmpegEvent::Log(_level, msg) => {
           eprintln!("[ffmpeg] {}", msg); // <- granular log message from stderr
         }
+        FfmpegEvent::ParsedInputStream(stream) => {
+          if let Some(video_data) = stream.video_data() {
+            println!(
+              "Found video stream with index {} in input {} that has fps {}, width {}px, height {}px.",
+              stream.stream_index,
+              stream.parent_index,
+              video_data.fps,
+              video_data.width,
+              video_data.height
+            );
+          }
+        }
         _ => {}
       }
     });
