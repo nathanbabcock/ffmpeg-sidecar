@@ -283,7 +283,7 @@ pub fn try_parse_output(mut string: &str) -> Option<FfmpegOutput> {
 /// assert!(stream.parent_index == 0);
 /// assert!(stream.stream_index == 0);
 /// assert!(stream.is_video());
-/// let video_data = stream.video_data();
+/// let video_data = stream.video_data().unwrap();
 /// assert!(video_data.pix_fmt == "rgb24");
 /// assert!(video_data.width == 320);
 /// assert!(video_data.height == 240);
@@ -301,7 +301,7 @@ pub fn try_parse_output(mut string: &str) -> Option<FfmpegOutput> {
 ///  assert!(stream.parent_index == 1);
 ///  assert!(stream.stream_index == 5);
 ///  assert!(stream.is_video());
-///  let video_data = stream.video_data();
+///  let video_data = stream.video_data().unwrap();
 ///  assert!(video_data.pix_fmt == "yuv444p");
 ///  assert!(video_data.width == 320);
 ///  assert!(video_data.height == 240);
@@ -321,7 +321,7 @@ pub fn try_parse_output(mut string: &str) -> Option<FfmpegOutput> {
 /// assert!(stream.parent_index == 0);
 /// assert!(stream.stream_index == 1);
 /// assert!(stream.is_audio());
-/// let audio_data = stream.audio_data();
+/// let audio_data = stream.audio_data().unwrap();
 /// assert!(audio_data.sample_rate == 48000);
 /// assert!(audio_data.channels == "stereo");
 /// ```
@@ -335,7 +335,7 @@ pub fn try_parse_output(mut string: &str) -> Option<FfmpegOutput> {
 /// assert!(stream.parent_index == 3);
 /// assert!(stream.stream_index == 10);
 /// assert!(stream.is_audio());
-/// let audio_data = stream.audio_data();
+/// let audio_data = stream.audio_data().unwrap();
 /// assert!(audio_data.sample_rate == 48000);
 /// assert!(audio_data.channels == "7.1");
 /// ```
@@ -351,7 +351,7 @@ pub fn try_parse_output(mut string: &str) -> Option<FfmpegOutput> {
 /// assert!(stream.parent_index == 10);
 /// assert!(stream.stream_index == 1);
 /// assert!(stream.is_audio());
-/// let audio_data = stream.audio_data();
+/// let audio_data = stream.audio_data().unwrap();
 /// assert!(audio_data.sample_rate == 44100);
 /// assert!(audio_data.channels == "mono");
 /// ```

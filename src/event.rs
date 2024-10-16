@@ -90,18 +90,16 @@ impl Stream {
     matches!(self.type_specific_data, TypeSpecificData::Other())
   }
 
-  pub fn audio_data(&self) -> AudioStream {
-    if let TypeSpecificData::Audio(audio_stream) = &self.type_specific_data {
-      audio_stream.clone()
-    } else {
-      panic!("This is not an audio stream! Check `stream.is_audio()` before calling this method.");
+  pub fn audio_data(&self) -> Option<&AudioStream> {
+    match &self.type_specific_data {
+      TypeSpecificData::Audio(audio_stream) => Some(audio_stream),
+      _ => None,
     }
   }
-  pub fn video_data(&self) -> VideoStream {
-    if let TypeSpecificData::Video(video_stream) = &self.type_specific_data {
-      video_stream.clone()
-    } else {
-      panic!("This is not a video stream! Check `stream.is_video()` before calling this method.");
+  pub fn video_data(&self) -> Option<&VideoStream> {
+    match &self.type_specific_data {
+      TypeSpecificData::Video(video_stream) => Some(video_stream),
+      _ => None,
     }
   }
 }

@@ -210,10 +210,11 @@ pub fn spawn_stdout_thread(
 
     // Prepare buffers
     let mut buffers = stdout_output_video_streams
-      .map(|stream| {
-        let video_data = stream.video_data();
+      .map(|video_stream| {
+        // Since we filtered for video_streams above, we can unwrap unconditionally.
+        let video_data = video_stream.video_data().unwrap();
         let bytes_per_frame = get_bytes_per_frame(&video_data);
-        let buf_size = match stream.format.as_str() {
+        let buf_size = match video_stream.format.as_str() {
           "rawvideo" => bytes_per_frame.expect("Should use a known pix_fmt") as usize,
 
           // Arbitrary default buffer size for receiving indeterminate chunks
@@ -243,15 +244,16 @@ pub fn spawn_stdout_thread(
     let mut frame_num = 0;
     loop {
       let i = buffer_index.next().unwrap();
-      let stream = &output_streams[i];
-      let video_data = stream.video_data();
+      let video_stream = &output_streams[i];
+      // Since we filtered for video_streams above, we can unwrap unconditionally.
+      let video_data = video_stream.video_data().unwrap();
       let buffer = &mut buffers[i];
       let output_frame_num = frame_num / num_buffers;
       let timestamp = output_frame_num as f32 / video_data.fps;
       frame_num += 1;
 
       // Handle two scenarios:
-      match stream.format.as_str() {
+      match video_stream.format.as_str() {
         // 1. `rawvideo` with exactly known pixel layout
         "rawvideo" => match reader.read_exact(buffer.as_mut_slice()) {
           Ok(_) => tx

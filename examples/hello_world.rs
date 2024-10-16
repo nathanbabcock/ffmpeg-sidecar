@@ -24,8 +24,7 @@ fn main() -> anyhow::Result<()> {
           eprintln!("[ffmpeg] {}", msg); // <- granular log message from stderr
         }
         FfmpegEvent::ParsedInputStream(stream) => {
-          if stream.is_video() {
-            let video_data = stream.video_data();
+          if let Some(video_data) = stream.video_data() {
             println!(
               "Found video stream with index {} in input {} that has fps {}, width {}px, height {}px.",
               stream.stream_index,
