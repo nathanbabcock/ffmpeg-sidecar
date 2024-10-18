@@ -1,4 +1,4 @@
-use crate::event::AVStream;
+use crate::event::VideoStream;
 
 /// Map from the pix_fmt identifier string (e.g. `rgb24`) to the number of bits
 /// per pixel (e.g. `24`). Returns `None` if the pix_fmt is unsupported/unrecognized.
@@ -227,12 +227,12 @@ pub fn get_bits_per_pixel(pix_fmt: &str) -> Option<u32> {
   }
 }
 
-pub fn get_bytes_per_frame(stream: &AVStream) -> Option<u32> {
-  let bits_per_pixel = get_bits_per_pixel(&stream.pix_fmt)?;
+pub fn get_bytes_per_frame(video_data: &VideoStream) -> Option<u32> {
+  let bits_per_pixel = get_bits_per_pixel(&video_data.pix_fmt)?;
   // Enforce byte-alignment, since we don't currently have buffer reads in
   // sub-byte increments.
   match bits_per_pixel % 8 {
-    0 => Some(stream.width * stream.height * bits_per_pixel / 8),
+    0 => Some(video_data.width * video_data.height * bits_per_pixel / 8),
     _ => None,
   }
 }

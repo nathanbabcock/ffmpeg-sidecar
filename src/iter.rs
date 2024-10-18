@@ -9,7 +9,7 @@ use anyhow::Context;
 
 use crate::{
   child::FfmpegChild,
-  event::{AVStream, FfmpegEvent, FfmpegOutput, FfmpegProgress, LogLevel, OutputVideoFrame},
+  event::{FfmpegEvent, FfmpegOutput, FfmpegProgress, LogLevel, OutputVideoFrame, Stream},
   log_parser::FfmpegLogParser,
   metadata::FfmpegMetadata,
   pix_fmt::get_bytes_per_frame,
@@ -181,24 +181,27 @@ impl Iterator for FfmpegIterator {
 pub fn spawn_stdout_thread(
   stdout: ChildStdout,
   tx: SyncSender<FfmpegEvent>,
-  output_streams: Vec<AVStream>,
+  output_streams: Vec<Stream>,
   outputs: Vec<FfmpegOutput>,
 ) -> JoinHandle<()> {
   std::thread::spawn(move || {
     // Filter streams which are sent to stdout
-    let stdout_output_streams = output_streams.iter().filter(|stream| {
-      outputs
-        .get(stream.parent_index)
-        .map(|o| o.is_stdout())
-        .unwrap_or(false)
-    });
+    let stdout_output_video_streams = output_streams
+      .iter()
+      .filter(|stream| stream.is_video())
+      .filter(|stream| {
+        outputs
+          .get(stream.parent_index as usize)
+          .map(|o| o.is_stdout())
+          .unwrap_or(false)
+      });
 
     // Error on mixing rawvideo and non-rawvideo streams
     // TODO: Maybe just revert to chunk mode if this happens?
-    let any_rawvideo = stdout_output_streams
+    let any_rawvideo = stdout_output_video_streams
       .clone()
       .any(|s| s.format == "rawvideo");
-    let any_non_rawvideo = stdout_output_streams
+    let any_non_rawvideo = stdout_output_video_streams
       .clone()
       .any(|s| s.format != "rawvideo");
     if any_rawvideo && any_non_rawvideo {
@@ -206,10 +209,12 @@ pub fn spawn_stdout_thread(
     }
 
     // Prepare buffers
-    let mut buffers = stdout_output_streams
-      .map(|stream| {
-        let bytes_per_frame = get_bytes_per_frame(stream);
-        let buf_size = match stream.format.as_str() {
+    let mut buffers = stdout_output_video_streams
+      .map(|video_stream| {
+        // Since we filtered for video_streams above, we can unwrap unconditionally.
+        let video_data = video_stream.video_data().unwrap();
+        let bytes_per_frame = get_bytes_per_frame(&video_data);
+        let buf_size = match video_stream.format.as_str() {
           "rawvideo" => bytes_per_frame.expect("Should use a known pix_fmt") as usize,
 
           // Arbitrary default buffer size for receiving indeterminate chunks
@@ -239,21 +244,23 @@ pub fn spawn_stdout_thread(
     let mut frame_num = 0;
     loop {
       let i = buffer_index.next().unwrap();
-      let stream = &output_streams[i];
+      let video_stream = &output_streams[i];
+      // Since we filtered for video_streams above, we can unwrap unconditionally.
+      let video_data = video_stream.video_data().unwrap();
       let buffer = &mut buffers[i];
       let output_frame_num = frame_num / num_buffers;
-      let timestamp = output_frame_num as f32 / stream.fps;
+      let timestamp = output_frame_num as f32 / video_data.fps;
       frame_num += 1;
 
       // Handle two scenarios:
-      match stream.format.as_str() {
+      match video_stream.format.as_str() {
         // 1. `rawvideo` with exactly known pixel layout
         "rawvideo" => match reader.read_exact(buffer.as_mut_slice()) {
           Ok(_) => tx
             .send(FfmpegEvent::OutputFrame(OutputVideoFrame {
-              width: stream.width,
-              height: stream.height,
-              pix_fmt: stream.pix_fmt.clone(),
+              width: video_data.width,
+              height: video_data.height,
+              pix_fmt: video_data.pix_fmt.clone(),
               output_index: i as u32,
               data: buffer.clone(),
               frame_num: output_frame_num as u32,

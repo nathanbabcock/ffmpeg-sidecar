@@ -6,8 +6,8 @@ use std::{
 use crate::{
   comma_iter::CommaIter,
   event::{
-    AVStream, FfmpegConfiguration, FfmpegDuration, FfmpegEvent, FfmpegInput, FfmpegOutput,
-    FfmpegProgress, FfmpegVersion, LogLevel,
+    AudioStream, FfmpegConfiguration, FfmpegDuration, FfmpegEvent, FfmpegInput, FfmpegOutput,
+    FfmpegProgress, FfmpegVersion, LogLevel, Stream, StreamTypeSpecificData, VideoStream,
   },
   read_until_any::read_until_any,
 };
@@ -266,80 +266,219 @@ pub fn try_parse_output(mut string: &str) -> Option<FfmpegOutput> {
   })
 }
 
-/// ## Example
+/// Parses a line that represents a stream.
 ///
-/// ### Input stream:
+/// ## Examples
+///
+/// ### Video
+///
+/// #### Input stream
 ///
 /// ```rust
 /// use ffmpeg_sidecar::log_parser::try_parse_stream;
 /// let line = "[info]   Stream #0:0: Video: wrapped_avframe, rgb24, 320x240 [SAR 1:1 DAR 4:3], 25 fps, 25 tbr, 25 tbn\n";
 /// let stream = try_parse_stream(line).unwrap();
 /// assert!(stream.format == "wrapped_avframe");
-/// assert!(stream.pix_fmt == "rgb24");
-/// assert!(stream.width == 320);
-/// assert!(stream.height == 240);
-/// assert!(stream.fps == 25.0);
+/// assert!(stream.language == "");
 /// assert!(stream.parent_index == 0);
-/// ```
+/// assert!(stream.stream_index == 0);
+/// assert!(stream.is_video());
+/// let video_data = stream.video_data().unwrap();
+/// assert!(video_data.pix_fmt == "rgb24");
+/// assert!(video_data.width == 320);
+/// assert!(video_data.height == 240);
+/// assert!(video_data.fps == 25.0);
+///  ```
 ///
-/// ### Output stream:
+///  #### Output stream
+///
+///  ```rust
+///  use ffmpeg_sidecar::log_parser::try_parse_stream;
+///  let line = "[info]   Stream #1:5(eng): Video: h264 (avc1 / 0x31637661), yuv444p(tv, progressive), 320x240 [SAR 1:1 DAR 4:3], q=2-31, 25 fps, 12800 tbn\n";
+///  let stream = try_parse_stream(line).unwrap();
+///  assert!(stream.format == "h264");
+///  assert!(stream.language == "eng");
+///  assert!(stream.parent_index == 1);
+///  assert!(stream.stream_index == 5);
+///  assert!(stream.is_video());
+///  let video_data = stream.video_data().unwrap();
+///  assert!(video_data.pix_fmt == "yuv444p");
+///  assert!(video_data.width == 320);
+///  assert!(video_data.height == 240);
+///  assert!(video_data.fps == 25.0);
+///  ```
+///
+/// ### Audio
+///
+/// #### Input Stream
 ///
 /// ```rust
 /// use ffmpeg_sidecar::log_parser::try_parse_stream;
-/// let line = "[info]   Stream #1:0: Video: h264 (avc1 / 0x31637661), yuv444p(tv, progressive), 320x240 [SAR 1:1 DAR 4:3], q=2-31, 25 fps, 12800 tbn\n";
+/// let line = "[info]   Stream #0:1(eng): Audio: opus, 48000 Hz, stereo, fltp (default)\n";
 /// let stream = try_parse_stream(line).unwrap();
-/// assert!(stream.format == "h264");
-/// assert!(stream.pix_fmt == "yuv444p");
-/// assert!(stream.width == 320);
-/// assert!(stream.height == 240);
-/// assert!(stream.fps == 25.0);
-/// assert!(stream.parent_index == 1);
+/// assert!(stream.format == "opus");
+/// assert!(stream.language == "eng");
+/// assert!(stream.parent_index == 0);
+/// assert!(stream.stream_index == 1);
+/// assert!(stream.is_audio());
+/// let audio_data = stream.audio_data().unwrap();
+/// assert!(audio_data.sample_rate == 48000);
+/// assert!(audio_data.channels == "stereo");
 /// ```
-///
-/// ### Audio output stream:
 ///
 /// ```rust
 /// use ffmpeg_sidecar::log_parser::try_parse_stream;
-/// let line = "[info]   Stream #0:1: Audio: mp2, 44100 Hz, mono, s16, 384 kb/s\n";
+/// let line = "[info]   Stream #3:10(ger): Audio: dts (DTS-HD MA), 48000 Hz, 7.1, s32p (24 bit)\n";
 /// let stream = try_parse_stream(line).unwrap();
-/// assert!(stream.stream_type == "Audio");
+/// assert!(stream.format == "dts");
+/// assert!(stream.language == "ger");
+/// assert!(stream.parent_index == 3);
+/// assert!(stream.stream_index == 10);
+/// assert!(stream.is_audio());
+/// let audio_data = stream.audio_data().unwrap();
+/// assert!(audio_data.sample_rate == 48000);
+/// assert!(audio_data.channels == "7.1");
 /// ```
 ///
-pub fn try_parse_stream(mut string: &str) -> Option<AVStream> {
+/// ### Output stream
+///
+/// ```rust
+/// use ffmpeg_sidecar::log_parser::try_parse_stream;
+/// let line = "[info]   Stream #10:1: Audio: mp2, 44100 Hz, mono, s16, 384 kb/s\n";
+/// let stream = try_parse_stream(line).unwrap();
+/// assert!(stream.format == "mp2");
+/// assert!(stream.language == "");
+/// assert!(stream.parent_index == 10);
+/// assert!(stream.stream_index == 1);
+/// assert!(stream.is_audio());
+/// let audio_data = stream.audio_data().unwrap();
+/// assert!(audio_data.sample_rate == 44100);
+/// assert!(audio_data.channels == "mono");
+/// ```
+///
+/// ### Subtitle
+///
+/// #### Input Stream
+///
+/// ```rust
+/// use ffmpeg_sidecar::log_parser::try_parse_stream;
+/// let line = "[info]   Stream #0:4(eng): Subtitle: ass (default) (forced)\n";
+/// let stream = try_parse_stream(line).unwrap();
+/// assert!(stream.format == "ass");
+/// assert!(stream.language == "eng");
+/// assert!(stream.parent_index == 0);
+/// assert!(stream.stream_index == 4);
+/// assert!(stream.is_subtitle());
+/// ```
+///
+/// ```rust
+/// use ffmpeg_sidecar::log_parser::try_parse_stream;
+/// let line = "[info]   Stream #0:13(dut): Subtitle: hdmv_pgs_subtitle, 1920x1080\n";
+/// let stream = try_parse_stream(line).unwrap();
+/// assert!(stream.format == "hdmv_pgs_subtitle");
+/// assert!(stream.language == "dut");
+/// assert!(stream.parent_index == 0);
+/// assert!(stream.stream_index == 13);
+/// assert!(stream.is_subtitle());
+/// ```
+/// ### Other
+///
+/// #### Input Stream
+///
+/// ```rust
+/// use ffmpeg_sidecar::log_parser::try_parse_stream;
+/// let line = "[info]   Stream #0:2(und): Data: none (rtp  / 0x20707472), 53 kb/s (default)\n";
+/// let stream = try_parse_stream(line).unwrap();
+/// assert!(stream.format == "none");
+/// assert!(stream.language == "und");
+/// assert!(stream.parent_index == 0);
+/// assert!(stream.stream_index == 2);
+/// assert!(stream.is_other());
+/// ```
+///
+/// ```rust
+/// use ffmpeg_sidecar::log_parser::try_parse_stream;
+/// let line = "[info]   Stream #0:2[0x3](eng): Data: bin_data (text / 0x74786574)\n";
+/// let stream = try_parse_stream(line).unwrap();
+/// assert!(stream.format == "bin_data");
+/// assert!(stream.language == "eng");
+/// assert!(stream.parent_index == 0);
+/// assert!(stream.stream_index == 2);
+/// assert!(stream.is_other());
+/// ```
+pub fn try_parse_stream(string: &str) -> Option<Stream> {
   let raw_log_message = string.to_string();
 
-  string = string
+  let string = string
     .strip_prefix("[info]")
     .unwrap_or(string)
     .trim()
     .strip_prefix("Stream #")?;
+  let mut comma_iter = CommaIter::new(&string);
+  let mut colon_iter = comma_iter.next()?.split(':');
 
-  let mut colon_parts = string.split(':');
-  let parent_index = colon_parts.next()?.parse::<usize>().ok()?;
-  let stream_type = colon_parts.nth(1)?.trim().to_string();
-  if stream_type != "Video" {
-    // Audio is not well-supported yet (PRs welcome)
-    return Some(AVStream {
-      stream_type,
-      format: "unknown".into(),
-      pix_fmt: "unknown".into(),
-      width: 0,
-      height: 0,
-      fps: 0.0,
-      parent_index,
-      raw_log_message,
-    });
-  }
-  let comma_string = colon_parts.next()?.trim();
-  let mut comma_iter = CommaIter::new(comma_string);
+  let parent_index = colon_iter.next()?.parse::<u32>().ok()?;
 
-  let format = comma_iter
+  // Here handle pattern such as `2[0x3](eng)`
+  let indices_and_maybe_language = colon_iter
+    .next()?
+    // Remove everything inside and including square brackets
+    .split(|c| c == '[' || c == ']')
+    .step_by(2)
+    .collect::<String>();
+  let mut parenthesis_iter = indices_and_maybe_language.split('(');
+  let stream_index = parenthesis_iter.next()?.trim().parse::<u32>().ok()?;
+  let language = parenthesis_iter.next().map_or("".to_string(), |lang| {
+    lang.trim_end_matches(')').to_string()
+  });
+
+  // Here handle pattern such as `Video: av1 (Main)`
+  let stream_type = colon_iter.next()?.trim();
+  let format = colon_iter
     .next()?
     .trim()
-    .split(&[' ', '(']) // trim trailing junk like " (avc1 / 0x31637661)"
+    .split(&[' ', '(']) // trim trailing junk like `(Main)`
     .next()?
     .to_string();
 
+  // For audio and video handle remaining string in specialized functions.
+  let type_specific_data: StreamTypeSpecificData = match stream_type {
+    "Audio" => try_parse_audio_stream(comma_iter)?,
+    "Subtitle" => StreamTypeSpecificData::Subtitle(),
+    "Video" => try_parse_video_stream(comma_iter)?,
+    _ => StreamTypeSpecificData::Other(),
+  };
+
+  Some(Stream {
+    format,
+    language,
+    parent_index,
+    stream_index,
+    raw_log_message,
+    type_specific_data,
+  })
+}
+
+/// Parses the log output part that is specific to audio streams.
+fn try_parse_audio_stream(mut comma_iter: CommaIter) -> Option<StreamTypeSpecificData> {
+  let sample_rate = comma_iter
+    .next()?
+    .trim()
+    .split_whitespace()
+    .next()?
+    .parse::<u32>()
+    .ok()?;
+
+  let channels = comma_iter.next()?.trim().to_string();
+
+  Some(StreamTypeSpecificData::Audio(AudioStream {
+    sample_rate,
+    channels,
+  }))
+}
+
+/// Parses the log output part that is specific to video streams.
+fn try_parse_video_stream(mut comma_iter: CommaIter) -> Option<StreamTypeSpecificData> {
   let pix_fmt = comma_iter
     .next()?
     .trim()
@@ -352,24 +491,24 @@ pub fn try_parse_stream(mut string: &str) -> Option<AVStream> {
   let width = dims_iter.next()?.parse::<u32>().ok()?;
   let height = dims_iter.next()?.parse::<u32>().ok()?;
 
-  let fps = string
-    .split("fps,")
-    .next()?
-    .split_whitespace()
-    .last()?
-    .parse()
-    .ok()?;
+  // FPS does not have to be the next part, so we iterate until we find it. There is nothing else we
+  // are interested in at this point, so its OK to skip anything in-between.
+  let fps = comma_iter
+    .find_map(|part| {
+      if part.trim().ends_with("fps") {
+        part.trim().split_whitespace().next()
+      } else {
+        None
+      }
+    })
+    .and_then(|fps_str| fps_str.parse::<f32>().ok())?;
 
-  Some(AVStream {
-    stream_type,
-    parent_index,
-    format,
+  Some(StreamTypeSpecificData::Video(VideoStream {
     pix_fmt,
     width,
     height,
     fps,
-    raw_log_message,
-  })
+  }))
 }
 
 /// Parse a progress update line from ffmpeg.
