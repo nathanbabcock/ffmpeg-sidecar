@@ -37,8 +37,9 @@ fn main() -> anyhow::Result<()> {
     None => sidecar_dir()?,
   };
 
-  // By default the download will use a `curl` command. You could also write
-  // your own download function and use another package like `reqwest` instead.
+  // The built-in download function uses `reqwest` to download the package.
+  // For more advanced use cases like async streaming or download progress
+  // updates, you could replace this with your own download function.
   println!("Downloading from: {:?}", download_url);
   let archive_path = download_ffmpeg_package(download_url, &destination)?;
   println!("Downloaded package: {:?}", archive_path);

@@ -172,8 +172,7 @@ pub fn check_latest_version() -> anyhow::Result<String> {
   }
 }
 
-/// Invoke `curl` to download an archive (ZIP on windows, TAR on linux and mac)
-/// from the latest published release online.
+/// Make an HTTP request to download an archive from the latest published release online.
 #[cfg(feature = "download_ffmpeg")]
 pub fn download_ffmpeg_package(url: &str, download_dir: &Path) -> anyhow::Result<PathBuf> {
   let filename = Path::new(url)
