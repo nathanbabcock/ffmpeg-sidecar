@@ -67,9 +67,9 @@ pub struct Stream {
   // The language of the stream as a three letter code such as `eng`, `ger` or `jpn`.
   pub language: String,
   /// The index of the input or output that this stream belongs to.
-  pub parent_index: usize,
+  pub parent_index: u32,
   /// The index of the stream inside the input.
-  pub stream_index: usize,
+  pub stream_index: u32,
   /// The stderr line that this stream was parsed from.
   pub raw_log_message: String,
   // Data that is specific to a certain stream type.
@@ -119,7 +119,7 @@ pub enum TypeSpecificData {
 #[derive(Debug, Clone, PartialEq)]
 pub struct AudioStream {
   /// The sample rate of the audio stream, e.g. 48000 (Hz)
-  pub sample_rate: usize,
+  pub sample_rate: u32,
   /// The number of channels of the audio stream, e.g. `stereo`, `5.1` or `7.1`
   pub channels: String,
 }

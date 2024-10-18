@@ -191,7 +191,7 @@ pub fn spawn_stdout_thread(
       .filter(|stream| stream.is_video())
       .filter(|stream| {
         outputs
-          .get(stream.parent_index)
+          .get(stream.parent_index as usize)
           .map(|o| o.is_stdout())
           .unwrap_or(false)
       });

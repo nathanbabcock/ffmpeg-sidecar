@@ -417,7 +417,7 @@ pub fn try_parse_stream(string: &str) -> Option<Stream> {
   let mut comma_iter = CommaIter::new(&string);
   let mut colon_iter = comma_iter.next()?.split(':');
 
-  let parent_index = colon_iter.next()?.parse::<usize>().ok()?;
+  let parent_index = colon_iter.next()?.parse::<u32>().ok()?;
 
   // Here handle pattern such as `2[0x3](eng)`
   let indices_and_maybe_language = colon_iter
@@ -427,7 +427,7 @@ pub fn try_parse_stream(string: &str) -> Option<Stream> {
     .step_by(2)
     .collect::<String>();
   let mut parenthesis_iter = indices_and_maybe_language.split('(');
-  let stream_index = parenthesis_iter.next()?.trim().parse::<usize>().ok()?;
+  let stream_index = parenthesis_iter.next()?.trim().parse::<u32>().ok()?;
   let language = parenthesis_iter.next().map_or("".to_string(), |lang| {
     lang.trim_end_matches(')').to_string()
   });
@@ -466,7 +466,7 @@ fn try_parse_audio_stream(mut comma_iter: CommaIter) -> Option<TypeSpecificData>
     .trim()
     .split_whitespace()
     .next()?
-    .parse::<usize>()
+    .parse::<u32>()
     .ok()?;
 
   let channels = comma_iter.next()?.trim().to_string();
