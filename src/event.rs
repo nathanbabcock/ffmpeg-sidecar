@@ -73,32 +73,32 @@ pub struct Stream {
   /// The stderr line that this stream was parsed from.
   pub raw_log_message: String,
   // Data that is specific to a certain stream type.
-  pub type_specific_data: TypeSpecificData,
+  pub type_specific_data: StreamTypeSpecificData,
 }
 
 impl Stream {
   pub fn is_audio(&self) -> bool {
-    matches!(self.type_specific_data, TypeSpecificData::Audio(_))
+    matches!(self.type_specific_data, StreamTypeSpecificData::Audio(_))
   }
   pub fn is_subtitle(&self) -> bool {
-    matches!(self.type_specific_data, TypeSpecificData::Subtitle())
+    matches!(self.type_specific_data, StreamTypeSpecificData::Subtitle())
   }
   pub fn is_video(&self) -> bool {
-    matches!(self.type_specific_data, TypeSpecificData::Video(_))
+    matches!(self.type_specific_data, StreamTypeSpecificData::Video(_))
   }
   pub fn is_other(&self) -> bool {
-    matches!(self.type_specific_data, TypeSpecificData::Other())
+    matches!(self.type_specific_data, StreamTypeSpecificData::Other())
   }
 
   pub fn audio_data(&self) -> Option<&AudioStream> {
     match &self.type_specific_data {
-      TypeSpecificData::Audio(audio_stream) => Some(audio_stream),
+      StreamTypeSpecificData::Audio(audio_stream) => Some(audio_stream),
       _ => None,
     }
   }
   pub fn video_data(&self) -> Option<&VideoStream> {
     match &self.type_specific_data {
-      TypeSpecificData::Video(video_stream) => Some(video_stream),
+      StreamTypeSpecificData::Video(video_stream) => Some(video_stream),
       _ => None,
     }
   }
@@ -108,7 +108,7 @@ impl Stream {
 /// streams or that are only found in video streams, etc. Storing this in an enum allows function to
 /// accept the generic `Stream` type regardless of its actual type (audio, video, ...).
 #[derive(Debug, Clone, PartialEq)]
-pub enum TypeSpecificData {
+pub enum StreamTypeSpecificData {
   Audio(AudioStream),
   Video(VideoStream),
   Subtitle(),

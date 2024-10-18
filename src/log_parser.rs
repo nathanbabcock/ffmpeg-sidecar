@@ -7,7 +7,7 @@ use crate::{
   comma_iter::CommaIter,
   event::{
     AudioStream, FfmpegConfiguration, FfmpegDuration, FfmpegEvent, FfmpegInput, FfmpegOutput,
-    FfmpegProgress, FfmpegVersion, LogLevel, Stream, TypeSpecificData, VideoStream,
+    FfmpegProgress, FfmpegVersion, LogLevel, Stream, StreamTypeSpecificData, VideoStream,
   },
   read_until_any::read_until_any,
 };
@@ -442,11 +442,11 @@ pub fn try_parse_stream(string: &str) -> Option<Stream> {
     .to_string();
 
   // For audio and video handle remaining string in specialized functions.
-  let type_specific_data: TypeSpecificData = match stream_type {
+  let type_specific_data: StreamTypeSpecificData = match stream_type {
     "Audio" => try_parse_audio_stream(comma_iter)?,
-    "Subtitle" => TypeSpecificData::Subtitle(),
+    "Subtitle" => StreamTypeSpecificData::Subtitle(),
     "Video" => try_parse_video_stream(comma_iter)?,
-    _ => TypeSpecificData::Other(),
+    _ => StreamTypeSpecificData::Other(),
   };
 
   Some(Stream {
@@ -460,7 +460,7 @@ pub fn try_parse_stream(string: &str) -> Option<Stream> {
 }
 
 /// Parses the log output part that is specific to audio streams.
-fn try_parse_audio_stream(mut comma_iter: CommaIter) -> Option<TypeSpecificData> {
+fn try_parse_audio_stream(mut comma_iter: CommaIter) -> Option<StreamTypeSpecificData> {
   let sample_rate = comma_iter
     .next()?
     .trim()
@@ -471,14 +471,14 @@ fn try_parse_audio_stream(mut comma_iter: CommaIter) -> Option<TypeSpecificData>
 
   let channels = comma_iter.next()?.trim().to_string();
 
-  Some(TypeSpecificData::Audio(AudioStream {
+  Some(StreamTypeSpecificData::Audio(AudioStream {
     sample_rate,
     channels,
   }))
 }
 
 /// Parses the log output part that is specific to video streams.
-fn try_parse_video_stream(mut comma_iter: CommaIter) -> Option<TypeSpecificData> {
+fn try_parse_video_stream(mut comma_iter: CommaIter) -> Option<StreamTypeSpecificData> {
   let pix_fmt = comma_iter
     .next()?
     .trim()
@@ -503,7 +503,7 @@ fn try_parse_video_stream(mut comma_iter: CommaIter) -> Option<TypeSpecificData>
     })
     .and_then(|fps_str| fps_str.parse::<f32>().ok())?;
 
-  Some(TypeSpecificData::Video(VideoStream {
+  Some(StreamTypeSpecificData::Video(VideoStream {
     pix_fmt,
     width,
     height,
