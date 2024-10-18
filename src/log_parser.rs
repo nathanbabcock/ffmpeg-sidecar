@@ -414,7 +414,7 @@ pub fn try_parse_stream(string: &str) -> Option<Stream> {
     .unwrap_or(string)
     .trim()
     .strip_prefix("Stream #")?;
-  let mut comma_iter = CommaIter::new(&string);
+  let mut comma_iter = CommaIter::new(string);
   let mut colon_iter = comma_iter.next()?.split(':');
 
   let parent_index = colon_iter.next()?.parse::<u32>().ok()?;
@@ -463,7 +463,6 @@ pub fn try_parse_stream(string: &str) -> Option<Stream> {
 fn try_parse_audio_stream(mut comma_iter: CommaIter) -> Option<StreamTypeSpecificData> {
   let sample_rate = comma_iter
     .next()?
-    .trim()
     .split_whitespace()
     .next()?
     .parse::<u32>()
@@ -496,7 +495,7 @@ fn try_parse_video_stream(mut comma_iter: CommaIter) -> Option<StreamTypeSpecifi
   let fps = comma_iter
     .find_map(|part| {
       if part.trim().ends_with("fps") {
-        part.trim().split_whitespace().next()
+        part.split_whitespace().next()
       } else {
         None
       }

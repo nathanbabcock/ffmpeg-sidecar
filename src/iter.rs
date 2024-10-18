@@ -213,7 +213,7 @@ pub fn spawn_stdout_thread(
       .map(|video_stream| {
         // Since we filtered for video_streams above, we can unwrap unconditionally.
         let video_data = video_stream.video_data().unwrap();
-        let bytes_per_frame = get_bytes_per_frame(&video_data);
+        let bytes_per_frame = get_bytes_per_frame(video_data);
         let buf_size = match video_stream.format.as_str() {
           "rawvideo" => bytes_per_frame.expect("Should use a known pix_fmt") as usize,
 
