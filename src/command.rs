@@ -83,9 +83,9 @@ impl FfmpegCommand {
   /// Alias for `-c:v` argument.
   ///
   /// Select an encoder (when used before an output file) or a decoder (when
-  /// used before an input file) for one or more streams. `codec` is the name of
-  /// a decoder/encoder or a special value copy (output only) to indicate that
-  /// the stream is not to be re-encoded.
+  /// used before an input file) for one or more video streams. `codec` is the
+  /// name of a decoder/encoder or a special value `copy`` (output only) to
+  /// indicate that the stream is not to be re-encoded.
   pub fn codec_video<S: AsRef<str>>(&mut self, codec: S) -> &mut Self {
     self.arg("-c:v");
     self.arg(codec.as_ref());
@@ -95,11 +95,23 @@ impl FfmpegCommand {
   /// Alias for `-c:a` argument.
   ///
   /// Select an encoder (when used before an output file) or a decoder (when
-  /// used before an input file) for one or more streams. `codec` is the name of
-  /// a decoder/encoder or a special value `copy` (output only) to indicate that
-  /// the stream is not to be re-encoded.
+  /// used before an input file) for one or more audio streams. `codec` is the
+  /// name of a decoder/encoder or a special value `copy` (output only) to
+  /// indicate that the stream is not to be re-encoded.
   pub fn codec_audio<S: AsRef<str>>(&mut self, codec: S) -> &mut Self {
     self.arg("-c:a");
+    self.arg(codec.as_ref());
+    self
+  }
+
+  /// Alias for `-c:s` argument.
+  ///
+  /// Select an encoder (when used before an output file) or a decoder (when
+  /// used before an input file) for one or more subtitle streams. `codec` is
+  /// the name of a decoder/encoder or a special value `copy` (output only) to
+  /// indicate that the stream is not to be re-encoded.
+  pub fn codec_subtitle<S: AsRef<str>>(&mut self, codec: S) -> &mut Self {
+    self.arg("-c:s");
     self.arg(codec.as_ref());
     self
   }
