@@ -419,6 +419,41 @@ fn test_no_overwrite() -> anyhow::Result<()> {
   Ok(())
 }
 
+#[test]
+#[cfg(feature = "named_pipes")]
+fn test_named_pipe() -> anyhow::Result<()> {
+  // Prepare an FFmpeg command and create a named pipe
+  let mut binding = FfmpegCommand::new();
+  let from_command = binding
+    .overwrite()
+    .testsrc()
+    .frames(1)
+    .format("rawvideo")
+    .named_pipe("\\\\.\\pipe\\test_pipe")?;
+
+  // In a seperate thread, read from the named pipe as input
+  thread::spawn(|| {
+    let to_command = FfmpegCommand::new()
+      .overwrite()
+      .format("rawvideo")
+      .input("\\\\.\\pipe\\test_pipe")
+      .output("output/test_named_pipe.jpg")
+      .spawn()
+      .unwrap()
+      .iter()
+      .unwrap()
+      .for_each(|e| println!("[to] {:?}", e));
+  });
+
+  // Start the source process
+  from_command
+    .spawn()?
+    .iter()?
+    .for_each(|e| println!("[from] {:?}", e));
+
+  Ok(())
+}
+
 /// Returns `Err` if the timeout thread finishes before the FFmpeg process
 fn spawn_with_timeout(command: &mut FfmpegCommand, timeout: u64) -> anyhow::Result<()> {
   let (sender, receiver) = mpsc::channel();

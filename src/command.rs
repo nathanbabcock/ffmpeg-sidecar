@@ -569,7 +569,7 @@ impl FfmpegCommand {
 
   /// Redirect the command's `stdout` to a named pipe.
   #[cfg(all(unix, feature = "named_pipes"))]
-  pub fn create_named_pipe(&mut self, path: &std::path::Path) -> Result<&mut Self, Box<dyn std::error::Error>> {
+  pub fn named_pipe<S: AsRef<OsStr>>(&mut self, path: S) -> anyhow::Result<&mut Self> {
     use nix::sys::stat;
     use nix::unistd;
     unistd::mkfifo(path, stat::Mode::S_IRWXU)?;
@@ -581,18 +581,26 @@ impl FfmpegCommand {
   }
 
   /// Redirect the command's `stdout` to a named pipe.
+  /// On Windows the pipe name must be in the format `\\.\pipe\{asdf}`.
+  /// @see https://learn.microsoft.com/en-us/windows/win32/api/namedpipeapi/nf-namedpipeapi-createnamedpipew
   #[cfg(all(windows, feature = "named_pipes"))]
-  pub fn create_named_pipe(&mut self, path: &std::path::Path) -> Result<&mut Self, Box<dyn std::error::Error>> {
+  pub fn named_pipe<S: AsRef<str>>(&mut self, pipe_name: S) -> anyhow::Result<&mut Self> {
+    use anyhow::bail;
     use std::os::windows::ffi::OsStrExt;
     use std::ptr::null_mut;
     use winapi::um::namedpipeapi::CreateNamedPipeW; // Corrected import
-    use winapi::um::winbase::{PIPE_ACCESS_DUPLEX, PIPE_READMODE_BYTE, PIPE_TYPE_BYTE, PIPE_WAIT};
+    use winapi::um::winbase::{
+      FILE_FLAG_OVERLAPPED, PIPE_ACCESS_DUPLEX, PIPE_READMODE_BYTE, PIPE_TYPE_BYTE, PIPE_WAIT,
+    };
 
-    let path_wide: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
+    let path_wide: Vec<u16> = OsStr::new(pipe_name.as_ref())
+      .encode_wide()
+      .chain(Some(0))
+      .collect();
     let handle = unsafe {
       CreateNamedPipeW(
         path_wide.as_ptr(),
-        PIPE_ACCESS_DUPLEX,
+        PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,
         PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
         1,
         4096,
@@ -603,13 +611,12 @@ impl FfmpegCommand {
     };
 
     if handle == winapi::um::handleapi::INVALID_HANDLE_VALUE {
-      return Err("Failed to create named pipe".into());
+      bail!("Failed to create named pipe");
     }
 
-    self.arg(format!("pipe:{}", path.display()));
-    self.inner.stdout(Stdio::piped());
+    self.arg(pipe_name.as_ref());
 
-    // todo: `handle` needs to be persisted in order to call `CloseHandle` later
+    // todo: `handle` needs to be persisted in order to call `CloseHandle` later?
 
     Ok(self)
   }
