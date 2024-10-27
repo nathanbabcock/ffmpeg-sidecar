@@ -422,34 +422,38 @@ fn test_no_overwrite() -> anyhow::Result<()> {
 #[test]
 #[cfg(feature = "named_pipes")]
 fn test_named_pipe() -> anyhow::Result<()> {
-  // Prepare an FFmpeg command and create a named pipe
+  use std::{io::Read, thread::JoinHandle};
+
+  use crate::named_pipe::NamedPipe;
+
+  let pipe_name = r#"\\.\pipe\test_pipe"#;
   let mut binding = FfmpegCommand::new();
-  let from_command = binding
+  let command = binding
     .overwrite()
     .testsrc()
     .frames(1)
+    .codec_video("rawvideo")
     .format("rawvideo")
-    .named_pipe("\\\\.\\pipe\\test_pipe")?;
+    .pix_fmt("rgb24")
+    .output(pipe_name);
 
-  // In a seperate thread, read from the named pipe as input
-  thread::spawn(|| {
-    let to_command = FfmpegCommand::new()
-      .overwrite()
-      .format("rawvideo")
-      .input("\\\\.\\pipe\\test_pipe")
-      .output("output/test_named_pipe.jpg")
-      .spawn()
-      .unwrap()
-      .iter()
-      .unwrap()
-      .for_each(|e| println!("[to] {:?}", e));
+  // Open the named pipe
+  let (sender, receiver) = mpsc::channel::<bool>();
+  let thread: JoinHandle<Result<(), anyhow::Error>> = thread::spawn(move || {
+    let mut named_pipe = NamedPipe::new(pipe_name)?;
+    let mut buffer = [0u8; 320 * 240 * 3 + 100]; // allocate just enough space for 1 output frame w/ extra padding
+    receiver.recv()?;
+    let bytes_read = named_pipe.read(&mut buffer)?;
+    assert!(bytes_read > 0);
+    assert!(bytes_read == 320 * 240 * 3);
+    println!("Read {} bytes from named pipe", bytes_read);
+    Ok(())
   });
 
   // Start the source process
-  from_command
-    .spawn()?
-    .iter()?
-    .for_each(|e| println!("[from] {:?}", e));
+  command.spawn()?.iter()?.for_each(|e| println!("{:?}", e));
+  sender.send(true)?; // signal that the pipe is ready for reading
+  thread.join().unwrap().unwrap();
 
   Ok(())
 }
