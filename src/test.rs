@@ -422,9 +422,8 @@ fn test_no_overwrite() -> anyhow::Result<()> {
 #[test]
 #[cfg(feature = "named_pipes")]
 fn test_named_pipe() -> anyhow::Result<()> {
-  use std::{io::Read, thread::JoinHandle};
-
   use crate::named_pipe::NamedPipe;
+  use std::{io::Read, thread::JoinHandle};
 
   let pipe_name = r#"\\.\pipe\test_pipe"#;
   let mut binding = FfmpegCommand::new();
@@ -444,9 +443,7 @@ fn test_named_pipe() -> anyhow::Result<()> {
     let mut buffer = [0u8; 320 * 240 * 3 + 100]; // allocate just enough space for 1 output frame w/ extra padding
     receiver.recv()?;
     let bytes_read = named_pipe.read(&mut buffer)?;
-    assert!(bytes_read > 0);
     assert!(bytes_read == 320 * 240 * 3);
-    println!("Read {} bytes from named pipe", bytes_read);
     Ok(())
   });
 
