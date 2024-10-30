@@ -1,13 +1,13 @@
-use anyhow::Result;
-use ffmpeg_sidecar::command::FfmpegCommand;
-use ffmpeg_sidecar::event::{FfmpegEvent, LogLevel};
-use ffmpeg_sidecar::named_pipe::NamedPipe;
-use std::io::Read;
-use std::sync::mpsc;
-use std::thread;
-
 #[cfg(all(windows, feature = "named_pipes"))]
-fn main() -> Result<()> {
+fn main() -> anyhow::Result<()> {
+  use anyhow::Result;
+  use ffmpeg_sidecar::command::FfmpegCommand;
+  use ffmpeg_sidecar::event::{FfmpegEvent, LogLevel};
+  use ffmpeg_sidecar::named_pipe::NamedPipe;
+  use std::io::Read;
+  use std::sync::mpsc;
+  use std::thread;
+
   const VIDEO_PIPE_NAME: &'static str = r#"\\.\pipe\ffmpeg_video"#;
   const AUDIO_PIPE_NAME: &'static str = r#"\\.\pipe\ffmpeg_audio"#;
   const SUBTITLES_PIPE_NAME: &'static str = r#"\\.\pipe\ffmpeg_subtitles"#;
