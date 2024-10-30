@@ -83,7 +83,7 @@ impl Read for NamedPipe {
         &mut bytes_read,
         null_mut(),
       );
-      if read_status != 0 {
+      if read_status == 0 {
         return std::io::Result::Err(Error::last_os_error());
       }
     };

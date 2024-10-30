@@ -1,110 +1,123 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 use ffmpeg_sidecar::command::FfmpegCommand;
+use ffmpeg_sidecar::event::{FfmpegEvent, LogLevel};
 use ffmpeg_sidecar::named_pipe::NamedPipe;
 use std::io::Read;
+use std::sync::mpsc;
 use std::thread;
 
 #[cfg(all(windows, feature = "named_pipes"))]
 fn main() -> Result<()> {
-  use std::{io::Error, ptr::null_mut};
-  use winapi::um::namedpipeapi::ConnectNamedPipe;
-
   const VIDEO_PIPE_NAME: &'static str = r#"\\.\pipe\ffmpeg_video"#;
   const AUDIO_PIPE_NAME: &'static str = r#"\\.\pipe\ffmpeg_audio"#;
 
-  // Thread & named pipe for video
-  let video_thread = thread::spawn(move || -> Result<()> {
-    // Create
-    let mut video_pipe = NamedPipe::new(VIDEO_PIPE_NAME)?;
-    let mut video_buf = vec![0; 1920 * 1080 * 3];
-    println!("[video] pipe created");
-
-    // Wait
-    println!("[video] waiting for connection");
-    unsafe {
-      let wait_result = ConnectNamedPipe(video_pipe.handle, null_mut());
-      if wait_result != 0 {
-        eprintln!("Error: {:?}", Error::last_os_error());
-        bail!(Error::last_os_error());
-      }
-    }
-    // todo!: this won't work yet
-    // need to open pipe with FILE_FLAG_OVERLAPPED,
-    // then use OVERLAPPED struct to wait for connection
-
-    // Read
-    println!("[video] reading from pipe");
-    while let Ok(bytes_read) = video_pipe.read(&mut video_buf) {
-      println!("[video] Read {} bytes", bytes_read);
-      if bytes_read == 0 {
-        break;
-      }
-    }
-
-    // Exit
-    println!("[video] done reading");
-    Ok(())
-  });
-
-  // Thread & named pipe for audio
-  let audio_thread = thread::spawn(move || -> Result<()> {
-    // Create
-    let mut audio_pipe = NamedPipe::new(AUDIO_PIPE_NAME)?;
-    let mut audio_buf = vec![0; 1920 * 1080 * 3];
-    println!("[audio] pipe created");
-
-    // Wait
-    println!("[audio] waiting for connection");
-    unsafe {
-      let wait_result = ConnectNamedPipe(audio_pipe.handle, null_mut());
-      if wait_result != 0 {
-        bail!(Error::last_os_error());
-      }
-    }
-
-    // Read
-    println!("[audio] reading from pipe");
-    while let Ok(bytes_read) = audio_pipe.read(&mut audio_buf) {
-      println!("[audio] Read {} bytes", bytes_read);
-      if bytes_read == 0 {
-        break;
-      }
-    }
-
-    // Exit
-    println!("[audio] done reading");
-    Ok(())
-  });
-
-  // Start the FFmpeg command
-  let mut child = FfmpegCommand::new()
+  // Prepare an FFmpeg command with separate outputs for video and audio
+  let mut command = FfmpegCommand::new();
+  command
     // Global flags:
     .hide_banner()
-    .overwrite() // <-- required w/ named pipes on Windows
+    .overwrite() // <- overwrite reqired on windows
     // Generate test video:
     .format("lavfi")
     .input(format!("testsrc=size=1920x1080:rate=60:duration=10"))
     // Generate test audio:
     .format("lavfi")
     .input("sine=frequency=1000:duration=10")
-    // Split video onto one pipe:
+    // Split video into one pipe output:
     .map("0:v")
     .format("rawvideo")
     .pix_fmt("rgb24")
     .args(["-flush_packets", "1"])
     .output(VIDEO_PIPE_NAME)
-    // Split audio onto the other pipe:
+    // Split audio onto the other pipe output:
     .map("1:a")
     .format("s16le")
     .args(["-flush_packets", "1"])
-    .output(AUDIO_PIPE_NAME)
-    .print_command()
-    .spawn()?;
+    .output(AUDIO_PIPE_NAME);
 
-  let iter = child.iter()?;
-  iter.into_ffmpeg_stderr().for_each(|e| println!("{e}"));
-  video_thread.join().unwrap()?;
-  audio_thread.join().unwrap()?;
+  // Create a separate thread for each output pipe
+  let threads = [VIDEO_PIPE_NAME, AUDIO_PIPE_NAME]
+    .iter()
+    .map(|pipe_name| {
+      let (ready_sender, ready_receiver) = mpsc::channel::<()>();
+      let thread = thread::spawn(move || -> Result<()> {
+        let mut pipe = NamedPipe::new(pipe_name)?;
+        println!("[{pipe_name}] pipe created");
+
+        // Wait for FFmpeg to start writing
+        println!("[{pipe_name}] waiting for ready signal");
+        ready_receiver.recv()?;
+
+        // Read continuously until finished
+        println!("[{pipe_name}] reading from pipe");
+        let mut buf = vec![0; 1920 * 1080 * 3];
+        let mut total_bytes_read = 0;
+        loop {
+          match pipe.read(&mut buf) {
+            Ok(bytes_read) => {
+              total_bytes_read += bytes_read;
+              if bytes_read == 0 {
+                break;
+              }
+            }
+            Err(err) => {
+              if err.kind() != std::io::ErrorKind::BrokenPipe {
+                return Err(err.into());
+              } else {
+                break;
+              }
+            }
+          }
+        }
+
+        // Exit
+        println!(
+          "[{pipe_name}] done reading ({}KiB total)",
+          total_bytes_read / 1024
+        );
+        Ok(())
+      });
+
+      return (thread, ready_sender);
+    })
+    .collect::<Vec<_>>();
+
+  // Start FFmpeg
+  let mut ready_signal_sent = false;
+  command
+    .print_command()
+    .spawn()?
+    .iter()?
+    .for_each(|event| match event {
+      // Sigbnal threads when output is ready
+      FfmpegEvent::Progress(_) => {
+        if !ready_signal_sent {
+          threads.iter().for_each(|(_, sender)| {
+            sender.send(()).ok();
+          });
+          ready_signal_sent = true;
+        }
+      }
+
+      // Verify output size from FFmpeg logs (video/audio KiB)
+      FfmpegEvent::Log(LogLevel::Info, msg) if msg.starts_with("[out#") => {
+        println!("{msg}");
+      }
+
+      // Log any unexpected errors
+      FfmpegEvent::Log(LogLevel::Warning | LogLevel::Error | LogLevel::Fatal, msg) => {
+        eprintln!("{msg}");
+      }
+
+      _ => {}
+    });
+
+  for (thread, _) in threads {
+    thread.join().unwrap()?;
+  }
 
   Ok(())
 }
+
+#[cfg(not(all(windows, feature = "named_pipes")))]
+fn main() {}
