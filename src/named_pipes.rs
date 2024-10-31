@@ -1,8 +1,26 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 use std::io::Read;
+
+/// On Windows, prepend the pipe name with `\\.\pipe\`.
+/// On Unix, return the name as-is.
+#[macro_export]
+macro_rules! pipe_name {
+  ($name:expr) => {
+    if cfg!(windows) {
+      concat!(r#"\\.\pipe\"#, $name)
+    } else {
+      $name
+    }
+  };
+}
 
 /// Cross-platform abstraction over Windows async named pipes and Unix FIFO.
 pub struct NamedPipe {
+  pub name: String,
+
+  #[cfg(unix)]
+  pub file: std::fs::File,
+
   #[cfg(windows)]
   pub handle: *mut winapi::ctypes::c_void,
   // #[cfg(unix)] // todo
@@ -38,7 +56,7 @@ impl NamedPipe {
     };
 
     if handle == winapi::um::handleapi::INVALID_HANDLE_VALUE {
-      bail!("Failed to create named pipe");
+      anyhow::bail!("Failed to create named pipe");
     }
 
     // // wait for the named pipe's creation
@@ -51,18 +69,21 @@ impl NamedPipe {
     //   }
     // }
 
-    Ok(Self { handle })
+    Ok(Self {
+      handle,
+      name: pipe_name.as_ref().to_string(),
+    })
   }
 }
 
-// #[cfg(windows)]
-// impl Drop for NamedPipe {
-//   fn drop(&mut self) {
-//     unsafe {
-//       winapi::um::handleapi::CloseHandle(self.handle);
-//     }
-//   }
-// }
+#[cfg(windows)]
+impl Drop for NamedPipe {
+  fn drop(&mut self) {
+    unsafe {
+      winapi::um::handleapi::CloseHandle(self.handle);
+    }
+  }
+}
 
 #[cfg(windows)]
 impl Read for NamedPipe {
@@ -89,5 +110,39 @@ impl Read for NamedPipe {
     };
 
     Ok(bytes_read as usize)
+  }
+}
+
+// The unix implementation is comparatively extremely simple...
+
+#[cfg(unix)]
+impl NamedPipe {
+  pub fn new<S: AsRef<str>>(pipe_name: S) -> Result<Self> {
+    use nix::sys::stat;
+    use nix::unistd;
+    unistd::mkfifo(pipe_name.as_ref(), stat::Mode::S_IRWXU)?;
+    let file = std::fs::OpenOptions::new()
+      .read(true)
+      .open(pipe_name.as_ref())?;
+    Ok(Self {
+      file,
+      name: pipe_name.as_ref().to_string(),
+    })
+  }
+}
+
+#[cfg(unix)]
+impl Read for NamedPipe {
+  fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+    self.file.read(buf)
+  }
+}
+
+#[cfg(unix)]
+impl Drop for NamedPipe {
+  fn drop(&mut self) {
+    use nix::unistd;
+    use std::path::Path;
+    unistd::unlink(Path::new(&self.name)).ok();
   }
 }

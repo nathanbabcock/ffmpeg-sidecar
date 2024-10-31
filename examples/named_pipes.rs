@@ -1,16 +1,17 @@
-#[cfg(all(windows, feature = "named_pipes"))]
+#[cfg(feature = "named_pipes")]
 fn main() -> anyhow::Result<()> {
   use anyhow::Result;
   use ffmpeg_sidecar::command::FfmpegCommand;
   use ffmpeg_sidecar::event::{FfmpegEvent, LogLevel};
-  use ffmpeg_sidecar::named_pipe::NamedPipe;
+  use ffmpeg_sidecar::named_pipes::NamedPipe;
+  use ffmpeg_sidecar::pipe_name;
   use std::io::Read;
   use std::sync::mpsc;
   use std::thread;
 
-  const VIDEO_PIPE_NAME: &'static str = r#"\\.\pipe\ffmpeg_video"#;
-  const AUDIO_PIPE_NAME: &'static str = r#"\\.\pipe\ffmpeg_audio"#;
-  const SUBTITLES_PIPE_NAME: &'static str = r#"\\.\pipe\ffmpeg_subtitles"#;
+  const VIDEO_PIPE_NAME: &'static str = pipe_name!("ffmpeg_video");
+  const AUDIO_PIPE_NAME: &'static str = pipe_name!("ffmpeg_audio");
+  const SUBTITLES_PIPE_NAME: &'static str = pipe_name!("ffmpeg_subtitles");
 
   // Prepare an FFmpeg command with separate outputs for video, audio, and subtitles
   let mut command = FfmpegCommand::new();
@@ -129,5 +130,5 @@ fn main() -> anyhow::Result<()> {
   Ok(())
 }
 
-#[cfg(not(all(windows, feature = "named_pipes")))]
+#[cfg(not(feature = "named_pipes"))]
 fn main() {}

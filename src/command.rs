@@ -567,20 +567,6 @@ impl FfmpegCommand {
     self
   }
 
-  /// Redirect the command's `stdout` to a named pipe.
-  /// todo: move this to `NamedPipe` struct
-  #[cfg(all(unix, feature = "named_pipes"))]
-  pub fn named_pipe<S: AsRef<OsStr>>(&mut self, path: S) -> anyhow::Result<&mut Self> {
-    use nix::sys::stat;
-    use nix::unistd;
-    unistd::mkfifo(path, stat::Mode::S_IRWXU)?;
-
-    self.arg(format!("pipe:{}", path.display()));
-    self.inner.stdout(Stdio::piped());
-
-    Ok(self)
-  }
-
   /// Automatically applied in the constructor of `FfmpegCommand`. Configures
   /// logging with a level and format expected by the log parser.
   ///

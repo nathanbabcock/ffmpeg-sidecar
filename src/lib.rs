@@ -61,4 +61,4 @@ pub mod read_until_any;
 pub mod version;
 
 #[cfg(feature = "named_pipes")]
-pub mod named_pipe;
+pub mod named_pipes;

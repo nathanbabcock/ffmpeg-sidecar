@@ -422,12 +422,14 @@ fn test_no_overwrite() -> anyhow::Result<()> {
 #[test]
 #[cfg(feature = "named_pipes")]
 fn test_named_pipe() -> anyhow::Result<()> {
-  use crate::named_pipe::NamedPipe;
+  use crate::{named_pipes::NamedPipe, pipe_name};
   use std::{io::Read, thread::JoinHandle};
 
-  let pipe_name = r#"\\.\pipe\test_pipe"#;
-  let mut binding = FfmpegCommand::new();
-  let command = binding
+  let pipe_name = pipe_name!("test_pipe");
+
+  // Create FFmpeg command
+  let mut command = FfmpegCommand::new();
+  command
     .overwrite()
     .testsrc()
     .frames(1)
