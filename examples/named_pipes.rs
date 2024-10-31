@@ -13,12 +13,12 @@ fn main() -> anyhow::Result<()> {
   const AUDIO_PIPE_NAME: &'static str = pipe_name!("ffmpeg_audio");
   const SUBTITLES_PIPE_NAME: &'static str = pipe_name!("ffmpeg_subtitles");
 
-  // Prepare an FFmpeg command with separate outputs for video, audio, and subtitles
+  // Prepare an FFmpeg command with separate outputs for video, audio, and subtitles.
   let mut command = FfmpegCommand::new();
   command
     // Global flags
     .hide_banner()
-    .overwrite() // <- overwrite reqired on windows
+    .overwrite() // <- overwrite required on windows
     // Generate test video
     .format("lavfi")
     .input(format!("testsrc=size=1920x1080:rate=60:duration=10"))
@@ -48,16 +48,20 @@ fn main() -> anyhow::Result<()> {
   let threads = [VIDEO_PIPE_NAME, AUDIO_PIPE_NAME, SUBTITLES_PIPE_NAME]
     .iter()
     .map(|pipe_name| {
+      // It's important to create the named pipe on the main thread before
+      // sending it elsewhere so that any errors are caught at the top level.
+      let mut pipe = NamedPipe::new(pipe_name)?;
+      println!("[{pipe_name}] pipe created");
       let (ready_sender, ready_receiver) = mpsc::channel::<()>();
       let thread = thread::spawn(move || -> Result<()> {
-        let mut pipe = NamedPipe::new(pipe_name)?;
-        println!("[{pipe_name}] pipe created");
-
         // Wait for FFmpeg to start writing
+        // Only needed for Windows, since Unix will block until a writer has connected
         println!("[{pipe_name}] waiting for ready signal");
         ready_receiver.recv()?;
 
         // Read continuously until finished
+        // Note that if the stream of output is interrupted or paused,
+        // you may need additional logic to keep the read loop alive.
         println!("[{pipe_name}] reading from pipe");
         let mut buf = vec![0; 1920 * 1080 * 3];
         let mut total_bytes_read = 0;
@@ -79,7 +83,9 @@ fn main() -> anyhow::Result<()> {
           }
         }
 
-        // Exit
+        // Log how many bytes were received over this pipe.
+        // You can visually compare this to the FFmpeg log output to confirm
+        // that all the expected bytes were captured.
         let size_str = if total_bytes_read < 1024 {
           format!("{}B", total_bytes_read)
         } else {
@@ -89,9 +95,9 @@ fn main() -> anyhow::Result<()> {
         Ok(())
       });
 
-      return (thread, ready_sender);
+      return Ok((thread, ready_sender));
     })
-    .collect::<Vec<_>>();
+    .collect::<Result<Vec<_>>>()?;
 
   // Start FFmpeg
   let mut ready_signal_sent = false;
@@ -100,7 +106,7 @@ fn main() -> anyhow::Result<()> {
     .spawn()?
     .iter()?
     .for_each(|event| match event {
-      // Sigbnal threads when output is ready
+      // Signal threads when output is ready
       FfmpegEvent::Progress(_) => {
         if !ready_signal_sent {
           threads.iter().for_each(|(_, sender)| {
