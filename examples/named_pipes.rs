@@ -139,13 +139,11 @@ fn main() -> anyhow::Result<()> {
     .iter()?
     .for_each(|event| match event {
       // Signal threads when output is ready
-      FfmpegEvent::Progress(_) => {
-        if !ready_signal_sent {
-          threads.iter().for_each(|(_, sender)| {
-            sender.send(()).ok();
-          });
-          ready_signal_sent = true;
-        }
+      FfmpegEvent::Progress(_) if !ready_signal_sent => {
+        threads.iter().for_each(|(_, sender)| {
+          sender.send(()).ok();
+        });
+        ready_signal_sent = true;
       }
 
       // Verify output size from FFmpeg logs (video/audio KiB)

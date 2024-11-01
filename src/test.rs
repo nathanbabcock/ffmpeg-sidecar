@@ -422,7 +422,7 @@ fn test_no_overwrite() -> anyhow::Result<()> {
 #[test]
 #[cfg(feature = "named_pipes")]
 fn test_named_pipe() -> anyhow::Result<()> {
-  use crate::{named_pipes::NamedPipe, pipe_name};
+  use crate::{event::LogLevel, named_pipes::NamedPipe, pipe_name};
   use std::{io::Read, thread::JoinHandle};
 
   let pipe_name = pipe_name!("test_pipe");
@@ -433,7 +433,6 @@ fn test_named_pipe() -> anyhow::Result<()> {
     .overwrite()
     .testsrc()
     .frames(1)
-    .codec_video("rawvideo")
     .format("rawvideo")
     .pix_fmt("rgb24")
     .output(pipe_name);
@@ -450,9 +449,19 @@ fn test_named_pipe() -> anyhow::Result<()> {
   });
 
   // Start the source process
-  command.spawn()?.iter()?.for_each(|e| println!("{:?}", e));
-  sender.send(true)?; // signal that the pipe is ready for reading
-  thread.join().unwrap().unwrap();
+  let mut ready_signal_sent = false;
+  command.spawn()?.iter()?.for_each(|event| match event {
+    FfmpegEvent::Progress(_) if !ready_signal_sent => {
+      sender.send(true).ok();
+      ready_signal_sent = true;
+    }
+    FfmpegEvent::Log(LogLevel::Warning | LogLevel::Error | LogLevel::Fatal, msg) => {
+      eprintln!("{msg}");
+    }
+    _ => {}
+  });
+
+  thread.join().unwrap()?;
 
   Ok(())
 }
