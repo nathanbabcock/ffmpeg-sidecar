@@ -14,16 +14,22 @@ macro_rules! pipe_name {
   };
 }
 
+#[cfg(windows)]
+pub struct NamedPipeHandle(*mut winapi::ctypes::c_void);
+
+/// https://github.com/retep998/winapi-rs/issues/396
+#[cfg(windows)]
+unsafe impl Send for NamedPipeHandle {}
+
 /// Cross-platform abstraction over Windows async named pipes and Unix FIFO.
 pub struct NamedPipe {
   pub name: String,
 
+  #[cfg(windows)]
+  pub handle: NamedPipeHandle,
+
   #[cfg(unix)]
   pub file: std::fs::File,
-
-  #[cfg(windows)]
-  pub handle: *mut winapi::ctypes::c_void,
-  // #[cfg(unix)] // todo
 }
 
 #[cfg(windows)]
@@ -59,18 +65,8 @@ impl NamedPipe {
       anyhow::bail!("Failed to create named pipe");
     }
 
-    // // wait for the named pipe's creation
-    // // https://learn.microsoft.com/en-us/windows/win32/api/namedpipeapi/nf-namedpipeapi-waitnamedpipew
-    // // nTimeOut = 0 -> "The time-out interval is the default value specified by the server process in the CreateNamedPipe function."
-    // unsafe {
-    //   let wait_result = WaitNamedPipeW(path_wide.as_ptr(), 50);
-    //   if wait_result == 0 {
-    //     bail!("Failed to wait for named pipe");
-    //   }
-    // }
-
     Ok(Self {
-      handle,
+      handle: NamedPipeHandle(handle),
       name: pipe_name.as_ref().to_string(),
     })
   }
@@ -80,7 +76,7 @@ impl NamedPipe {
 impl Drop for NamedPipe {
   fn drop(&mut self) {
     unsafe {
-      winapi::um::handleapi::CloseHandle(self.handle);
+      winapi::um::handleapi::CloseHandle(self.handle.0);
     }
   }
 }
@@ -98,7 +94,7 @@ impl Read for NamedPipe {
     let mut bytes_read: DWORD = 0;
     unsafe {
       let read_status = ReadFile(
-        self.handle,
+        self.handle.0,
         buf.as_mut_ptr() as LPVOID,
         buf.len() as DWORD,
         &mut bytes_read,
@@ -113,7 +109,7 @@ impl Read for NamedPipe {
   }
 }
 
-// The unix implementation is comparatively extremely simple...
+// The unix implementation is comparatively quite simple...
 
 #[cfg(unix)]
 impl NamedPipe {
