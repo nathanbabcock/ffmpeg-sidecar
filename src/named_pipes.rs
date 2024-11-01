@@ -101,7 +101,13 @@ impl Read for NamedPipe {
         null_mut(),
       );
       if read_status == 0 {
-        return std::io::Result::Err(Error::last_os_error());
+        let error = Error::last_os_error();
+        if error.raw_os_error() == Some(109) {
+          // pipe has been closed since last read
+          return Ok(0);
+        } else {
+          return std::io::Result::Err(error);
+        }
       }
     };
 
