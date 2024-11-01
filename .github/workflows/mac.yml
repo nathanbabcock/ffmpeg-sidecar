@@ -12,6 +12,7 @@ env:
 jobs:
   build:
     runs-on: macos-13
+    timeout-minutes: 5
 
     steps:
       - uses: actions/checkout@v3

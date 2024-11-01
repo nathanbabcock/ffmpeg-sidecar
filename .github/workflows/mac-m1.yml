@@ -13,6 +13,7 @@ jobs:
   build:
     # https://docs.github.com/en/actions/using-github-hosted-runners/using-github-hosted-runners/about-github-hosted-runners#standard-github-hosted-runners-for-public-repositories
     runs-on: macos-14
+    timeout-minutes: 5
 
     steps:
       - uses: actions/checkout@v3
