@@ -575,9 +575,9 @@ pub fn try_parse_progress(mut string: &str) -> Option<FfmpegProgress> {
     .split_whitespace()
     .next()?
     .trim()
-    .strip_suffix("kbits/s")?
+    .replace("kbits/s", "")
     .parse::<f32>()
-    .ok()?;
+    .unwrap_or(0.0); // handles "N/A"
   let speed = string
     .split("speed=")
     .nth(1)?
@@ -719,5 +719,21 @@ mod tests {
     assert!(progress.time == "00:00:03.00");
     assert!(progress.bitrate_kbps == 27.2);
     assert!(progress.speed == 283.0);
+  }
+
+  /// Check for handling first progress message w/ bitrate=N/A and speed=N/A
+  /// These never appeared on Windows but showed up on Ubuntu and MacOS
+  #[test]
+  fn test_parse_progress_empty() {
+    let line =
+      "[info] frame=    0 fps=0.0 q=-0.0 size=       0kB time=00:00:00.00 bitrate=N/A speed=N/A\n";
+    let progress = try_parse_progress(line).unwrap();
+    assert!(progress.frame == 0);
+    assert!(progress.fps == 0.0);
+    assert!(progress.q == -0.0);
+    assert!(progress.size_kb == 0);
+    assert!(progress.time == "00:00:00.00");
+    assert!(progress.bitrate_kbps == 0.0);
+    assert!(progress.speed == 0.0);
   }
 }

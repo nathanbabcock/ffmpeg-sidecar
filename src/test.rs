@@ -451,7 +451,8 @@ fn test_named_pipe() -> anyhow::Result<()> {
   // Start the source process
   let mut ready_signal_sent = false;
   command.spawn()?.iter()?.for_each(|event| match event {
-    FfmpegEvent::Progress(_) if !ready_signal_sent => {
+    FfmpegEvent::Progress(e) if !ready_signal_sent => {
+      println!("Progress: {:?}", e);
       sender.send(true).ok();
       ready_signal_sent = true;
     }
