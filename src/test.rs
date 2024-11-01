@@ -431,7 +431,8 @@ fn test_named_pipe() -> anyhow::Result<()> {
   let mut command = FfmpegCommand::new();
   command
     .overwrite()
-    .testsrc()
+    .format("lavfi")
+    .input("testsrc=size=320x240:rate=1:duration=1")
     .frames(1)
     .format("rawvideo")
     .pix_fmt("rgb24")
@@ -441,10 +442,22 @@ fn test_named_pipe() -> anyhow::Result<()> {
   let (sender, receiver) = mpsc::channel::<bool>();
   let thread: JoinHandle<Result<(), anyhow::Error>> = thread::spawn(move || {
     let mut named_pipe = NamedPipe::new(pipe_name)?;
-    let mut buffer = [0u8; 320 * 240 * 3 + 100]; // allocate just enough space for 1 output frame w/ extra padding
+    let mut buffer = [0u8; 65536];
     receiver.recv()?;
-    let bytes_read = named_pipe.read(&mut buffer)?;
-    assert!(bytes_read == 320 * 240 * 3);
+
+    let mut total_bytes_read = 0;
+    loop {
+      match named_pipe.read(&mut buffer) {
+        Ok(bytes_read) => {
+          total_bytes_read += bytes_read;
+          if bytes_read == 0 {
+            break;
+          }
+        }
+        Err(err) => anyhow::bail!(err),
+      }
+    }
+    assert!(total_bytes_read == 320 * 240 * 3);
     Ok(())
   });
 
