@@ -419,6 +419,67 @@ fn test_no_overwrite() -> anyhow::Result<()> {
   Ok(())
 }
 
+#[test]
+#[cfg(feature = "named_pipes")]
+fn test_named_pipe() -> anyhow::Result<()> {
+  use crate::{event::LogLevel, named_pipes::NamedPipe, pipe_name};
+  use std::{io::Read, thread::JoinHandle};
+
+  let pipe_name = pipe_name!("test_pipe");
+
+  // Create FFmpeg command
+  let mut command = FfmpegCommand::new();
+  command
+    .overwrite()
+    .format("lavfi")
+    .input("testsrc=size=320x240:rate=1:duration=1")
+    .frames(1)
+    .format("rawvideo")
+    .pix_fmt("rgb24")
+    .output(pipe_name);
+
+  // Open the named pipe
+  let (sender, receiver) = mpsc::channel::<bool>();
+  let thread: JoinHandle<Result<(), anyhow::Error>> = thread::spawn(move || {
+    let mut named_pipe = NamedPipe::new(pipe_name)?;
+    let mut buffer = [0u8; 65536];
+    receiver.recv()?;
+
+    let mut total_bytes_read = 0;
+    loop {
+      match named_pipe.read(&mut buffer) {
+        Ok(bytes_read) => {
+          total_bytes_read += bytes_read;
+          if bytes_read == 0 {
+            break;
+          }
+        }
+        Err(err) => anyhow::bail!(err),
+      }
+    }
+    assert!(total_bytes_read == 320 * 240 * 3);
+    Ok(())
+  });
+
+  // Start the source process
+  let mut ready_signal_sent = false;
+  command.spawn()?.iter()?.for_each(|event| match event {
+    FfmpegEvent::Progress(e) if !ready_signal_sent => {
+      println!("Progress: {:?}", e);
+      sender.send(true).ok();
+      ready_signal_sent = true;
+    }
+    FfmpegEvent::Log(LogLevel::Warning | LogLevel::Error | LogLevel::Fatal, msg) => {
+      eprintln!("{msg}");
+    }
+    _ => {}
+  });
+
+  thread.join().unwrap()?;
+
+  Ok(())
+}
+
 /// Returns `Err` if the timeout thread finishes before the FFmpeg process
 fn spawn_with_timeout(command: &mut FfmpegCommand, timeout: u64) -> anyhow::Result<()> {
   let (sender, receiver) = mpsc::channel();

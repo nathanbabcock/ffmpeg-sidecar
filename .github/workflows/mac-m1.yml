@@ -13,6 +13,7 @@ jobs:
   build:
     # https://docs.github.com/en/actions/using-github-hosted-runners/using-github-hosted-runners/about-github-hosted-runners#standard-github-hosted-runners-for-public-repositories
     runs-on: macos-14
+    timeout-minutes: 5
 
     steps:
       - uses: actions/checkout@v3
@@ -21,4 +22,4 @@ jobs:
       - name: Build
         run: cargo build --verbose
       - name: Run tests
-        run: cargo test --verbose -- --skip lib.rs
+        run: cargo test --all-targets --all-features --verbose -- --skip lib.rs

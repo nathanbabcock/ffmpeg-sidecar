@@ -644,16 +644,30 @@ impl FfmpegCommand {
 
   /// Print a command that can be copy-pasted to run in the terminal. Requires
   /// `&mut self` so that it chains seamlessly with other methods in the
-  /// interface.
+  /// interface. Sample output:
+  ///
+  /// ```sh
+  /// ffmpeg \
+  ///   -f lavfi \
+  ///   -i testsrc=duration=10 output/test.mp4
+  /// ```
   pub fn print_command(&mut self) -> &mut Self {
     let program = self.inner.get_program().to_str();
     let args = self
       .inner
       .get_args()
-      .map(|s| s.to_str())
-      .collect::<Option<Vec<_>>>();
-    if let (Some(program), Some(args)) = (program, args) {
-      println!("Command: {} {}", program, args.join(" "));
+      .filter_map(|s| {
+        s.to_str().map(|s| {
+          if s.starts_with("-") {
+            format!("\\\n  {s}")
+          } else {
+            s.to_owned()
+          }
+        })
+      })
+      .collect::<Vec<_>>();
+    if let Some(program) = program {
+      println!("{} {}", program, args.join(" "));
     }
 
     self

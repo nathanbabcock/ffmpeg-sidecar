@@ -12,7 +12,8 @@ license = "MIT"
 
 [features]
 default = ["download_ffmpeg"]
-download_ffmpeg = ["reqwest", "tar", "xz2", "zip"]
+download_ffmpeg = ["dep:reqwest", "dep:tar", "dep:xz2", "dep:zip"]
+named_pipes = ["dep:winapi", "dep:nix"]
 
 [lib]
 crate-type = ["lib"]
@@ -23,6 +24,18 @@ xz2 = { version = "0.1.7", optional = true }
 
 [target.'cfg(not(target_os = "linux"))'.dependencies]
 zip = { version = "2.2.0", optional = true }
+
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3.9", optional = true, features = [
+  "winbase",
+  "handleapi",
+  "namedpipeapi",
+] }
+
+[target.'cfg(unix)'.dependencies]
+nix = { version = "0.29.0", optional = true, features = [
+  "fs"
+] }
 
 [dependencies]
 anyhow = "1.0.79"
