@@ -1,3 +1,13 @@
+/// One of them main reasons to use named pipes instead of stdout is the ability
+/// to support multiple outputs from a single FFmpeg command. The creation and
+/// behavior of named pipes is platform-specific, and some of the
+/// synchronization logic can be a bit tricky. This example provides a starting
+/// point and some cross-platform abstractions over named pipes to make things
+/// easier.
+///
+/// If you need even more granular control over the output streams, you might
+/// consider using local TCP sockets instead, which can be more flexible and
+/// reliable with the same performance profile, if not better. See `examples/sockets.rs`.
 #[cfg(feature = "named_pipes")]
 fn main() -> anyhow::Result<()> {
   use anyhow::Result;
@@ -159,4 +169,7 @@ fn main() -> anyhow::Result<()> {
 }
 
 #[cfg(not(feature = "named_pipes"))]
-fn main() {}
+fn main() {
+  eprintln!(r#"Enable the "named_pipes" feature to run this example."#);
+  println!("cargo run --features named_pipes --example named_pipes")
+}
