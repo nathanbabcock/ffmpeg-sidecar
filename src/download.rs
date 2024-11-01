@@ -1,15 +1,9 @@
+use crate::{command::ffmpeg_is_installed, paths::sidecar_dir};
+use anyhow::Context;
 use std::{
   fs::{create_dir_all, read_dir, remove_dir_all, remove_file, rename, File},
-  io::{copy, Read},
+  io::copy,
   path::{Path, PathBuf},
-  process::{Command, ExitStatus, Stdio},
-};
-
-use anyhow::Context;
-
-use crate::{
-  command::{ffmpeg_is_installed, BackgroundCommand},
-  paths::sidecar_dir,
 };
 
 pub const UNPACK_DIRNAME: &str = "ffmpeg_release_temp";
@@ -109,34 +103,6 @@ pub fn parse_linux_version(version: &str) -> Option<String> {
     .split_whitespace()
     .next()
     .map(|s| s.to_string())
-}
-
-/// Invoke cURL on the command line to download a file, returning it as a string.
-#[deprecated]
-pub fn curl(url: &str) -> anyhow::Result<String> {
-  let mut child = Command::new("curl")
-    .create_no_window()
-    .args(["-L", url])
-    .stderr(Stdio::null())
-    .stdout(Stdio::piped())
-    .spawn()?;
-
-  let stdout = child.stdout.take().context("Failed to get stdout")?;
-
-  let mut string = String::new();
-  std::io::BufReader::new(stdout).read_to_string(&mut string)?;
-  Ok(string)
-}
-
-/// Invoke cURL on the command line to download a file, writing to a file.
-#[deprecated]
-pub fn curl_to_file(url: &str, destination: &str) -> anyhow::Result<ExitStatus> {
-  Command::new("curl")
-    .create_no_window()
-    .args(["-L", url])
-    .args(["-o", destination])
-    .status()
-    .map_err(Into::into)
 }
 
 /// Makes an HTTP request to obtain the latest version available online,
