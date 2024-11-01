@@ -47,6 +47,7 @@ fn main() -> anyhow::Result<()> {
   // Create a separate thread for each output pipe
   let threads = [VIDEO_PIPE_NAME, AUDIO_PIPE_NAME, SUBTITLES_PIPE_NAME]
     .iter()
+    .cloned()
     .map(|pipe_name| {
       // It's important to create the named pipe on the main thread before
       // sending it elsewhere so that any errors are caught at the top level.
@@ -65,10 +66,25 @@ fn main() -> anyhow::Result<()> {
         println!("[{pipe_name}] reading from pipe");
         let mut buf = vec![0; 1920 * 1080 * 3];
         let mut total_bytes_read = 0;
+
+        // In the case of subtitles, we'll decode the string contents directly
+        let mut text_content = if pipe_name == SUBTITLES_PIPE_NAME {
+          Some("".to_string())
+        } else {
+          None
+        };
+
         loop {
           match pipe.read(&mut buf) {
             Ok(bytes_read) => {
               total_bytes_read += bytes_read;
+
+              // read bytes into string
+              if let Some(cur_str) = &mut text_content {
+                let s = std::str::from_utf8(&buf[..bytes_read]).unwrap();
+                text_content = Some(format!("{}{}", cur_str, s));
+              }
+
               if bytes_read == 0 {
                 break;
               }
@@ -91,6 +107,12 @@ fn main() -> anyhow::Result<()> {
         } else {
           format!("{}KiB", total_bytes_read / 1024)
         };
+
+        if let Some(text_content) = text_content {
+          println!("[{pipe_name}] subtitle text content: ");
+          println!("{}", text_content.trim());
+        }
+
         println!("[{pipe_name}] done reading ({size_str} total)");
         Ok(())
       });
