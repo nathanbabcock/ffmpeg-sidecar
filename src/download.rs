@@ -115,17 +115,13 @@ pub fn check_latest_version() -> anyhow::Result<String> {
   }
 
   let manifest_url = ffmpeg_manifest_url()?;
-  let response = reqwest::blocking::get(manifest_url)
-    .context("Failed to make a request for the latest version")?;
+  let response = ureq::get(manifest_url)
+    .call()
+    .context("Failed to GET the latest ffmpeg version")?;
 
-  if !response.status().is_success() {
-    anyhow::bail!(
-      "Failed to get the latest version, status: {}",
-      response.status()
-    );
-  }
-
-  let string = response.text().context("Failed to read response text")?;
+  let string = response
+    .into_string()
+    .context("Failed to read response text")?;
 
   if cfg!(target_os = "windows") {
     Ok(string)
@@ -147,24 +143,13 @@ pub fn download_ffmpeg_package(url: &str, download_dir: &Path) -> anyhow::Result
 
   let archive_path = download_dir.join(filename);
 
-  let response =
-    reqwest::blocking::get(url).context("Failed to make a request to download ffmpeg")?;
-
-  if !response.status().is_success() {
-    anyhow::bail!("Failed to download ffmpeg, status: {}", response.status());
-  }
+  let response = ureq::get(url).call().context("Failed to download ffmpeg")?;
 
   let mut file =
     File::create(&archive_path).context("Failed to create file for ffmpeg download")?;
 
-  copy(
-    &mut response
-      .bytes()
-      .context("Failed to read response bytes")?
-      .as_ref(),
-    &mut file,
-  )
-  .context("Failed to write ffmpeg download to file")?;
+  copy(&mut response.into_reader(), &mut file)
+    .context("Failed to write ffmpeg download to file")?;
 
   Ok(archive_path)
 }
