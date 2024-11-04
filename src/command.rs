@@ -658,7 +658,7 @@ impl FfmpegCommand {
       .get_args()
       .filter_map(|s| {
         s.to_str().map(|s| {
-          if s.starts_with("-") {
+          if s.starts_with('-') {
             format!("\\\n  {s}")
           } else {
             s.to_owned()

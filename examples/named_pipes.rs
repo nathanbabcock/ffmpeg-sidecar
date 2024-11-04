@@ -19,9 +19,9 @@ fn main() -> anyhow::Result<()> {
   use std::sync::mpsc;
   use std::thread;
 
-  const VIDEO_PIPE_NAME: &'static str = pipe_name!("ffmpeg_video");
-  const AUDIO_PIPE_NAME: &'static str = pipe_name!("ffmpeg_audio");
-  const SUBTITLES_PIPE_NAME: &'static str = pipe_name!("ffmpeg_subtitles");
+  const VIDEO_PIPE_NAME: &str = pipe_name!("ffmpeg_video");
+  const AUDIO_PIPE_NAME: &str = pipe_name!("ffmpeg_audio");
+  const SUBTITLES_PIPE_NAME: &str = pipe_name!("ffmpeg_subtitles");
 
   // Prepare an FFmpeg command with separate outputs for video, audio, and subtitles.
   let mut command = FfmpegCommand::new();
@@ -31,7 +31,7 @@ fn main() -> anyhow::Result<()> {
     .overwrite() // <- overwrite required on windows
     // Generate test video
     .format("lavfi")
-    .input(format!("testsrc=size=1920x1080:rate=60:duration=10"))
+    .input("testsrc=size=1920x1080:rate=60:duration=10")
     // Generate test audio
     .format("lavfi")
     .input("sine=frequency=1000:duration=10")
@@ -127,7 +127,7 @@ fn main() -> anyhow::Result<()> {
         Ok(())
       });
 
-      return Ok((thread, ready_sender));
+      Ok((thread, ready_sender))
     })
     .collect::<Result<Vec<_>>>()?;
 

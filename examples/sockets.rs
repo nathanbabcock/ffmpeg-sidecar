@@ -23,7 +23,7 @@ fn main() -> Result<()> {
     .overwrite() // <- overwrite required on windows
     // Generate test video
     .format("lavfi")
-    .input(format!("testsrc=size=1920x1080:rate=60:duration=10"))
+    .input("testsrc=size=1920x1080:rate=60:duration=10")
     // Generate test audio
     .format("lavfi")
     .input("sine=frequency=1000:duration=10")
@@ -76,7 +76,7 @@ fn listen_for_connections(tcp_port: u32, exit_receiver: Receiver<()>) -> Result<
 
   let mut handler_threads = Vec::new();
   loop {
-    if let Ok(_) = exit_receiver.try_recv() {
+    if exit_receiver.try_recv().is_ok() {
       break;
     }
     match listener.accept() {
