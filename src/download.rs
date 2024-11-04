@@ -1,16 +1,13 @@
-use crate::{command::ffmpeg_is_installed, paths::sidecar_dir};
-use anyhow::Context;
-use std::{
-  fs::{create_dir_all, read_dir, remove_dir_all, remove_file, rename, File},
-  io::copy,
-  path::{Path, PathBuf},
-};
+use anyhow::Result;
+
+#[cfg(feature = "download_ffmpeg")]
+use std::path::{Path, PathBuf};
 
 pub const UNPACK_DIRNAME: &str = "ffmpeg_release_temp";
 
 /// URL of a manifest file containing the latest published build of FFmpeg. The
 /// correct URL for the target platform is baked in at compile time.
-pub fn ffmpeg_manifest_url() -> anyhow::Result<&'static str> {
+pub fn ffmpeg_manifest_url() -> Result<&'static str> {
   if cfg!(not(target_arch = "x86_64")) {
     anyhow::bail!("Downloads must be manually provided for non-x86_64 architectures");
   }
@@ -28,7 +25,7 @@ pub fn ffmpeg_manifest_url() -> anyhow::Result<&'static str> {
 
 /// URL for the latest published FFmpeg release. The correct URL for the target
 /// platform is baked in at compile time.
-pub fn ffmpeg_download_url() -> anyhow::Result<&'static str> {
+pub fn ffmpeg_download_url() -> Result<&'static str> {
   if cfg!(all(target_os = "windows", target_arch = "x86_64")) {
     Ok("https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip")
   } else if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
@@ -49,7 +46,9 @@ pub fn ffmpeg_download_url() -> anyhow::Result<&'static str> {
 /// If FFmpeg is already installed, the method exits early without downloading
 /// anything.
 #[cfg(feature = "download_ffmpeg")]
-pub fn auto_download() -> anyhow::Result<()> {
+pub fn auto_download() -> Result<()> {
+  use crate::{command::ffmpeg_is_installed, paths::sidecar_dir};
+
   if ffmpeg_is_installed() {
     return Ok(());
   }
@@ -108,7 +107,9 @@ pub fn parse_linux_version(version: &str) -> Option<String> {
 /// Makes an HTTP request to obtain the latest version available online,
 /// automatically choosing the correct URL for the current platform.
 #[cfg(feature = "download_ffmpeg")]
-pub fn check_latest_version() -> anyhow::Result<String> {
+pub fn check_latest_version() -> Result<String> {
+  use anyhow::Context;
+
   // Mac M1 doesn't have a manifest URL, so match the version provided in `ffmpeg_download_url`
   if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
     return Ok("7.0".to_string());
@@ -136,7 +137,10 @@ pub fn check_latest_version() -> anyhow::Result<String> {
 
 /// Make an HTTP request to download an archive from the latest published release online.
 #[cfg(feature = "download_ffmpeg")]
-pub fn download_ffmpeg_package(url: &str, download_dir: &Path) -> anyhow::Result<PathBuf> {
+pub fn download_ffmpeg_package(url: &str, download_dir: &Path) -> Result<PathBuf> {
+  use anyhow::Context;
+  use std::{fs::File, io::copy, path::Path};
+
   let filename = Path::new(url)
     .file_name()
     .context("Failed to get filename")?;
@@ -157,7 +161,13 @@ pub fn download_ffmpeg_package(url: &str, download_dir: &Path) -> anyhow::Result
 /// After downloading, unpacks the archive to a folder, moves the binaries to
 /// their final location, and deletes the archive and temporary folder.
 #[cfg(feature = "download_ffmpeg")]
-pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> anyhow::Result<()> {
+pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> Result<()> {
+  use anyhow::Context;
+  use std::{
+    fs::{create_dir_all, read_dir, remove_dir_all, remove_file, rename, File},
+    path::Path,
+  };
+
   let temp_dirname = UNPACK_DIRNAME;
   let temp_folder = binary_folder.join(temp_dirname);
   create_dir_all(&temp_folder)?;
