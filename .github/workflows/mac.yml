@@ -19,6 +19,8 @@ jobs:
       - uses: FedericoCarboni/setup-ffmpeg@v3
       - name: Build
         run: cargo build --verbose
+      - name: Check without default features
+        run: cargo check --no-default-features
       - name: Run tests
         run: cargo test --all-targets --all-features --verbose
       - name: Try auto-download
