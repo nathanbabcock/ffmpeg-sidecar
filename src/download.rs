@@ -171,6 +171,7 @@ pub fn download_ffmpeg_package(url: &str, download_dir: &Path) -> anyhow::Result
 
 /// After downloading, unpacks the archive to a folder, moves the binaries to
 /// their final location, and deletes the archive and temporary folder.
+#[cfg(feature = "download_ffmpeg")]
 pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> anyhow::Result<()> {
   let temp_dirname = UNPACK_DIRNAME;
   let temp_folder = binary_folder.join(temp_dirname);
