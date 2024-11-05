@@ -234,8 +234,11 @@ pub fn get_bytes_per_frame(video_data: &VideoStream) -> Option<u32> {
   let bits_per_pixel = get_bits_per_pixel(&video_data.pix_fmt)?;
   // Enforce byte-alignment, since we don't currently have buffer reads in
   // sub-byte increments.
-  match bits_per_pixel % 8 {
-    0 => Some(video_data.width * video_data.height * bits_per_pixel / 8),
+  // Use the full frame buffer size for this, since formats like `yuvj420p` typically restrict a frame's size
+  // such that the buffer size has full bytes.
+  let num_bits = video_data.width * video_data.height * bits_per_pixel;
+  match num_bits % 8 {
+    0 => Some(num_bits / 8),
     _ => None,
   }
 }
