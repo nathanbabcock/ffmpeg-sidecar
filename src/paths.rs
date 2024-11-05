@@ -1,9 +1,10 @@
+//! Utilities for locating FFmpeg binaries on the system.
+
+use anyhow::Context;
 use std::{
   env::current_exe,
   path::{Path, PathBuf},
 };
-
-use anyhow::Context;
 
 /// Returns the default path of the FFmpeg executable, to be used as the
 /// argument to `Command::new`. It should first attempt to locate an FFmpeg

@@ -1,3 +1,5 @@
+//! A stream of events from an FFmpeg process.
+
 use std::{
   io::{BufReader, ErrorKind, Read},
   process::{ChildStderr, ChildStdout},

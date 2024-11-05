@@ -1,3 +1,7 @@
+//! Any event that occurs during the execution of an FFmpeg command.
+
+/// Any event that occurs during the execution of an FFmpeg command,
+/// including log messages, parsed metadata, progress updates, and output.
 #[derive(Debug, Clone, PartialEq)]
 pub enum FfmpegEvent {
   ParsedVersion(FfmpegVersion),
@@ -22,6 +26,7 @@ pub enum FfmpegEvent {
   Done,
 }
 
+/// The internal log level designated by FFmpeg on each message.
 #[derive(Debug, Clone, PartialEq)]
 pub enum LogLevel {
   Info,

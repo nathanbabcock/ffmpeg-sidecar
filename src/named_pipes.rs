@@ -1,3 +1,9 @@
+//! Cross-platform abstraction over Windows async named pipes and Unix FIFO.
+//!
+//! The primary use-case is streaming multiple outputs from FFmpeg into a Rust program.
+//! For more commentary and end-to-end usage, see `examples/named_pipes.rs`:
+//! <https://github.com/nathanbabcock/ffmpeg-sidecar/blob/main/examples/named_pipes.rs>
+
 use anyhow::Result;
 use std::io::Read;
 
@@ -14,6 +20,7 @@ macro_rules! pipe_name {
   };
 }
 
+/// Windows-only; an FFI pointer to a named pipe handle.
 #[cfg(windows)]
 pub struct NamedPipeHandle(*mut winapi::ctypes::c_void);
 
@@ -23,11 +30,14 @@ unsafe impl Send for NamedPipeHandle {}
 
 /// Cross-platform abstraction over Windows async named pipes and Unix FIFO.
 pub struct NamedPipe {
+  /// The name that the pipe was opened with. It will start with `\\.\pipe\` on Windows.
   pub name: String,
 
+  /// Windows-only; an FFI pointer to a named pipe handle.
   #[cfg(windows)]
   pub handle: NamedPipeHandle,
 
+  /// Unix-only; a blocking file handle to the FIFO.
   #[cfg(unix)]
   pub file: std::fs::File,
 }

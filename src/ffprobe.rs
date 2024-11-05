@@ -1,3 +1,5 @@
+//! Utilities related to the FFprobe binary.
+
 use crate::command::BackgroundCommand;
 use anyhow::Context;
 use std::{env::current_exe, ffi::OsStr, path::PathBuf};

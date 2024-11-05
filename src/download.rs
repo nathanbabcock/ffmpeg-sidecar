@@ -1,8 +1,11 @@
+//! Utilities for downloading and unpacking FFmpeg binaries.
+
 use anyhow::Result;
 
 #[cfg(feature = "download_ffmpeg")]
 use std::path::{Path, PathBuf};
 
+/// The default directory name for unpacking a downloaded FFmpeg release archive.
 pub const UNPACK_DIRNAME: &str = "ffmpeg_release_temp";
 
 /// URL of a manifest file containing the latest published build of FFmpeg. The
