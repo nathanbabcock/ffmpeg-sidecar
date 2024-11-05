@@ -1,3 +1,9 @@
+//! Cross-platform abstraction over Windows async named pipes and Unix FIFO.
+//!
+//! The primary use-case is streaming multiple outputs from FFmpeg into a Rust program.
+//! For more commentary and end-to-end usage, see `examples/named_pipes.rs`:
+//! <https://github.com/nathanbabcock/ffmpeg-sidecar/blob/main/examples/named_pipes.rs>
+
 use anyhow::Result;
 use std::io::Read;
 
@@ -14,20 +20,24 @@ macro_rules! pipe_name {
   };
 }
 
+/// Windows-only; an FFI pointer to a named pipe handle.
 #[cfg(windows)]
 pub struct NamedPipeHandle(*mut winapi::ctypes::c_void);
 
-/// https://github.com/retep998/winapi-rs/issues/396
+/// <https://github.com/retep998/winapi-rs/issues/396>
 #[cfg(windows)]
 unsafe impl Send for NamedPipeHandle {}
 
 /// Cross-platform abstraction over Windows async named pipes and Unix FIFO.
 pub struct NamedPipe {
+  /// The name that the pipe was opened with. It will start with `\\.\pipe\` on Windows.
   pub name: String,
 
+  /// Windows-only; an FFI pointer to a named pipe handle.
   #[cfg(windows)]
   pub handle: NamedPipeHandle,
 
+  /// Unix-only; a blocking file handle to the FIFO.
   #[cfg(unix)]
   pub file: std::fs::File,
 }
@@ -35,7 +45,7 @@ pub struct NamedPipe {
 #[cfg(windows)]
 impl NamedPipe {
   /// On Windows the pipe name must be in the format `\\.\pipe\{pipe_name}`.
-  /// @see https://learn.microsoft.com/en-us/windows/win32/api/namedpipeapi/nf-namedpipeapi-createnamedpipew
+  /// @see <https://learn.microsoft.com/en-us/windows/win32/api/namedpipeapi/nf-namedpipeapi-createnamedpipew>
   pub fn new<S: AsRef<str>>(pipe_name: S) -> Result<Self> {
     use std::ffi::OsStr;
     use std::os::windows::ffi::OsStrExt;

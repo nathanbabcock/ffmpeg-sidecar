@@ -1,3 +1,5 @@
+//! An internal utility used to parse comma-separated values in FFmpeg logs.
+
 use std::str::Chars;
 
 /// An iterator over comma-separated values, **ignoring commas inside parentheses**.

@@ -1,15 +1,13 @@
-use ffmpeg_sidecar::{
-  command::ffmpeg_is_installed,
-  download::{check_latest_version, download_ffmpeg_package, ffmpeg_download_url, unpack_ffmpeg},
-  paths::sidecar_dir,
-  version::ffmpeg_version_with_path,
-};
-use std::{
-  env::current_exe,
-  path::{Component, PathBuf},
-};
-
+#[cfg(feature = "download_ffmpeg")]
 fn main() -> anyhow::Result<()> {
+  use ffmpeg_sidecar::{
+    command::ffmpeg_is_installed,
+    download::{check_latest_version, download_ffmpeg_package, ffmpeg_download_url, unpack_ffmpeg},
+    paths::sidecar_dir,
+    version::ffmpeg_version_with_path,
+  };
+  use std::env::current_exe;
+
   if ffmpeg_is_installed() {
     println!("FFmpeg is already installed! 🎉");
     println!("For demo purposes, we'll re-download and unpack it anyway.");
@@ -56,7 +54,10 @@ fn main() -> anyhow::Result<()> {
   Ok(())
 }
 
-fn resolve_relative_path(path_buf: PathBuf) -> PathBuf {
+#[cfg(feature = "download_ffmpeg")]
+fn resolve_relative_path(path_buf: std::path::PathBuf) -> std::path::PathBuf {
+  use std::path::{Component, PathBuf};
+
   let mut components: Vec<PathBuf> = vec![];
   for component in path_buf.as_path().components() {
     match component {
@@ -71,4 +72,11 @@ fn resolve_relative_path(path_buf: PathBuf) -> PathBuf {
     }
   }
   PathBuf::from_iter(components)
+}
+
+#[cfg(not(feature = "download_ffmpeg"))]
+fn main() {
+  eprintln!(r#"This example requires the "download_ffmpeg" feature to be enabled."#);
+  println!("The feature is included by default unless manually disabled.");
+  println!("Please run `cargo run --example download_ffmpeg`.");
 }

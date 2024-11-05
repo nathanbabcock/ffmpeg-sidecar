@@ -1,3 +1,5 @@
+//! Internal methods for parsing FFmpeg CLI log output.
+
 use std::{
   io::{BufReader, Read},
   str::from_utf8,

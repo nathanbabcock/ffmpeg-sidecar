@@ -1,3 +1,5 @@
+//! Builder interface for FFmpeg commands.
+
 use crate::{child::FfmpegChild, paths::ffmpeg_path};
 use std::{
   ffi::OsStr,

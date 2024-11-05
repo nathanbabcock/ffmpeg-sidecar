@@ -1,3 +1,5 @@
+//! Wrapper around `std::process::Child` containing a spawned FFmpeg command.
+
 use std::{
   io::{self, Write},
   process::{Child, ChildStderr, ChildStdin, ChildStdout, ExitStatus},
@@ -68,11 +70,7 @@ impl FfmpegChild {
   /// s      Show QP histogram
   /// ```
   pub fn send_stdin_command(&mut self, command: &[u8]) -> anyhow::Result<()> {
-    let mut stdin = self
-      .inner
-      .stdin
-      .take()
-      .context("Missing child stdin")?;
+    let mut stdin = self.inner.stdin.take().context("Missing child stdin")?;
     stdin.write_all(command)?;
     self.inner.stdin.replace(stdin);
     Ok(())

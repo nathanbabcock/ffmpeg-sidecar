@@ -1,3 +1,5 @@
+//! Information about an FFmpeg process and its streams.
+
 use crate::event::{FfmpegEvent, FfmpegInput, FfmpegOutput, Stream};
 
 #[derive(Debug, Clone, PartialEq)]

@@ -1,3 +1,5 @@
+//! Internal utility; `BufRead::read_until` with multiple delimiters.
+
 use std::io::{BufRead, ErrorKind, Result};
 
 /// `BufRead::read_until` with multiple delimiters.

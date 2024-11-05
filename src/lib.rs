@@ -1,47 +1,28 @@
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 //! Wrap a standalone FFmpeg binary in an intuitive Iterator interface.
 //!
 //! ## Example
 //!
 //! ```rust
-//! use ffmpeg_sidecar::{command::FfmpegCommand, event::FfmpegEvent};
+//! use ffmpeg_sidecar::command::FfmpegCommand;
+//! fn main() -> anyhow::Result<()> {
+//!   // Run an FFmpeg command that generates a test video
+//!   let iter = FfmpegCommand::new() // <- Builder API like `std::process::Command`
+//!     .testsrc()  // <- Discoverable aliases for FFmpeg args
+//!     .rawvideo() // <- Convenient argument presets
+//!     .spawn()?   // <- Ordinary `std::process::Child`
+//!     .iter()?;   // <- Blocking iterator over logs and output
 //!
-//!fn main() -> anyhow::Result<()> {
-//!  FfmpegCommand::new() // <- Builder API like `std::process::Command`
-//!      .testsrc() // <- Discoverable aliases for FFmpeg args
-//!      .rawvideo() // <- Convenient argument presets
-//!      .spawn()? // <- Uses an ordinary `std::process::Child`
-//!      .iter()? // <- Iterator over all log messages and video output
-//!      .for_each(|event: FfmpegEvent| {
-//!        match event {
-//!          FfmpegEvent::OutputFrame(frame) => {
-//!            println!("frame: {}x{}", frame.width, frame.height);
-//!            let _pixels: Vec<u8> = frame.data; // <- raw RGB pixels! 🎨
-//!          }
-//!          FfmpegEvent::Progress(progress) => {
-//!            eprintln!("Current speed: {}x", progress.speed); // <- parsed progress updates
-//!          }
-//!          FfmpegEvent::Log(_level, msg) => {
-//!            eprintln!("[ffmpeg] {}", msg); // <- granular log message from stderr
-//!          }
-//!          FfmpegEvent::ParsedInputStream(stream) => {
-//!            if let Some(video_data) = stream.video_data() {
-//!              println!(
-//!                "Found video stream with index {} in input {} that has fps {}, width {}px, height {}px.",
-//!                stream.stream_index,
-//!                stream.parent_index,
-//!                video_data.fps,
-//!                video_data.width,
-//!                video_data.height
-//!              );
-//!            }
-//!          }
-//!          _ => {}
-//!        }
-//!      });
-//!  Ok(())
-//!}
+//!   // Use a regular "for" loop to read decoded video data
+//!   for frame in iter.filter_frames() {
+//!     println!("frame: {}x{}", frame.width, frame.height);
+//!     let _pixels: Vec<u8> = frame.data; // <- raw RGB pixels! 🎨
+//!   }
+//!
+//!   Ok(())
+//! }
 //! ```
-//!
 
 #[cfg(test)]
 mod test;
@@ -61,4 +42,7 @@ pub mod read_until_any;
 pub mod version;
 
 #[cfg(feature = "named_pipes")]
+#[cfg_attr(docsrs, doc(cfg(feature = "named_pipes")))]
 pub mod named_pipes;
+
+pub use anyhow::Result;

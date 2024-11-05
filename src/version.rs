@@ -1,3 +1,5 @@
+//! Utilities for checking local FFmpeg version string.
+
 use anyhow::Context;
 
 use crate::command::BackgroundCommand;

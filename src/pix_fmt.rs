@@ -1,3 +1,5 @@
+//! A database of the pixel formats supported by FFmpeg and their size per pixel.
+
 use crate::event::VideoStream;
 
 /// Map from the pix_fmt identifier string (e.g. `rgb24`) to the number of bits
@@ -227,6 +229,7 @@ pub fn get_bits_per_pixel(pix_fmt: &str) -> Option<u32> {
   }
 }
 
+/// Computes `width * height * bits_per_pixel / 8`
 pub fn get_bytes_per_frame(video_data: &VideoStream) -> Option<u32> {
   let bits_per_pixel = get_bits_per_pixel(&video_data.pix_fmt)?;
   // Enforce byte-alignment, since we don't currently have buffer reads in

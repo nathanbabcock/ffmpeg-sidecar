@@ -86,41 +86,22 @@ of your client application.
 Read raw video frames.
 
 ```rust
-use ffmpeg_sidecar::{command::FfmpegCommand, event::FfmpegEvent};
+use ffmpeg_sidecar::command::FfmpegCommand;
 
 fn main() -> anyhow::Result<()> {
-  FfmpegCommand::new() // <- Builder API like `std::process::Command`
-      .testsrc() // <- Discoverable aliases for FFmpeg args
-      .rawvideo() // <- Convenient argument presets
-      .spawn()? // <- Uses an ordinary `std::process::Child`
-      .iter()? // <- Iterator over all log messages and video output
-      .for_each(|event: FfmpegEvent| {
-        match event {
-          FfmpegEvent::OutputFrame(frame) => {
-            println!("frame: {}x{}", frame.width, frame.height);
-            let _pixels: Vec<u8> = frame.data; // <- raw RGB pixels! 🎨
-          }
-          FfmpegEvent::Progress(progress) => {
-            eprintln!("Current speed: {}x", progress.speed); // <- parsed progress updates
-          }
-          FfmpegEvent::Log(_level, msg) => {
-            eprintln!("[ffmpeg] {}", msg); // <- granular log message from stderr
-          }
-          FfmpegEvent::ParsedInputStream(stream) => {
-            if let Some(video_data) = stream.video_data() {
-              println!(
-                "Found video stream with index {} in input {} that has fps {}, width {}px, height {}px.",
-                stream.stream_index,
-                stream.parent_index,
-                video_data.fps,
-                video_data.width,
-                video_data.height
-              );
-            }
-          }
-          _ => {}
-        }
-      });
+  // Run an FFmpeg command that generates a test video
+  let iter = FfmpegCommand::new() // <- Builder API like `std::process::Command`
+    .testsrc()  // <- Discoverable aliases for FFmpeg args
+    .rawvideo() // <- Convenient argument presets
+    .spawn()?   // <- Ordinary `std::process::Child`
+    .iter()?;   // <- Blocking iterator over logs and output
+
+  // Use a regular "for" loop to read decoded video data
+  for frame in iter.filter_frames() {
+    println!("frame: {}x{}", frame.width, frame.height);
+    let _pixels: Vec<u8> = frame.data; // <- raw RGB pixels! 🎨
+  }
+
   Ok(())
 }
 ```
@@ -128,7 +109,7 @@ fn main() -> anyhow::Result<()> {
 Source: [`/examples/hello_world.rs`](/examples/hello_world.rs)
 
 ```console
-cargo run --example hello-world
+cargo run --example hello_world
 ```
 
 ### H265 Transcoding
@@ -151,20 +132,20 @@ Source: [`/examples/ffplay_preview.rs`](/examples/ffplay_preview.rs)
 cargo run --example ffplay_preview
 ```
 
+### Named pipes
+
+Pipe multiple outputs from FFmpeg into a Rust program.
+
+Source: [`/examples/named_pipes.rs`](/examples/named_pipes.rs)
+
+```console
+cargo run --example named_pipes --features named_pipes
+```
+
 ### Others
 
-For a myriad of other examples, check any of the unit tests in
-[/src/test.rs](/src/test.rs) in this repo.
-
-## Todo
-
-- [X] Add `/examples`
-- [X] Take input from stdin, and pipe between iterators
-- [X] Pipe directly to `ffplay` for debugging
-- [X] Idiomatic error type instead of `Result<_, String>`
-- [X] Handle indeterminate output formats like H264/H265
-  - Currently these formats are mutually exclusive with using `iter()` since
-    they require consuming `stdout` directly
+For a myriad of other use cases, check any of the [examples](/examples/), as
+well as the unit tests in [/src/test.rs](/src/test.rs).
 
 ## See also
 
