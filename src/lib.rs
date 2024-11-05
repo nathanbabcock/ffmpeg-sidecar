@@ -44,3 +44,5 @@ pub mod version;
 #[cfg(feature = "named_pipes")]
 #[cfg_attr(docsrs, doc(cfg(feature = "named_pipes")))]
 pub mod named_pipes;
+
+pub use anyhow::Result;
