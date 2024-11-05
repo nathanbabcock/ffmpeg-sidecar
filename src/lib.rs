@@ -1,3 +1,5 @@
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 //! Wrap a standalone FFmpeg binary in an intuitive Iterator interface.
 //!
 //! ## Example
@@ -61,4 +63,5 @@ pub mod read_until_any;
 pub mod version;
 
 #[cfg(feature = "named_pipes")]
+#[cfg_attr(docsrs, doc(cfg(feature = "named_pipes")))]
 pub mod named_pipes;

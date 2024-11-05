@@ -67,7 +67,7 @@ pub fn auto_download() -> Result<()> {
 
 /// Parse the the MacOS version number from a JSON string manifest file.
 ///
-/// Example input: https://evermeet.cx/ffmpeg/info/ffmpeg/release
+/// Example input: <https://evermeet.cx/ffmpeg/info/ffmpeg/release>
 ///
 /// ```rust
 /// use ffmpeg_sidecar::download::parse_macos_version;
@@ -87,7 +87,7 @@ pub fn parse_macos_version(version: &str) -> Option<String> {
 
 /// Parse the the Linux version number from a long manifest text file.
 ///
-/// Example input: https://johnvansickle.com/ffmpeg/release-readme.txt
+/// Example input: <https://johnvansickle.com/ffmpeg/release-readme.txt>
 ///
 /// ```rust
 /// use ffmpeg_sidecar::download::parse_linux_version;

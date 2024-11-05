@@ -17,7 +17,7 @@ macro_rules! pipe_name {
 #[cfg(windows)]
 pub struct NamedPipeHandle(*mut winapi::ctypes::c_void);
 
-/// https://github.com/retep998/winapi-rs/issues/396
+/// <https://github.com/retep998/winapi-rs/issues/396>
 #[cfg(windows)]
 unsafe impl Send for NamedPipeHandle {}
 
@@ -35,7 +35,7 @@ pub struct NamedPipe {
 #[cfg(windows)]
 impl NamedPipe {
   /// On Windows the pipe name must be in the format `\\.\pipe\{pipe_name}`.
-  /// @see https://learn.microsoft.com/en-us/windows/win32/api/namedpipeapi/nf-namedpipeapi-createnamedpipew
+  /// @see <https://learn.microsoft.com/en-us/windows/win32/api/namedpipeapi/nf-namedpipeapi-createnamedpipew>
   pub fn new<S: AsRef<str>>(pipe_name: S) -> Result<Self> {
     use std::ffi::OsStr;
     use std::os::windows::ffi::OsStrExt;
