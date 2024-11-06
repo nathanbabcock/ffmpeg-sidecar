@@ -2,12 +2,42 @@ use std::{sync::mpsc, thread, time::Duration};
 
 use crate::{
   command::{ffmpeg_is_installed, FfmpegCommand},
-  event::FfmpegEvent,
+  event::{FfmpegEvent, LogLevel},
   version::ffmpeg_version,
 };
 
 fn approx_eq(a: f32, b: f32, error: f32) -> bool {
   (a - b).abs() < error
+}
+
+/// Returns `Err` if the timeout thread finishes before the FFmpeg process
+fn spawn_with_timeout(command: &mut FfmpegCommand, timeout: u64) -> anyhow::Result<()> {
+  let (sender, receiver) = mpsc::channel();
+
+  // Thread 1: Waits for 1000ms and sends a message
+  let timeout_sender = sender.clone();
+  thread::spawn(move || {
+    thread::sleep(Duration::from_millis(timeout));
+    timeout_sender.send("timeout").ok();
+  });
+
+  // Thread 2: Consumes the FFmpeg events and sends a message
+  let mut ffmpeg_child = command.spawn()?;
+  let iter = ffmpeg_child.iter()?;
+  thread::spawn(move || {
+    iter.for_each(|_| {});
+    // Note: `.wait()` would not work here, because it closes `stdin` automatically
+    sender.send("ffmpeg").ok();
+  });
+
+  // Race the two threads
+  let finished_first = receiver.recv()?;
+  ffmpeg_child.kill()?;
+  match finished_first {
+    "timeout" => anyhow::bail!("Timeout thread expired before FFmpeg"),
+    "ffmpeg" => Ok(()),
+    _ => anyhow::bail!("Unknown message received"),
+  }
 }
 
 #[test]
@@ -92,6 +122,39 @@ fn test_deterministic() {
     .collect();
 
   assert!(vec1 == vec2)
+}
+
+/// Pass simple raw pixels across stdin and stdout to check that the frame
+/// buffers are pixel-perfect across multiple frames.
+#[test]
+fn test_passthrough() -> anyhow::Result<()> {
+  use std::io::Write;
+
+  let mut child = FfmpegCommand::new()
+    .args("-f rawvideo -pix_fmt rgb24 -s 2x2 -i - -f rawvideo -pix_fmt rgb24 -".split(' '))
+    .spawn()?;
+
+  // Send hardcoded RGB values over stdin as three identical 2x2 frames
+  let input_raw_pixels = vec![255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 255];
+  let mut stdin = child.take_stdin().unwrap();
+  stdin.write_all(&input_raw_pixels)?;
+  stdin.write_all(&input_raw_pixels)?;
+  stdin.write_all(&input_raw_pixels)?;
+  stdin.flush()?;
+  drop(stdin); // otherwise FFmpeg will hang waiting for more input
+
+  let output_raw_pixels: Vec<Vec<u8>> = child
+    .iter()?
+    .filter_frames()
+    .map(|frame| frame.data)
+    .collect();
+
+  assert!(output_raw_pixels.len() == 3);
+  assert!(input_raw_pixels == output_raw_pixels[0]);
+  assert!(input_raw_pixels == output_raw_pixels[1]);
+  assert!(input_raw_pixels == output_raw_pixels[2]);
+
+  Ok(())
 }
 
 #[test]
@@ -480,32 +543,136 @@ fn test_named_pipe() -> anyhow::Result<()> {
   Ok(())
 }
 
-/// Returns `Err` if the timeout thread finishes before the FFmpeg process
-fn spawn_with_timeout(command: &mut FfmpegCommand, timeout: u64) -> anyhow::Result<()> {
-  let (sender, receiver) = mpsc::channel();
+/// Ensure non-byte-aligned pixel formats are still processed correctly.
+/// YUV420 has 12 bits per pixel, but the whole frame buffer will still be
+/// enforced to be byte-aligned.
+/// See <https://github.com/nathanbabcock/ffmpeg-sidecar/pull/61>
+#[test]
+fn test_yuv420() -> anyhow::Result<()> {
+  let iter = FfmpegCommand::new()
+    .hide_banner()
+    .testsrc()
+    .format("rawvideo")
+    .pix_fmt("yuv420p")
+    .pipe_stdout()
+    .spawn()?
+    .iter()?;
 
-  // Thread 1: Waits for 1000ms and sends a message
-  let timeout_sender = sender.clone();
-  thread::spawn(move || {
-    thread::sleep(Duration::from_millis(timeout));
-    timeout_sender.send("timeout").ok();
-  });
+  let mut frames_received = 0;
 
-  // Thread 2: Consumes the FFmpeg events and sends a message
-  let mut ffmpeg_child = command.spawn()?;
-  let iter = ffmpeg_child.iter()?;
-  thread::spawn(move || {
-    iter.for_each(|_| {});
-    // Note: `.wait()` would not work here, because it closes `stdin` automatically
-    sender.send("ffmpeg").ok();
-  });
-
-  // Race the two threads
-  let finished_first = receiver.recv()?;
-  ffmpeg_child.kill()?;
-  match finished_first {
-    "timeout" => anyhow::bail!("Timeout thread expired before FFmpeg"),
-    "ffmpeg" => Ok(()),
-    _ => anyhow::bail!("Unknown message received"),
+  for event in iter {
+    match event {
+      FfmpegEvent::OutputFrame(frame) => {
+        frames_received += 1;
+        assert!(frame.pix_fmt == "yuv420p");
+        // Expect 12 bits per pixel, but with an assumption that valid sizes
+        // will still result in a byte-aligned frame buffer (divisible by 8).
+        assert!(frame.data.len() as u32 == frame.width * frame.height * 12 / 8);
+      }
+      FfmpegEvent::Log(LogLevel::Error | LogLevel::Fatal, _) => {
+        panic!("Error or fatal log message received");
+      }
+      _ => {}
+    }
   }
+
+  assert!(frames_received == 10 * 25); // 10 seconds at 25 fps
+
+  Ok(())
+}
+
+/// Make sure that the iterator doesn't hang forever if there's an invalid
+/// framebuffer size; instead, it should fall back to chunked mode.
+/// See <https://github.com/nathanbabcock/ffmpeg-sidecar/pull/61>
+#[test]
+fn test_yuv420_invalid_size() -> anyhow::Result<()> {
+  let iter = FfmpegCommand::new()
+    .hide_banner()
+    .format("lavfi")
+    .input("testsrc=duration=10:size=321x241")
+    .format("rawvideo")
+    .pix_fmt("yuv420p")
+    .pipe_stdout()
+    .spawn()?
+    .iter()?;
+
+  let mut chunks_received = 0;
+
+  for event in iter {
+    match event {
+      FfmpegEvent::OutputFrame(_) => {
+        panic!("Should not use OutputFrame for non-byte-aligned sizes");
+      }
+      FfmpegEvent::OutputChunk(_) => {
+        chunks_received += 1;
+      }
+      FfmpegEvent::Log(LogLevel::Error | LogLevel::Fatal, _) => {
+        panic!("Error or fatal log message received");
+      }
+      _ => {}
+    }
+  }
+
+  assert!(chunks_received > 0);
+
+  Ok(())
+}
+
+/// Multiple `rawvideo` outputs can be interleaved on stdout.
+#[test]
+fn test_stdout_interleaved_frames() -> anyhow::Result<()> {
+  let iter = FfmpegCommand::new()
+    .testsrc()
+    .rawvideo()
+    .testsrc()
+    .rawvideo()
+    .spawn()?
+    .iter()?
+    .filter_frames();
+
+  let mut output_1_frames = 0;
+  let mut output_2_frames = 0;
+
+  for frame in iter {
+    match frame.output_index {
+      0 => output_1_frames += 1,
+      1 => output_2_frames += 1,
+      _ => panic!("Unexpected stream index"),
+    }
+  }
+
+  assert!(output_1_frames == 10 * 25); // 10 sec at 25fps
+  assert!(output_2_frames == 10 * 25); // 10 sec at 25fps
+
+  Ok(())
+}
+
+/// Multiple interleaved outputs can't be supported with non-uniform framerate.
+#[test]
+fn test_stdout_interleaved_frames_fallback() -> anyhow::Result<()> {
+  let iter = FfmpegCommand::new()
+    .testsrc()
+    .rate(25.0)
+    .rawvideo()
+    .testsrc()
+    .rate(30.0)
+    .rawvideo()
+    .spawn()?
+    .iter()?;
+
+  let mut output_chunks = 0;
+  for event in iter {
+    match event {
+      FfmpegEvent::OutputFrame(_) => {
+        panic!("Should not use OutputFrame for interleaved streams");
+      }
+      FfmpegEvent::OutputChunk(_) => {
+        output_chunks += 1;
+      }
+      _ => {}
+    }
+  }
+  assert!(output_chunks > 0);
+
+  Ok(())
 }
