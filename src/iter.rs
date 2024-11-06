@@ -214,10 +214,26 @@ pub fn spawn_stdout_thread(
     let mut buffers = stdout_output_video_streams
       .map(|video_stream| {
         // Since we filtered for video_streams above, we can unwrap unconditionally.
-        let video_data = video_stream.video_data().unwrap();
-        let bytes_per_frame = get_bytes_per_frame(video_data);
         let buf_size = match video_stream.format.as_str() {
-          "rawvideo" => bytes_per_frame.expect("Should use a known pix_fmt") as usize,
+          "rawvideo" => {
+            let Some(video_data) = video_stream.video_data() else {
+              tx.send(FfmpegEvent::Error(
+                "Video stream doesn't have any video data".to_owned(),
+              ))
+              .ok();
+              return Vec::new();
+            };
+
+            let Some(bytes_per_frame) = get_bytes_per_frame(video_data) else {
+              tx.send(FfmpegEvent::Error(
+                format!("Can't bytes per fraame for video data {video_data:?}").to_owned(),
+              ))
+              .ok();
+              return Vec::new();
+            };
+
+            bytes_per_frame as usize
+          }
 
           // Arbitrary default buffer size for receiving indeterminate chunks
           // of any encoder or container output, when frame boundaries are unknown
@@ -234,7 +250,8 @@ pub fn spawn_stdout_thread(
       })
       .collect::<Vec<Vec<u8>>>();
 
-    // No buffers probably indicates that output is being sent to file
+    // No buffers probably indicates that output is being sent to file or
+    // that an error occured.
     if buffers.is_empty() {
       return;
     }
