@@ -245,9 +245,9 @@ pub fn spawn_stdout_thread(
       .filter(|s| s.format == "rawvideo")
       .map(|video_stream| {
         if let Some(video_data) = video_stream.video_data() {
-          return video_data.fps;
+          video_data.fps
         } else {
-          return -1.0;
+          -1.0
         }
       })
       .collect();
