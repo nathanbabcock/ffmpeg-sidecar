@@ -542,7 +542,8 @@ impl FfmpegCommand {
   //// Preset argument sets for common use cases.
 
   /// Generate a procedural test video. Equivalent to `ffmpeg -f lavfi -i
-  /// testsrc=duration=10`.
+  /// testsrc=duration=10`. It also inherits defaults from the `testsrc` filter
+  /// in FFmpeg: `320x240` size and `25` fps.
   ///
   /// [FFmpeg `testsrc` filter
   /// documentation](https://ffmpeg.org/ffmpeg-filters.html#allrgb_002c-allyuv_002c-color_002c-colorchart_002c-colorspectrum_002c-haldclutsrc_002c-nullsrc_002c-pal75bars_002c-pal100bars_002c-rgbtestsrc_002c-smptebars_002c-smptehdbars_002c-testsrc_002c-testsrc2_002c-yuvtestsrc)
