@@ -188,6 +188,7 @@ pub fn spawn_stdout_thread(
 ) -> JoinHandle<()> {
   std::thread::spawn(move || {
     // Filter streams which are sent to stdout
+    // todo: needs to handle audio streams as well!
     let stdout_output_video_streams = output_streams
       .iter()
       .filter(|stream| stream.is_video())
