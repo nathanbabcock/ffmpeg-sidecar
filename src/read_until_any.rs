@@ -36,8 +36,6 @@ pub fn read_until_any<R: BufRead + ?Sized>(
         .position(|&b| delims.iter().any(|&d| d == b))
         .map(|i| i + start_delims);
 
-      // println!("start_delims: {start_delims}, first_delim_index: {first_delim_index:?}");
-
       match first_delim_index {
         Some(i) => {
           buf.extend_from_slice(&available[..=i]);
@@ -51,7 +49,17 @@ pub fn read_until_any<R: BufRead + ?Sized>(
     };
     r.consume(used);
     read += used;
-    if done || used == 0 {
+
+    if done {
+      return Ok(read);
+    }
+
+    // Catch final trailing delimiters
+    if used == 0 && buf.iter().all(|&b| delims.iter().any(|&d| d == b)) {
+      return Ok(0);
+    }
+
+    if used == 0 {
       return Ok(read);
     }
   }

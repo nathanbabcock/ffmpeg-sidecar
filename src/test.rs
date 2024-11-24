@@ -676,3 +676,22 @@ fn test_stdout_interleaved_frames_fallback() -> anyhow::Result<()> {
 
   Ok(())
 }
+
+/// Make sure consectuive new lines in logs don't result in empty events.
+#[test]
+fn test_no_empty_events() -> anyhow::Result<()> {
+  let empty_events = FfmpegCommand::new()
+    .testsrc()
+    .rawvideo()
+    .spawn()?
+    .iter()?
+    .filter(|event| match event {
+      FfmpegEvent::Log(_, msg) if msg.is_empty() => true,
+      _ => false,
+    })
+    .count();
+
+  assert!(empty_events == 0);
+
+  Ok(())
+}
