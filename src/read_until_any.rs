@@ -2,7 +2,10 @@
 
 use std::io::{BufRead, ErrorKind, Result};
 
-/// `BufRead::read_until` with multiple delimiters.
+/// Reads from the provided buffer until any of the delimiter bytes match.
+/// The output buffer will include the ending delimiter.
+/// Also skips over zero-length reads.
+/// See [`BufRead::read_until`](https://doc.rust-lang.org/std/io/trait.BufRead.html#method.read_until).
 pub fn read_until_any<R: BufRead + ?Sized>(
   r: &mut R,
   delims: &[u8],
@@ -17,10 +20,23 @@ pub fn read_until_any<R: BufRead + ?Sized>(
         Err(e) => return Err(e),
       };
 
+      let start_delims = if read == 0 {
+        available
+          .iter()
+          .take_while(|&&b| delims.iter().any(|&d| d == b))
+          .count()
+      } else {
+        0
+      };
+
       // NB: `memchr` crate would be faster, but it's unstable and not worth the dependency.
       let first_delim_index = available
         .iter()
-        .position(|b| delims.iter().any(|d| *d == *b));
+        .skip(start_delims)
+        .position(|&b| delims.iter().any(|&d| d == b))
+        .map(|i| i + start_delims);
+
+      // println!("start_delims: {start_delims}, first_delim_index: {first_delim_index:?}");
 
       match first_delim_index {
         Some(i) => {

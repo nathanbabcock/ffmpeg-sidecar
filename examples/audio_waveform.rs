@@ -56,7 +56,6 @@ pub fn main() -> Result<()> {
     match event {
       FfmpegEvent::Error(e) | FfmpegEvent::Log(_, e) => {
         // todo: create `.inspect_err()` iter to simplify this pattern
-        // todo: prevent reading newline events as Unknown
         println!("{e}");
       }
       FfmpegEvent::OutputChunk(chunk) => {
