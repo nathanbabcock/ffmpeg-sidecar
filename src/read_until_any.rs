@@ -54,7 +54,7 @@ pub fn read_until_any<R: BufRead + ?Sized>(
       return Ok(read);
     }
 
-    // Catch final trailing delimiters
+    // Discard final trailing delimiters
     if used == 0 && buf.iter().all(|&b| delims.iter().any(|&d| d == b)) {
       return Ok(0);
     }
