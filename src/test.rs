@@ -227,7 +227,7 @@ fn test_chunks() {
 }
 
 #[test]
-fn test_chunks_with_audio() {
+fn test_chunks_with_video_and_audio() {
   let mut chunks = 0;
   let mut frames = 0;
 
@@ -248,6 +248,26 @@ fn test_chunks_with_audio() {
     });
 
   assert!(chunks > 0);
+  assert!(frames == 0);
+}
+
+#[test]
+fn test_chunks_with_audio_only() -> anyhow::Result<()> {
+  let chunks = FfmpegCommand::new()
+    .args("-f lavfi -i sine=frequency=1000:duration=10".split(' '))
+    .format("s16le")
+    .args(&["-ac", "1"]) // Mono audio
+    .codec_audio("pcm_s16le")
+    .args(&["-ar", "44100"]) // Sample rate 44.1kHz
+    .pipe_stdout()
+    .spawn()?
+    .iter()?
+    .filter(|e| matches!(e, FfmpegEvent::OutputChunk(_)))
+    .count();
+
+  assert!(chunks > 0);
+
+  Ok(())
 }
 
 #[test]
@@ -673,6 +693,25 @@ fn test_stdout_interleaved_frames_fallback() -> anyhow::Result<()> {
     }
   }
   assert!(output_chunks > 0);
+
+  Ok(())
+}
+
+/// Make sure consecutive new lines in logs don't result in empty events.
+#[test]
+fn test_no_empty_events() -> anyhow::Result<()> {
+  let empty_events = FfmpegCommand::new()
+    .testsrc()
+    .rawvideo()
+    .spawn()?
+    .iter()?
+    .filter(|event| match event {
+      FfmpegEvent::Log(_, msg) if msg.is_empty() => true,
+      _ => false,
+    })
+    .count();
+
+  assert!(empty_events == 0);
 
   Ok(())
 }

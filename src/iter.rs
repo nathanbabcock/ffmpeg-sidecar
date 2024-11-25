@@ -188,27 +188,32 @@ pub fn spawn_stdout_thread(
 ) -> JoinHandle<()> {
   std::thread::spawn(move || {
     // Filter streams which are sent to stdout
-    let stdout_output_video_streams = output_streams
-      .iter()
-      .filter(|stream| stream.is_video())
-      .filter(|stream| {
-        outputs
-          .get(stream.parent_index as usize)
-          .map(|o| o.is_stdout())
-          .unwrap_or(false)
-      });
+    let stdout_streams = output_streams.iter().filter(|stream| {
+      outputs
+        .get(stream.parent_index as usize)
+        .map(|o| o.is_stdout())
+        .unwrap_or(false)
+    });
 
     // Exit early if nothing is being sent to stdout
-    if stdout_output_video_streams.clone().count() == 0 {
+    if stdout_streams.clone().count() == 0 {
+      tx.send(FfmpegEvent::Error("No streams found".to_owned()))
+        .ok();
       return;
     }
 
     // If the size of a frame can't be determined, it will be read in arbitrary chunks.
     let mut chunked_mode = false;
 
+    // Immediately default to chunked mode for non-video streams
+    let stdout_video_streams = stdout_streams.clone().filter(|stream| stream.is_video());
+    if stdout_video_streams.clone().count() == 0 {
+      chunked_mode = true;
+    }
+
     // Calculate frame buffer sizes up front.
     // Any sizes that cannot be calculated will trigger chunked mode.
-    let frame_buffer_sizes: Vec<usize> = stdout_output_video_streams
+    let frame_buffer_sizes: Vec<usize> = stdout_video_streams
       .clone()
       .map(|video_stream| {
         // Any non-rawvideo streams instantly enable chunked mode, since it's
@@ -240,7 +245,7 @@ pub fn spawn_stdout_thread(
     // but we can only keep track of them if the framerates match. It's
     // theoretically still possible to determine the expected frame order,
     // but it's not currently supported.
-    let output_framerates: Vec<f32> = stdout_output_video_streams
+    let output_framerates: Vec<f32> = stdout_video_streams
       .clone()
       .filter(|s| s.format == "rawvideo")
       .map(|video_stream| {
