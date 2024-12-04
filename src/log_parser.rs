@@ -1,9 +1,6 @@
 //! Internal methods for parsing FFmpeg CLI log output.
 
-use std::{
-  io::{BufReader, Read},
-  str::from_utf8,
-};
+use std::io::{BufReader, Read};
 
 use crate::{
   comma_iter::CommaIter,
@@ -42,7 +39,8 @@ impl<R: Read> FfmpegLogParser<R> {
   pub fn parse_next_event(&mut self) -> anyhow::Result<FfmpegEvent> {
     let mut buf = Vec::<u8>::new();
     let bytes_read = read_until_any(&mut self.reader, &[b'\r', b'\n'], &mut buf);
-    let line = from_utf8(buf.as_slice())?.trim();
+    let line_cow = String::from_utf8_lossy(buf.as_slice());
+    let line = line_cow.trim();
     let raw_log_message = line.to_string();
     match bytes_read? {
       0 => Ok(FfmpegEvent::LogEOF),
@@ -737,5 +735,22 @@ mod tests {
     assert!(progress.time == "00:00:00.00");
     assert!(progress.bitrate_kbps == 0.0);
     assert!(progress.speed == 0.0);
+  }
+
+  /// Coverage for non-utf-8 bytes: https://github.com/nathanbabcock/ffmpeg-sidecar/issues/67
+  #[test]
+  fn test_non_utf8() -> anyhow::Result<()> {
+    // Create a dummy stderr stream with non-utf8 bytes
+    let mut cursor = Cursor::new(Vec::new());
+    cursor
+      .write_all(b"[info] \x80\x81\x82\x83\x84\x85\x86\x87\x88\x89\n")
+      .unwrap();
+    cursor.seek(SeekFrom::Start(0)).unwrap();
+
+    let event = FfmpegLogParser::new(cursor).parse_next_event()?;
+
+    assert!(matches!(event, FfmpegEvent::Log(LogLevel::Info, _)));
+
+    Ok(())
   }
 }
