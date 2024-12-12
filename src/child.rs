@@ -99,7 +99,7 @@ impl FfmpegChild {
   ///
   /// Identical to `wait` in [`std::process::Child`].
   pub fn wait(&mut self) -> io::Result<ExitStatus> {
-    drop(self.take_stderr().take());
+    drop(self.take_stderr());
     self.inner.wait()
   }
 
