@@ -3,7 +3,7 @@
 use crate::iter::FfmpegIterator;
 use anyhow::Context;
 use std::{
-  io::{self, Write},
+  io::{self, copy, sink, Write},
   process::{Child, ChildStderr, ChildStdin, ChildStdout, ExitStatus},
 };
 
@@ -95,11 +95,15 @@ impl FfmpegChild {
   }
 
   /// Waits for the inner child process to finish execution.
-  /// Automatically drops the stderr pipe, as it is no longer needed.
   ///
   /// Identical to `wait` in [`std::process::Child`].
   pub fn wait(&mut self) -> io::Result<ExitStatus> {
-    drop(self.take_stderr());
+    // If stderr hasn't already been consumed by a method like `iter()`,
+    // we need to run it to completion to avoid a deadlock.
+    if let Some(mut stderr) = self.take_stderr() {
+      copy(&mut stderr, &mut sink())?;
+    };
+
     self.inner.wait()
   }
 
