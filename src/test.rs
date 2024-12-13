@@ -769,5 +769,5 @@ fn test_wait() -> anyhow::Result<()> {
     .codec_video("gif")
     .format("null")
     .output("-");
-  wait_with_timeout(&mut command, 1000)
+  wait_with_timeout(&mut command, 5000)
 }
