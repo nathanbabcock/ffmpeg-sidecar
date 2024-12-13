@@ -40,6 +40,35 @@ fn spawn_with_timeout(command: &mut FfmpegCommand, timeout: u64) -> anyhow::Resu
   }
 }
 
+/// Returns `Err` if the timeout thread finishes before the FFmpeg process
+/// Note: this variant leaves behind a hung FFmpeg child process + thread until
+/// the test suite exits.
+fn wait_with_timeout(command: &mut FfmpegCommand, timeout: u64) -> anyhow::Result<()> {
+  let (sender, receiver) = mpsc::channel();
+
+  // Thread 1: Waits for 1000ms and sends a message
+  let timeout_sender = sender.clone();
+  thread::spawn(move || {
+    thread::sleep(Duration::from_millis(timeout));
+    timeout_sender.send("timeout").ok();
+  });
+
+  // Thread 2: Wait for the child to exit in another thread
+  let mut ffmpeg_child = command.spawn()?;
+  thread::spawn(move || {
+    ffmpeg_child.wait().unwrap();
+    sender.send("ffmpeg").ok();
+  });
+
+  // Race the two threads
+  let finished_first = receiver.recv()?;
+  match finished_first {
+    "timeout" => anyhow::bail!("Timeout thread expired before FFmpeg"),
+    "ffmpeg" => Ok(()),
+    _ => anyhow::bail!("Unknown message received"),
+  }
+}
+
 #[test]
 fn test_installed() {
   assert!(ffmpeg_is_installed());
@@ -714,4 +743,31 @@ fn test_no_empty_events() -> anyhow::Result<()> {
   assert!(empty_events == 0);
 
   Ok(())
+}
+
+/// This command generates an warning on every frame, e.g.:
+///
+/// ```txt
+/// [Parsed_palettegen_4 @ 0x600001574bb0] [warning] The input frame is not in sRGB, colors may be off
+///```
+///
+/// When used in combination with `.wait()`, these error messages can completely
+/// fill the stderr buffer and cause a deadlock. The solution is to
+/// automatically drop the stderr channel when `.wait()` is called.
+///
+/// <https://github.com/nathanbabcock/ffmpeg-sidecar/issues/70>
+#[test]
+fn test_wait() -> anyhow::Result<()> {
+  let mut command = FfmpegCommand::new();
+  command
+    .args("-color_primaries 1".split(' '))
+    .args("-color_trc 1".split(' '))
+    .args("-colorspace 1".split(' '))
+    .format("lavfi")
+    .input("yuvtestsrc=size=64x64:rate=60:duration=60")
+    .args("-vf palettegen=max_colors=164".split(' '))
+    .codec_video("gif")
+    .format("null")
+    .output("-");
+  wait_with_timeout(&mut command, 5000)
 }

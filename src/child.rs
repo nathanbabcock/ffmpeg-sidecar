@@ -1,13 +1,11 @@
 //! Wrapper around `std::process::Child` containing a spawned FFmpeg command.
 
+use crate::iter::FfmpegIterator;
+use anyhow::Context;
 use std::{
-  io::{self, Write},
+  io::{self, copy, sink, Write},
   process::{Child, ChildStderr, ChildStdin, ChildStdout, ExitStatus},
 };
-
-use anyhow::Context;
-
-use crate::iter::FfmpegIterator;
 
 /// A wrapper around [`std::process::Child`] containing a spawned FFmpeg command.
 /// Provides interfaces for reading parsed metadata, progress updates, warnings and errors, and
@@ -100,6 +98,12 @@ impl FfmpegChild {
   ///
   /// Identical to `wait` in [`std::process::Child`].
   pub fn wait(&mut self) -> io::Result<ExitStatus> {
+    // If stderr hasn't already been consumed by a method like `iter()`,
+    // we need to run it to completion to avoid a deadlock.
+    if let Some(mut stderr) = self.take_stderr() {
+      copy(&mut stderr, &mut sink())?;
+    };
+
     self.inner.wait()
   }
 
