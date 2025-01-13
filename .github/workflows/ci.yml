@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - 'main'
+  pull_request:
+    branches:
+      - 'main'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    strategy:
+      matrix:
+        os:
+          - windows-latest
+          - ubuntu-latest
+          - macos-13
+          - macos-14 # Mac M1 (ARM64)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download FFmpeg
+        run: cargo run --example download_ffmpeg -- ../deps
+
+      - name: Build
+        run: cargo build --verbose
+
+      - name: Check without default features
+        run: cargo check --no-default-features
+
+      - name: Run tests
+        run: cargo test --all-targets --all-features --examples --verbose

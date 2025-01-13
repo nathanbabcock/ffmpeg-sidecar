@@ -1,8 +1,9 @@
 # FFmpeg Sidecar 🏍
 
-[Github](https://github.com/nathanbabcock/ffmpeg-sidecar) |
-[Crates.io](https://crates.io/crates/ffmpeg-sidecar) |
-[Docs.rs](https://docs.rs/ffmpeg-sidecar)
+[Github](https://github.com/nathanbabcock/ffmpeg-sidecar)  •
+[Crates.io](https://crates.io/crates/ffmpeg-sidecar) •
+[Docs.rs](https://docs.rs/ffmpeg-sidecar) •
+[<img src="https://github.com/nathanbabcock/ffmpeg-sidecar/actions/workflows/ci.yml/badge.svg" align="center" alt="Github Actions">](https://github.com/nathanbabcock/ffmpeg-sidecar/actions/workflows/ci.yml)
 
 > Wrap a standalone FFmpeg binary in an intuitive Iterator interface.
 
