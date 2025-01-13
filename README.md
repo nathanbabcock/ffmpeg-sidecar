@@ -59,6 +59,9 @@ download it at runtime.
 
 ## Getting Started
 
+> [!TIP]
+> Integrating with async Rust or `tokio`? Check out [`async-ffmpeg-sidecar`](https://github.com/dvtkrlbs/async-ffmpeg-sidecar).
+
 ### 1. Cargo Install
 
 ```console
