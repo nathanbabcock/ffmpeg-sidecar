@@ -4,6 +4,8 @@
 [Crates.io](https://crates.io/crates/ffmpeg-sidecar) |
 [Docs.rs](https://docs.rs/ffmpeg-sidecar)
 
+![Github actions](https://github.com/nathanbabcock/ffmpeg-sidecar/actions/workflows/ci.yml/badge.svg)
+
 > Wrap a standalone FFmpeg binary in an intuitive Iterator interface.
 
 ## Features
