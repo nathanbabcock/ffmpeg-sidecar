@@ -366,8 +366,11 @@ fn test_kill_before_iter() {
   let mut child = FfmpegCommand::new().testsrc().rawvideo().spawn().unwrap();
   child.kill().unwrap();
   let vec: Vec<FfmpegEvent> = child.iter().unwrap().collect();
-  assert!(vec.len() == 1);
-  assert!(vec[0] == FfmpegEvent::LogEOF);
+  // On Linux, an error may be thrown before the EOF event is sent.
+  assert!(vec.len() <= 1);
+  if vec.len() == 1 {
+    assert!(vec[0] == FfmpegEvent::LogEOF);
+  }
 }
 
 #[test]
