@@ -560,6 +560,7 @@ pub fn try_parse_progress(mut string: &str) -> Option<FfmpegProgress> {
     .and_then(|s| {
       s.strip_suffix("KiB") // FFmpeg v7.0 and later
         .or_else(|| s.strip_suffix("kB")) // FFmpeg v6.0 and prior
+        .or_else(|| s.ends_with("N/A").then(|| "0")) // handles "N/A"
     })?
     .parse::<u32>()
     .ok()?;
@@ -735,6 +736,21 @@ mod tests {
     assert!(progress.time == "00:00:00.00");
     assert!(progress.bitrate_kbps == 0.0);
     assert!(progress.speed == 0.0);
+  }
+
+  /// Check for handling progress message with no size.
+  /// These can occur when exporting frames to image files (i.e. jpeg).
+  #[test]
+  fn test_parse_progress_no_size() {
+    let line = "[info] frame=  163 fps= 13 q=4.4 size=N/A time=00:13:35.00 bitrate=N/A speed=64.7x";
+    let progress = try_parse_progress(line).unwrap();
+    assert!(progress.frame == 163);
+    assert!(progress.fps == 13.0);
+    assert!(progress.q == 4.4);
+    assert!(progress.size_kb == 0);
+    assert!(progress.time == "00:13:35.00");
+    assert!(progress.bitrate_kbps == 0.0);
+    assert!(progress.speed == 64.7);
   }
 
   /// Coverage for non-utf-8 bytes: https://github.com/nathanbabcock/ffmpeg-sidecar/issues/67
