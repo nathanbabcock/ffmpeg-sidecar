@@ -28,15 +28,16 @@ jobs:
           - ubuntu-latest
           - macos-13
           - macos-14 # Mac M1 (ARM64)
+
+    env:
+      CARGO_TERM_COLOR: always
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache deps
-        id: cache-deps
-        uses: actions/cache@v4
-        with:
-          path: target
-          key: ${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+      - run: rustup toolchain install stable --profile minimal
+
+      - uses: Swatinem/rust-cache@v2
 
       - name: Download FFmpeg
         run: cargo run --example download_ffmpeg -- ../deps
