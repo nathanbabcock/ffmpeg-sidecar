@@ -21,6 +21,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 5
     strategy:
+      fail-fast: false
       matrix:
         os:
           - windows-latest
@@ -29,6 +30,13 @@ jobs:
           - macos-14 # Mac M1 (ARM64)
     steps:
       - uses: actions/checkout@v4
+
+      - name: Cache deps
+        id: cache-deps
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Download FFmpeg
         run: cargo run --example download_ffmpeg -- ../deps
