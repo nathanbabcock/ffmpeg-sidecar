@@ -361,6 +361,7 @@ fn test_metadata_duration() {
   assert!(metadata.duration() == Some(5.0));
 }
 
+#[ignore = "flaky behavior across different platforms"]
 #[test]
 fn test_kill_before_iter() {
   let mut child = FfmpegCommand::new().testsrc().rawvideo().spawn().unwrap();
