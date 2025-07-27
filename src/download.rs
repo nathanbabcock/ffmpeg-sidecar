@@ -33,6 +33,8 @@ pub fn ffmpeg_download_url() -> Result<&'static str> {
     Ok("https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip")
   } else if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
     Ok("https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz")
+  } else if cfg!(all(target_os = "linux", target_arch = "aarch64")) {
+    Ok("https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-arm64-static.tar.xz")
   } else if cfg!(all(target_os = "macos", target_arch = "x86_64")) {
     Ok("https://evermeet.cx/ffmpeg/getrelease/zip")
   } else if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
