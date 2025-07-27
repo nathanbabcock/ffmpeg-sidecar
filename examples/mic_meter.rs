@@ -3,7 +3,7 @@ use ffmpeg_sidecar::{
   command::FfmpegCommand,
   event::{FfmpegEvent, LogLevel},
 };
-use std::{cmp::max, iter::repeat};
+use std::cmp::max;
 
 /// Process microphone audio data in realtime and display a volume meter/level
 /// indicator rendered to the terminal.

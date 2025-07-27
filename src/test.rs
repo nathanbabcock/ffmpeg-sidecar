@@ -112,7 +112,7 @@ fn test_output_format() {
     .unwrap()
     .for_each(|event| {
       if let FfmpegEvent::OutputFrame(frame) = event {
-        assert!(frame.pix_fmt == "rgb24");
+        assert_eq!(frame.pix_fmt, "rgb24");
         assert!(frame.data.len() as u32 == frame.width * frame.height * 3);
       }
     });
@@ -149,7 +149,7 @@ fn test_deterministic() {
     })
     .collect();
 
-  assert!(vec1 == vec2)
+  assert_eq!(vec1, vec2)
 }
 
 /// Pass simple raw pixels across stdin and stdout to check that the frame
@@ -178,9 +178,9 @@ fn test_passthrough() -> anyhow::Result<()> {
     .collect();
 
   assert!(output_raw_pixels.len() == 3);
-  assert!(input_raw_pixels == output_raw_pixels[0]);
-  assert!(input_raw_pixels == output_raw_pixels[1]);
-  assert!(input_raw_pixels == output_raw_pixels[2]);
+  assert_eq!(input_raw_pixels, output_raw_pixels[0]);
+  assert_eq!(input_raw_pixels, output_raw_pixels[1]);
+  assert_eq!(input_raw_pixels, output_raw_pixels[2]);
 
   Ok(())
 }
@@ -276,7 +276,7 @@ fn test_chunks_with_video_and_audio() {
     });
 
   assert!(chunks > 0);
-  assert!(frames == 0);
+  assert_eq!(frames, 0);
 }
 
 #[test]
@@ -324,7 +324,7 @@ fn test_duration() {
       if let FfmpegEvent::ParsedDuration(duration) = e {
         match duration_received {
           false => {
-            assert!(duration.duration == 5.0);
+            assert_eq!(duration.duration, 5.0);
             duration_received = true
           }
           true => panic!("Received multiple duration events."),
@@ -369,7 +369,7 @@ fn test_kill_before_iter() {
   // On Linux, an error may be thrown before the EOF event is sent.
   assert!(vec.len() <= 1);
   if vec.len() == 1 {
-    assert!(vec[0] == FfmpegEvent::LogEOF);
+    assert_eq!(vec[0], FfmpegEvent::LogEOF);
   }
 }
 
@@ -408,7 +408,7 @@ fn test_frame_timestamp() {
     .filter_frames()
     .for_each(|frame| {
       match last_timestamp {
-        None => assert!(frame.timestamp == 0.0),
+        None => assert_eq!(frame.timestamp, 0.0),
         Some(last_timestamp) => assert!(approx_eq(frame.timestamp, last_timestamp + 0.1, 0.001)),
       }
       last_timestamp = Some(frame.timestamp);
@@ -429,7 +429,7 @@ fn test_filter_complex() {
     .unwrap()
     .filter_frames()
     .count();
-  assert!(num_frames == 5);
+  assert_eq!(num_frames, 5);
 }
 
 /// Should not hang prompting for user input on overwrite
@@ -572,7 +572,7 @@ fn test_named_pipe() -> anyhow::Result<()> {
         Err(err) => anyhow::bail!(err),
       }
     }
-    assert!(total_bytes_read == 320 * 240 * 3);
+    assert_eq!(total_bytes_read, 320 * 240 * 3);
     Ok(())
   });
 
@@ -616,7 +616,7 @@ fn test_yuv420() -> anyhow::Result<()> {
     match event {
       FfmpegEvent::OutputFrame(frame) => {
         frames_received += 1;
-        assert!(frame.pix_fmt == "yuv420p");
+        assert_eq!(frame.pix_fmt, "yuv420p");
         // Expect 12 bits per pixel, but with an assumption that valid sizes
         // will still result in a byte-aligned frame buffer (divisible by 8).
         assert!(frame.data.len() as u32 == frame.width * frame.height * 12 / 8);
@@ -628,7 +628,7 @@ fn test_yuv420() -> anyhow::Result<()> {
     }
   }
 
-  assert!(frames_received == 10 * 25); // 10 seconds at 25 fps
+  assert_eq!(frames_received, 10 * 25); // 10 seconds at 25 fps
 
   Ok(())
 }
@@ -693,8 +693,8 @@ fn test_stdout_interleaved_frames() -> anyhow::Result<()> {
     }
   }
 
-  assert!(output_1_frames == 10 * 25); // 10 sec at 25fps
-  assert!(output_2_frames == 10 * 25); // 10 sec at 25fps
+  assert_eq!(output_1_frames, 10 * 25); // 10 sec at 25fps
+  assert_eq!(output_2_frames, 10 * 25); // 10 sec at 25fps
 
   Ok(())
 }
@@ -743,7 +743,7 @@ fn test_no_empty_events() -> anyhow::Result<()> {
     })
     .count();
 
-  assert!(empty_events == 0);
+  assert_eq!(empty_events, 0);
 
   Ok(())
 }

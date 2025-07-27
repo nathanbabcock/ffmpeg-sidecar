@@ -76,7 +76,7 @@ pub fn auto_download() -> Result<()> {
 /// use ffmpeg_sidecar::download::parse_macos_version;
 /// let json_string = "{\"name\":\"ffmpeg\",\"type\":\"release\",\"version\":\"6.0\",...}";
 /// let parsed = parse_macos_version(&json_string).unwrap();
-/// assert!(parsed == "6.0");
+/// assert_eq!(parsed, "6.0");
 /// ```
 pub fn parse_macos_version(version: &str) -> Option<String> {
   version
@@ -96,7 +96,7 @@ pub fn parse_macos_version(version: &str) -> Option<String> {
 /// use ffmpeg_sidecar::download::parse_linux_version;
 /// let json_string = "build: ffmpeg-5.1.1-amd64-static.tar.xz\nversion: 5.1.1\n\ngcc: 8.3.0";
 /// let parsed = parse_linux_version(&json_string).unwrap();
-/// assert!(parsed == "5.1.1");
+/// assert_eq!(parsed, "5.1.1");
 /// ```
 pub fn parse_linux_version(version: &str) -> Option<String> {
   version

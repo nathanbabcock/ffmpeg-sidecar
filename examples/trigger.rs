@@ -70,7 +70,7 @@ fn main() {
     .map(|x| format!("{x}!"))
     .run("asdf".to_string());
   println!("{my_string}");
-  assert!(my_string == "[(asdf)]!");
+  assert_eq!(my_string, "[(asdf)]!");
 
   let _trigger = Trigger::<String, String>::new();
   image_trigger().run(Image);
