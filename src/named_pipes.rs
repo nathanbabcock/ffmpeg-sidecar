@@ -131,7 +131,6 @@ impl Read for NamedPipe {
 impl NamedPipe {
   pub fn new<S: AsRef<str>>(pipe_name: S) -> Result<Self> {
     use nix::{fcntl::OFlag, sys::stat, unistd};
-    use std::os::fd::AsRawFd;
     use std::os::unix::fs::OpenOptionsExt;
     unistd::mkfifo(pipe_name.as_ref(), stat::Mode::S_IRWXU)?;
 
@@ -142,8 +141,7 @@ impl NamedPipe {
       .open(pipe_name.as_ref())?;
 
     // Switch to blocking mode so it doesn't read too early
-    let fd = AsRawFd::as_raw_fd(&file);
-    nix::fcntl::fcntl(fd, nix::fcntl::FcntlArg::F_SETFL(OFlag::empty()))?;
+    nix::fcntl::fcntl(&file, nix::fcntl::FcntlArg::F_SETFL(OFlag::empty()))?;
 
     Ok(Self {
       file,
