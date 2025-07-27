@@ -38,7 +38,7 @@ impl<R: Read> FfmpegLogParser<R> {
   /// - `\r` (Windows, progress updates which overwrite the previous line)
   pub fn parse_next_event(&mut self) -> anyhow::Result<FfmpegEvent> {
     let mut buf = Vec::<u8>::new();
-    let bytes_read = read_until_any(&mut self.reader, &[b'\r', b'\n'], &mut buf);
+    let bytes_read = read_until_any(&mut self.reader, b"\r\n", &mut buf);
     let line_cow = String::from_utf8_lossy(buf.as_slice());
     let line = line_cow.trim();
     let raw_log_message = line.to_string();
@@ -87,8 +87,7 @@ impl<R: Read> FfmpegLogParser<R> {
             LogSection::Input(_) => Ok(FfmpegEvent::ParsedInputStream(stream)),
             LogSection::Output(_) => Ok(FfmpegEvent::ParsedOutputStream(stream)),
             LogSection::Other | LogSection::StreamMapping => Err(anyhow::Error::msg(format!(
-              "Unexpected stream specification: {}",
-              line
+              "Unexpected stream specification: {line}"
             ))),
           }
         } else if let Some(progress) = try_parse_progress(line) {
@@ -423,7 +422,7 @@ pub fn try_parse_stream(string: &str) -> Option<Stream> {
   let indices_and_maybe_language = colon_iter
     .next()?
     // Remove everything inside and including square brackets
-    .split(|c| c == '[' || c == ']')
+    .split(['[', ']'])
     .step_by(2)
     .collect::<String>();
   let mut parenthesis_iter = indices_and_maybe_language.split('(');
@@ -560,7 +559,7 @@ pub fn try_parse_progress(mut string: &str) -> Option<FfmpegProgress> {
     .and_then(|s| {
       s.strip_suffix("KiB") // FFmpeg v7.0 and later
         .or_else(|| s.strip_suffix("kB")) // FFmpeg v6.0 and prior
-        .or_else(|| s.ends_with("N/A").then(|| "0")) // handles "N/A"
+        .or_else(|| s.ends_with("N/A").then_some("0")) // handles "N/A"
     })?
     .parse::<u32>()
     .ok()?;

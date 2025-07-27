@@ -65,11 +65,11 @@ fn main() {
     .run(Image);
 
   let my_string = Trigger::<String, String>::new()
-    .map(|x| format!("({})", x))
-    .map(|x| format!("[{}]", x))
-    .map(|x| format!("{}!", x))
+    .map(|x| format!("({x})"))
+    .map(|x| format!("[{x}]"))
+    .map(|x| format!("{x}!"))
     .run("asdf".to_string());
-  println!("{}", my_string);
+  println!("{my_string}");
   assert!(my_string == "[(asdf)]!");
 
   let _trigger = Trigger::<String, String>::new();

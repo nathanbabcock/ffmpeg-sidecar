@@ -85,8 +85,7 @@ fn test_frame_count() {
   let duration = 5;
   let expected_frame_count = fps * duration;
   let arg_string = format!(
-    "-f lavfi -i testsrc=duration={}:rate={} -f rawvideo -pix_fmt rgb24 -",
-    duration, fps
+    "-f lavfi -i testsrc=duration={duration}:rate={fps} -f rawvideo -pix_fmt rgb24 -"
   );
 
   let iter = FfmpegCommand::new()
@@ -285,9 +284,9 @@ fn test_chunks_with_audio_only() -> anyhow::Result<()> {
   let chunks = FfmpegCommand::new()
     .args("-f lavfi -i sine=frequency=1000:duration=10".split(' '))
     .format("s16le")
-    .args(&["-ac", "1"]) // Mono audio
+    .args(["-ac", "1"]) // Mono audio
     .codec_audio("pcm_s16le")
-    .args(&["-ar", "44100"]) // Sample rate 44.1kHz
+    .args(["-ar", "44100"]) // Sample rate 44.1kHz
     .pipe_stdout()
     .spawn()?
     .iter()?

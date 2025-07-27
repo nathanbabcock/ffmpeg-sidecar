@@ -313,7 +313,7 @@ impl FfmpegCommand {
   /// The format is `'wxh'` (default - same as source).
   pub fn size(&mut self, width: u32, height: u32) -> &mut Self {
     self.arg("-s");
-    self.arg(format!("{}x{}", width, height));
+    self.arg(format!("{width}x{height}"));
     self
   }
 

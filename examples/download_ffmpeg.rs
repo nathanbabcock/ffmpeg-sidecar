@@ -22,7 +22,7 @@ fn main() -> anyhow::Result<()> {
   // Checking the version number before downloading is actually not necessary,
   // but it's a good way to check that the download URL is correct.
   match check_latest_version() {
-    Ok(version) => println!("Latest available version: {}", version),
+    Ok(version) => println!("Latest available version: {version}"),
     Err(_) => println!("Skipping version check on this platform."),
   }
 
@@ -38,9 +38,9 @@ fn main() -> anyhow::Result<()> {
   // The built-in download function uses `reqwest` to download the package.
   // For more advanced use cases like async streaming or download progress
   // updates, you could replace this with your own download function.
-  println!("Downloading from: {:?}", download_url);
+  println!("Downloading from: {download_url:?}");
   let archive_path = download_ffmpeg_package(download_url, &destination)?;
-  println!("Downloaded package: {:?}", archive_path);
+  println!("Downloaded package: {archive_path:?}");
 
   // Extraction uses `tar` on all platforms (available in Windows since version 1803)
   println!("Extracting...");
@@ -48,7 +48,7 @@ fn main() -> anyhow::Result<()> {
 
   // Use the freshly installed FFmpeg to check the version number
   let version = ffmpeg_version_with_path(destination.join("ffmpeg"))?;
-  println!("FFmpeg version: {}", version);
+  println!("FFmpeg version: {version}");
 
   println!("Done! 🏁");
   Ok(())
