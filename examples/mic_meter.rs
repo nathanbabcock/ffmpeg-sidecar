@@ -3,7 +3,7 @@ use ffmpeg_sidecar::{
   command::FfmpegCommand,
   event::{FfmpegEvent, LogLevel},
 };
-use std::{cmp::max, iter::repeat};
+use std::cmp::max;
 
 /// Process microphone audio data in realtime and display a volume meter/level
 /// indicator rendered to the terminal.
@@ -21,7 +21,7 @@ pub fn main() -> Result<()> {
 
   let audio_device = FfmpegCommand::new()
     .hide_banner()
-    .args(&["-list_devices", "true"])
+    .args(["-list_devices", "true"])
     .format("dshow")
     .input("dummy")
     .spawn()?
@@ -32,7 +32,7 @@ pub fn main() -> Result<()> {
     .context("No audio device found")?
     .context("Failed to parse audio device")?;
 
-  println!("Listening to audio device: {}", audio_device);
+  println!("Listening to audio device: {audio_device}");
 
   // Second step: Capture audio and analyze w/ `ebur128` audio filter
   // Loudness metadata will be printed to the FFmpeg logs
@@ -88,7 +88,7 @@ pub fn main() -> Result<()> {
           println!(
             "{} {} {}%",
             recording_indicator,
-            repeat('█').take(volume_normalized).collect::<String>(),
+            "█".repeat(volume_normalized),
             volume_percent
           );
         }

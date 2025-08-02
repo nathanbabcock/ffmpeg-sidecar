@@ -23,7 +23,7 @@ pub fn read_until_any<R: BufRead + ?Sized>(
       let start_delims = if read == 0 {
         available
           .iter()
-          .take_while(|&&b| delims.iter().any(|&d| d == b))
+          .take_while(|&&b| delims.contains(&b))
           .count()
       } else {
         0
@@ -33,7 +33,7 @@ pub fn read_until_any<R: BufRead + ?Sized>(
       let first_delim_index = available
         .iter()
         .skip(start_delims)
-        .position(|&b| delims.iter().any(|&d| d == b))
+        .position(|&b| delims.contains(&b))
         .map(|i| i + start_delims);
 
       match first_delim_index {
@@ -55,7 +55,7 @@ pub fn read_until_any<R: BufRead + ?Sized>(
     }
 
     // Discard final trailing delimiters
-    if used == 0 && buf.iter().all(|&b| delims.iter().any(|&d| d == b)) {
+    if used == 0 && buf.iter().all(|&b| delims.contains(&b)) {
       return Ok(0);
     }
 

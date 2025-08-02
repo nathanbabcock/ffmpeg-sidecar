@@ -8,7 +8,7 @@ fn main() {
 
   // Try running the executable and printing the version number.
   let version = ffprobe_version().unwrap();
-  println!("ffprobe version: {}", version);
+  println!("ffprobe version: {version}");
 }
 
 #[cfg(not(feature = "download_ffmpeg"))]

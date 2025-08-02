@@ -38,7 +38,7 @@ impl<R: Read> FfmpegLogParser<R> {
   /// - `\r` (Windows, progress updates which overwrite the previous line)
   pub fn parse_next_event(&mut self) -> anyhow::Result<FfmpegEvent> {
     let mut buf = Vec::<u8>::new();
-    let bytes_read = read_until_any(&mut self.reader, &[b'\r', b'\n'], &mut buf);
+    let bytes_read = read_until_any(&mut self.reader, b"\r\n", &mut buf);
     let line_cow = String::from_utf8_lossy(buf.as_slice());
     let line = line_cow.trim();
     let raw_log_message = line.to_string();
@@ -87,8 +87,7 @@ impl<R: Read> FfmpegLogParser<R> {
             LogSection::Input(_) => Ok(FfmpegEvent::ParsedInputStream(stream)),
             LogSection::Output(_) => Ok(FfmpegEvent::ParsedOutputStream(stream)),
             LogSection::Other | LogSection::StreamMapping => Err(anyhow::Error::msg(format!(
-              "Unexpected stream specification: {}",
-              line
+              "Unexpected stream specification: {line}"
             ))),
           }
         } else if let Some(progress) = try_parse_progress(line) {
@@ -423,7 +422,7 @@ pub fn try_parse_stream(string: &str) -> Option<Stream> {
   let indices_and_maybe_language = colon_iter
     .next()?
     // Remove everything inside and including square brackets
-    .split(|c| c == '[' || c == ']')
+    .split(['[', ']'])
     .step_by(2)
     .collect::<String>();
   let mut parenthesis_iter = indices_and_maybe_language.split('(');
@@ -558,7 +557,7 @@ pub fn try_parse_progress(mut string: &str) -> Option<FfmpegProgress> {
     .and_then(|s| {
       s.strip_suffix("KiB") // FFmpeg v7.0 and later
         .or_else(|| s.strip_suffix("kB")) // FFmpeg v6.0 and prior
-        .or_else(|| s.ends_with("N/A").then(|| "0")) // handles "N/A"
+        .or_else(|| s.ends_with("N/A").then_some("0")) // handles "N/A"
     })?
     .parse::<u32>()
     .ok()?;
@@ -711,13 +710,13 @@ mod tests {
   fn test_parse_progress_v7() {
     let line = "[info] frame=    5 fps=0.0 q=-1.0 Lsize=      10KiB time=00:00:03.00 bitrate=  27.2kbits/s speed= 283x\n";
     let progress = try_parse_progress(line).unwrap();
-    assert!(progress.frame == 5);
-    assert!(progress.fps == 0.0);
-    assert!(progress.q == -1.0);
-    assert!(progress.size_kb == 10);
-    assert!(progress.time == "00:00:03.00");
-    assert!(progress.bitrate_kbps == 27.2);
-    assert!(progress.speed == 283.0);
+    assert_eq!(progress.frame, 5);
+    assert_eq!(progress.fps, 0.0);
+    assert_eq!(progress.q, -1.0);
+    assert_eq!(progress.size_kb, 10);
+    assert_eq!(progress.time, "00:00:03.00");
+    assert_eq!(progress.bitrate_kbps, 27.2);
+    assert_eq!(progress.speed, 283.0);
   }
 
   /// Check for handling first progress message w/ bitrate=N/A and speed=N/A
@@ -727,13 +726,13 @@ mod tests {
     let line =
       "[info] frame=    0 fps=0.0 q=-0.0 size=       0kB time=00:00:00.00 bitrate=N/A speed=N/A\n";
     let progress = try_parse_progress(line).unwrap();
-    assert!(progress.frame == 0);
-    assert!(progress.fps == 0.0);
-    assert!(progress.q == -0.0);
-    assert!(progress.size_kb == 0);
-    assert!(progress.time == "00:00:00.00");
-    assert!(progress.bitrate_kbps == 0.0);
-    assert!(progress.speed == 0.0);
+    assert_eq!(progress.frame, 0);
+    assert_eq!(progress.fps, 0.0);
+    assert_eq!(progress.q, -0.0);
+    assert_eq!(progress.size_kb, 0);
+    assert_eq!(progress.time, "00:00:00.00");
+    assert_eq!(progress.bitrate_kbps, 0.0);
+    assert_eq!(progress.speed, 0.0);
   }
 
   /// Check for handling progress message with no size.
@@ -742,13 +741,13 @@ mod tests {
   fn test_parse_progress_no_size() {
     let line = "[info] frame=  163 fps= 13 q=4.4 size=N/A time=00:13:35.00 bitrate=N/A speed=64.7x";
     let progress = try_parse_progress(line).unwrap();
-    assert!(progress.frame == 163);
-    assert!(progress.fps == 13.0);
-    assert!(progress.q == 4.4);
-    assert!(progress.size_kb == 0);
-    assert!(progress.time == "00:13:35.00");
-    assert!(progress.bitrate_kbps == 0.0);
-    assert!(progress.speed == 64.7);
+    assert_eq!(progress.frame, 163);
+    assert_eq!(progress.fps, 13.0);
+    assert_eq!(progress.q, 4.4);
+    assert_eq!(progress.size_kb, 0);
+    assert_eq!(progress.time, "00:13:35.00");
+    assert_eq!(progress.bitrate_kbps, 0.0);
+    assert_eq!(progress.speed, 64.7);
   }
 
   /// Coverage for non-utf-8 bytes: https://github.com/nathanbabcock/ffmpeg-sidecar/issues/67

@@ -61,7 +61,7 @@ fn main() -> Result<()> {
 
       // _ => {}
       e => {
-        println!("{:?}", e);
+        println!("{e:?}");
       }
     });
   exit_sender.send(())?;

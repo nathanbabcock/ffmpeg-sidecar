@@ -78,7 +78,7 @@ pub fn auto_download() -> Result<()> {
 /// use ffmpeg_sidecar::download::parse_macos_version;
 /// let json_string = "{\"name\":\"ffmpeg\",\"type\":\"release\",\"version\":\"6.0\",...}";
 /// let parsed = parse_macos_version(&json_string).unwrap();
-/// assert!(parsed == "6.0");
+/// assert_eq!(parsed, "6.0");
 /// ```
 pub fn parse_macos_version(version: &str) -> Option<String> {
   version
@@ -98,7 +98,7 @@ pub fn parse_macos_version(version: &str) -> Option<String> {
 /// use ffmpeg_sidecar::download::parse_linux_version;
 /// let json_string = "build: ffmpeg-5.1.1-amd64-static.tar.xz\nversion: 5.1.1\n\ngcc: 8.3.0";
 /// let parsed = parse_linux_version(&json_string).unwrap();
-/// assert!(parsed == "5.1.1");
+/// assert_eq!(parsed, "5.1.1");
 /// ```
 pub fn parse_linux_version(version: &str) -> Option<String> {
   version
@@ -121,12 +121,11 @@ pub fn check_latest_version() -> Result<String> {
   }
 
   let manifest_url = ffmpeg_manifest_url()?;
-  let response = ureq::get(manifest_url)
+  let string = ureq::get(manifest_url)
     .call()
-    .context("Failed to GET the latest ffmpeg version")?;
-
-  let string = response
-    .into_string()
+    .context("Failed to GET the latest ffmpeg version")?
+    .body_mut()
+    .read_to_string()
     .context("Failed to read response text")?;
 
   if cfg!(target_os = "windows") {
@@ -152,12 +151,12 @@ pub fn download_ffmpeg_package(url: &str, download_dir: &Path) -> Result<PathBuf
 
   let archive_path = download_dir.join(filename);
 
-  let response = ureq::get(url).call().context("Failed to download ffmpeg")?;
+  let mut response = ureq::get(url).call().context("Failed to download ffmpeg")?;
 
   let mut file =
     File::create(&archive_path).context("Failed to create file for ffmpeg download")?;
 
-  copy(&mut response.into_reader(), &mut file)
+  copy(&mut response.body_mut().as_reader(), &mut file)
     .context("Failed to write ffmpeg download to file")?;
 
   Ok(archive_path)

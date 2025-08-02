@@ -354,7 +354,7 @@ pub fn spawn_stderr_thread(stderr: ChildStderr, tx: SyncSender<FfmpegEvent>) -> 
         }
         Ok(event) => tx.send(event).ok(),
         Err(e) => {
-          eprintln!("Error parsing ffmpeg output: {}", e);
+          eprintln!("Error parsing ffmpeg output: {e}");
           break;
         }
       };
