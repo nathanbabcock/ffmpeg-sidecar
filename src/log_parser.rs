@@ -511,6 +511,7 @@ fn try_parse_video_stream(mut comma_iter: CommaIter) -> Option<StreamTypeSpecifi
 }
 
 /// Parse a progress update line from ffmpeg.
+/// For audio-only progress events, the `frame`, `fps`, and `q` fields will be `0`.
 ///
 /// ## Example
 /// ```rust
@@ -532,25 +533,22 @@ pub fn try_parse_progress(mut string: &str) -> Option<FfmpegProgress> {
 
   let frame = string
     .split("frame=")
-    .nth(1)?
-    .split_whitespace()
-    .next()?
-    .parse::<u32>()
-    .ok()?;
+    .nth(1)
+    .and_then(|s| s.split_whitespace().next())
+    .and_then(|s| s.parse::<u32>().ok())
+    .unwrap_or(0);
   let fps = string
     .split("fps=")
-    .nth(1)?
-    .split_whitespace()
-    .next()?
-    .parse::<f32>()
-    .ok()?;
+    .nth(1)
+    .and_then(|s| s.split_whitespace().next())
+    .and_then(|s| s.parse::<f32>().ok())
+    .unwrap_or(0.0);
   let q = string
     .split("q=")
-    .nth(1)?
-    .split_whitespace()
-    .next()?
-    .parse::<f32>()
-    .ok()?;
+    .nth(1)
+    .and_then(|s| s.split_whitespace().next())
+    .and_then(|s| s.parse::<f32>().ok())
+    .unwrap_or(0.0);
   let size_kb = string
     .split("size=") // captures "Lsize=" AND "size="
     .nth(1)?
@@ -768,5 +766,18 @@ mod tests {
     assert!(matches!(event, FfmpegEvent::Log(LogLevel::Info, _)));
 
     Ok(())
+  }
+
+  #[test]
+  fn test_audio_progress() {
+    let line = "[info] size=      66kB time=00:00:02.21 bitrate= 245.0kbits/s speed=1.07x\n";
+    let progress = try_parse_progress(line).unwrap();
+    assert!(progress.frame == 0);
+    assert!(progress.fps == 0.0);
+    assert!(progress.q == 0.0);
+    assert!(progress.size_kb == 66);
+    assert!(progress.time == "00:00:02.21");
+    assert!(progress.bitrate_kbps == 245.0);
+    assert!(progress.speed == 1.07);
   }
 }

@@ -156,13 +156,13 @@ pub struct FfmpegConfiguration {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FfmpegProgress {
-  /// index of the current output frame
+  /// Index of the current output frame. Will be `0` for audio-only progress events.
   pub frame: u32,
 
-  /// frames per second
+  /// Frames per second. Will be `0` for audio-only progress events.
   pub fps: f32,
 
-  /// Quality factor (if applicable)
+  /// Quality factor (if applicable). Will be `0` for audio-only progress events.
   pub q: f32,
 
   /// Current total size of the output in kilobytes
