@@ -16,8 +16,8 @@ fn main() -> anyhow::Result<()> {
   println!("Attempting to use Whisper filter...");
 
   // Run Whisper transcription with generated silence (using system FFmpeg)
-  let whisper_filter =
-    "whisper=model=./whisper.cpp/models/ggml-base.en.bin:language=en:queue=3:destination=output.srt:format=srt";
+  // destination=- uses FFmpeg AVIO syntax to direct output to stdout
+  let whisper_filter = "whisper=model=./whisper.cpp/models/ggml-base.en.bin:destination=-";
 
   let iter = FfmpegCommand::new()
     .format("lavfi")
@@ -29,23 +29,32 @@ fn main() -> anyhow::Result<()> {
     .spawn()?
     .iter()?;
 
+  let mut transcription_parts = Vec::new();
+
   for event in iter {
     match event {
       FfmpegEvent::ParsedConfiguration(config) => {
-        println!("Found configuration: {:?}", config);
-        if config
+        if !config
           .configuration
           .contains(&"--enable-whisper".to_string())
         {
-          println!("Whisper is enabled!");
-        } else {
           anyhow::bail!("FFmpeg was not built with Whisper support (--enable-whisper)");
         }
       }
-      FfmpegEvent::Log(_, message) => println!("{}", message),
-      FfmpegEvent::Progress(progress) => println!("Progress: {}", progress.time),
+      FfmpegEvent::OutputChunk(chunk) => {
+        // Convert raw bytes to text and collect transcription parts
+        if let Ok(text) = String::from_utf8(chunk) {
+          let trimmed = text.trim();
+          if !trimmed.is_empty() {
+            transcription_parts.push(trimmed.to_string());
+            // Print current transcription on one line
+            print!("\rTranscription: {}", transcription_parts.join(" "));
+            std::io::Write::flush(&mut std::io::stdout()).unwrap();
+          }
+        }
+      }
       FfmpegEvent::Done => {
-        println!("Transcription complete! Check output.srt");
+        println!("\nTranscription complete!");
         break;
       }
       _ => {}
