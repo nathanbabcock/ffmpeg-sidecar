@@ -38,7 +38,7 @@ pub fn ffmpeg_download_url() -> Result<&'static str> {
   } else if cfg!(all(target_os = "macos", target_arch = "x86_64")) {
     Ok("https://evermeet.cx/ffmpeg/getrelease/zip")
   } else if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
-    Ok("https://www.osxexperts.net/ffmpeg7arm.zip") // Mac M1
+    Ok("https://www.osxexperts.net/ffmpeg80arm.zip") // Mac M1
   } else {
     anyhow::bail!("Unsupported platform; you can provide your own URL instead and call download_ffmpeg_package directly.")
   }
