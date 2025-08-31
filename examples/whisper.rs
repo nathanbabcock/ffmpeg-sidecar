@@ -13,15 +13,31 @@ fn main() -> anyhow::Result<()> {
   // Download whisper model if it doesn't exist
   download_whisper_model()?;
 
-  println!("Attempting to use Whisper filter...");
+  // Find default audio input device
+  let audio_device = find_default_audio_device()?;
+  println!("Listening to audio device: {}", audio_device);
+  println!("Starting real-time transcription... (Press Ctrl+C to stop)");
 
-  // Run Whisper transcription with generated silence (using system FFmpeg)
+  // Run Whisper transcription with microphone input
   // destination=- uses FFmpeg AVIO syntax to direct output to stdout
   let whisper_filter = "whisper=model=./whisper.cpp/models/ggml-base.en.bin:destination=-";
 
-  let iter = FfmpegCommand::new()
-    .format("lavfi")
-    .input("anullsrc=duration=10")
+  let mut command = FfmpegCommand::new();
+
+  // Configure audio input based on platform
+  if cfg!(windows) {
+    command
+      .format("dshow")
+      .args("-audio_buffer_size 50".split(' ')) // reduces latency to 50ms
+      .input(format!("audio={}", audio_device));
+  } else {
+    // For Linux/Mac - this is a simplified approach, may need adjustment
+    command
+      .format("pulse") // or "alsa" on Linux
+      .input("default");
+  }
+
+  let iter = command
     .arg("-af")
     .arg(&whisper_filter)
     .format("null")
@@ -62,6 +78,29 @@ fn main() -> anyhow::Result<()> {
   }
 
   Ok(())
+}
+
+fn find_default_audio_device() -> anyhow::Result<String> {
+  if cfg!(windows) {
+    // Windows: Use dshow to find audio devices
+    let audio_device = FfmpegCommand::new()
+      .hide_banner()
+      .args(["-list_devices", "true"])
+      .format("dshow")
+      .input("dummy")
+      .spawn()?
+      .iter()?
+      .into_ffmpeg_stderr()
+      .find(|line| line.contains("(audio)"))
+      .and_then(|line| line.split('\"').nth(1).map(|s| s.to_string()))
+      .ok_or_else(|| anyhow::anyhow!("No audio device found on Windows"))?;
+
+    Ok(audio_device)
+  } else {
+    // Linux/Mac: Use default device (could be improved with proper device detection)
+    println!("Note: Using default audio device. On Linux/Mac, you may need to adjust audio format and device.");
+    Ok("default".to_string())
+  }
 }
 
 fn download_whisper_model() -> anyhow::Result<()> {
