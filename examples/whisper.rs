@@ -21,8 +21,9 @@ fn main() -> anyhow::Result<()> {
   println!("Starting real-time transcription... (Say 'stop recording' or press Ctrl+C to stop)");
 
   // Run Whisper transcription with microphone input
-  // destination=- uses FFmpeg AVIO syntax to direct output to stdout
-  let whisper_filter = "whisper=model=./whisper.cpp/models/ggml-base.en.bin:destination=-";
+  // `destination=-` uses FFmpeg AVIO syntax to direct output to stdout
+  // `queue` sets the seconds buffered before processing, affecting both latency and transcription
+  let whisper_filter = "whisper=model=./whisper.cpp/models/ggml-base.en.bin:destination=-:queue=2";
 
   let mut command = FfmpegCommand::new();
 
@@ -73,22 +74,22 @@ fn main() -> anyhow::Result<()> {
               && !transcription_parts.is_empty()
             {
               // Start a new line after a pause
-              println!("\r{}", transcription_parts.join(" ")); // Finalize previous line
+              println!(); // Just add a newline
               transcription_parts.clear();
+            }
+
+            // Check for stop command before adding new text
+            let test_text = format!("{} {}", transcription_parts.join(" "), trimmed).to_lowercase();
+            if test_text.contains("stop recording") {
+              print!("{} {}", transcription_parts.join(" "), trimmed);
+              println!("\nStop command detected. Ending transcription session.");
+              break;
             }
 
             transcription_parts.push(trimmed.to_string());
 
-            // Check for stop command
-            let current_text = transcription_parts.join(" ").to_lowercase();
-            if current_text.contains("stop recording") {
-              println!("\r{}", transcription_parts.join(" "));
-              println!("Stop command detected. Ending transcription session.");
-              break;
-            }
-
-            // Print current transcription
-            print!("\r{}", transcription_parts.join(" "));
+            // Print just the new word with a space
+            print!(" {}", trimmed);
             io::stdout().flush().unwrap();
 
             last_transcription_time = now;
