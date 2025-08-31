@@ -4,8 +4,10 @@
 use ffmpeg_sidecar::{command::FfmpegCommand, event::FfmpegEvent};
 use std::env;
 use std::fs;
+use std::io::{self, Write};
 use std::path::Path;
 use std::process::Command;
+use std::time::{Duration, Instant};
 
 fn main() -> anyhow::Result<()> {
   let _guard = temporarily_use_ffmpeg_from_system_path()?;
@@ -16,7 +18,7 @@ fn main() -> anyhow::Result<()> {
   // Find default audio input device
   let audio_device = find_default_audio_device()?;
   println!("Listening to audio device: {}", audio_device);
-  println!("Starting real-time transcription... (Press Ctrl+C to stop)");
+  println!("Starting real-time transcription... (Say 'stop recording' or press Ctrl+C to stop)");
 
   // Run Whisper transcription with microphone input
   // destination=- uses FFmpeg AVIO syntax to direct output to stdout
@@ -46,6 +48,8 @@ fn main() -> anyhow::Result<()> {
     .iter()?;
 
   let mut transcription_parts = Vec::new();
+  let mut last_transcription_time = Instant::now();
+  let pause_threshold = Duration::from_secs(2); // 2 seconds of silence = line break
 
   for event in iter {
     match event {
@@ -62,10 +66,32 @@ fn main() -> anyhow::Result<()> {
         if let Ok(text) = String::from_utf8(chunk) {
           let trimmed = text.trim();
           if !trimmed.is_empty() {
+            let now = Instant::now();
+
+            // Check if there's been a pause since last transcription
+            if now.duration_since(last_transcription_time) > pause_threshold
+              && !transcription_parts.is_empty()
+            {
+              // Start a new line after a pause
+              println!("\r{}", transcription_parts.join(" ")); // Finalize previous line
+              transcription_parts.clear();
+            }
+
             transcription_parts.push(trimmed.to_string());
-            // Print current transcription on one line
-            print!("\rTranscription: {}", transcription_parts.join(" "));
-            std::io::Write::flush(&mut std::io::stdout()).unwrap();
+
+            // Check for stop command
+            let current_text = transcription_parts.join(" ").to_lowercase();
+            if current_text.contains("stop recording") {
+              println!("\r{}", transcription_parts.join(" "));
+              println!("Stop command detected. Ending transcription session.");
+              break;
+            }
+
+            // Print current transcription
+            print!("\r{}", transcription_parts.join(" "));
+            io::stdout().flush().unwrap();
+
+            last_transcription_time = now;
           }
         }
       }
