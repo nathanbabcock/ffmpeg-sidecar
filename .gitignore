@@ -1,1 +1,4 @@
 /target
+
+# git repo cloned by `cargo run --example whisper`:
+whisper.cpp
