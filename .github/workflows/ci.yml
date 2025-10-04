@@ -27,8 +27,8 @@ jobs:
           - windows-latest
           - ubuntu-latest
           - ubuntu-24.04-arm
-          - macos-13
           - macos-14 # Mac M1 (ARM64)
+          - macos-15-intel # (x86_64)
 
     env:
       CARGO_TERM_COLOR: always
