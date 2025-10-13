@@ -56,13 +56,13 @@ fn main() {
     // `for_each` blocks through the end of the iterator,
     // so we run it in another thread.
     transformed_frames.for_each(|f| {
-      stdin.write(&f.data).ok();
+      stdin.write_all(&f.data).ok();
     });
   });
 
   // On the main thread, run the output instance to completion
   output.iter().unwrap().for_each(|e| match e {
-    FfmpegEvent::Log(LogLevel::Error, e) => println!("Error: {}", e),
+    FfmpegEvent::Log(LogLevel::Error, e) => println!("Error: {e}"),
     FfmpegEvent::Progress(p) => println!("Progress: {} / 00:00:15", p.time),
     _ => {}
   });
@@ -70,7 +70,7 @@ fn main() {
 
 /// Create a H265 source video from scratch
 fn create_h265_source(path_str: &str) {
-  println!("Creating H265 source video: {}", path_str);
+  println!("Creating H265 source video: {path_str}");
   FfmpegCommand::new()
     .args("-f lavfi -i testsrc=size=600x800:rate=30:duration=15 -c:v libx265".split(' '))
     .arg(path_str)
@@ -79,9 +79,9 @@ fn create_h265_source(path_str: &str) {
     .iter()
     .unwrap()
     .for_each(|e| match e {
-      FfmpegEvent::Log(LogLevel::Error, e) => println!("Error: {}", e),
+      FfmpegEvent::Log(LogLevel::Error, e) => println!("Error: {e}"),
       FfmpegEvent::Progress(p) => println!("Progress: {} / 00:00:15", p.time),
       _ => {}
     });
-  println!("Created H265 source video: {}", path_str);
+  println!("Created H265 source video: {path_str}");
 }

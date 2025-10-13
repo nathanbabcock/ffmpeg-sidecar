@@ -1,3 +1,7 @@
+//! Any event that occurs during the execution of an FFmpeg command.
+
+/// Any event that occurs during the execution of an FFmpeg command,
+/// including log messages, parsed metadata, progress updates, and output.
 #[derive(Debug, Clone, PartialEq)]
 pub enum FfmpegEvent {
   ParsedVersion(FfmpegVersion),
@@ -5,8 +9,8 @@ pub enum FfmpegEvent {
   ParsedStreamMapping(String),
   ParsedInput(FfmpegInput),
   ParsedOutput(FfmpegOutput),
-  ParsedInputStream(AVStream),
-  ParsedOutputStream(AVStream),
+  ParsedInputStream(Stream),
+  ParsedOutputStream(Stream),
   ParsedDuration(FfmpegDuration),
   Log(LogLevel, String),
   LogEOF,
@@ -22,6 +26,7 @@ pub enum FfmpegEvent {
   Done,
 }
 
+/// The internal log level designated by FFmpeg on each message.
 #[derive(Debug, Clone, PartialEq)]
 pub enum LogLevel {
   Info,
@@ -59,12 +64,74 @@ impl FfmpegOutput {
   }
 }
 
+/// Represents metadata about a stream.
 #[derive(Debug, Clone, PartialEq)]
-pub struct AVStream {
-  /// Typically `video` or `audio`, but might be something else like `data` or `subtitle`.
-  pub stream_type: String,
-  /// Corresponds to stream `-f` parameter, e.g. `rawvideo`, `h264`, or `mpegts`
+pub struct Stream {
+  /// Corresponds to stream `-f` parameter, e.g. `rawvideo`, `h264`, `opus` or `srt`.
   pub format: String,
+  // The language of the stream as a three letter code such as `eng`, `ger` or `jpn`.
+  pub language: String,
+  /// The index of the input or output that this stream belongs to.
+  pub parent_index: u32,
+  /// The index of the stream inside the input.
+  pub stream_index: u32,
+  /// The stderr line that this stream was parsed from.
+  pub raw_log_message: String,
+  // Data that is specific to a certain stream type.
+  pub type_specific_data: StreamTypeSpecificData,
+}
+
+impl Stream {
+  pub fn is_audio(&self) -> bool {
+    matches!(self.type_specific_data, StreamTypeSpecificData::Audio(_))
+  }
+  pub fn is_subtitle(&self) -> bool {
+    matches!(self.type_specific_data, StreamTypeSpecificData::Subtitle())
+  }
+  pub fn is_video(&self) -> bool {
+    matches!(self.type_specific_data, StreamTypeSpecificData::Video(_))
+  }
+  pub fn is_other(&self) -> bool {
+    matches!(self.type_specific_data, StreamTypeSpecificData::Other())
+  }
+
+  pub fn audio_data(&self) -> Option<&AudioStream> {
+    match &self.type_specific_data {
+      StreamTypeSpecificData::Audio(audio_stream) => Some(audio_stream),
+      _ => None,
+    }
+  }
+  pub fn video_data(&self) -> Option<&VideoStream> {
+    match &self.type_specific_data {
+      StreamTypeSpecificData::Video(video_stream) => Some(video_stream),
+      _ => None,
+    }
+  }
+}
+
+/// Represents metadata that is specific to a stream, e.g. fields that are only found in audio
+/// streams or that are only found in video streams, etc. Storing this in an enum allows function to
+/// accept the generic `Stream` type regardless of its actual type (audio, video, ...).
+#[derive(Debug, Clone, PartialEq)]
+pub enum StreamTypeSpecificData {
+  Audio(AudioStream),
+  Video(VideoStream),
+  Subtitle(),
+  Other(),
+}
+
+/// Represents metadata that is specific to audio streams.
+#[derive(Debug, Clone, PartialEq)]
+pub struct AudioStream {
+  /// The sample rate of the audio stream, e.g. 48000 (Hz)
+  pub sample_rate: u32,
+  /// The number of channels of the audio stream, e.g. `stereo`, `5.1` or `7.1`
+  pub channels: String,
+}
+
+/// Represents metadata that is specific to video streams.
+#[derive(Debug, Clone, PartialEq)]
+pub struct VideoStream {
   /// Corresponds to stream `-pix_fmt` parameter, e.g. `rgb24`
   pub pix_fmt: String,
   /// Width in pixels
@@ -73,10 +140,6 @@ pub struct AVStream {
   pub height: u32,
   /// Framerate in frames per second
   pub fps: f32,
-  /// The index of the input or output that this stream belongs to
-  pub parent_index: usize,
-  /// The stderr line that this stream was parsed from
-  pub raw_log_message: String,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -93,13 +156,13 @@ pub struct FfmpegConfiguration {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FfmpegProgress {
-  /// index of the current output frame
+  /// Index of the current output frame. Will be `0` for audio-only progress events.
   pub frame: u32,
 
-  /// frames per second
+  /// Frames per second. Will be `0` for audio-only progress events.
   pub fps: f32,
 
-  /// Quality factor (if applicable)
+  /// Quality factor (if applicable). Will be `0` for audio-only progress events.
   pub q: f32,
 
   /// Current total size of the output in kilobytes

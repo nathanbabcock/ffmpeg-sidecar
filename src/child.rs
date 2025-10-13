@@ -1,11 +1,11 @@
-use std::{
-  io::{self, Write},
-  process::{Child, ChildStderr, ChildStdin, ChildStdout, ExitStatus},
-};
-
-use anyhow::Context;
+//! Wrapper around `std::process::Child` containing a spawned FFmpeg command.
 
 use crate::iter::FfmpegIterator;
+use anyhow::Context;
+use std::{
+  io::{self, copy, sink, Write},
+  process::{Child, ChildStderr, ChildStdin, ChildStdout, ExitStatus},
+};
 
 /// A wrapper around [`std::process::Child`] containing a spawned FFmpeg command.
 /// Provides interfaces for reading parsed metadata, progress updates, warnings and errors, and
@@ -68,11 +68,7 @@ impl FfmpegChild {
   /// s      Show QP histogram
   /// ```
   pub fn send_stdin_command(&mut self, command: &[u8]) -> anyhow::Result<()> {
-    let mut stdin = self
-      .inner
-      .stdin
-      .take()
-      .context("Missing child stdin")?;
+    let mut stdin = self.inner.stdin.take().context("Missing child stdin")?;
     stdin.write_all(command)?;
     self.inner.stdin.replace(stdin);
     Ok(())
@@ -102,6 +98,12 @@ impl FfmpegChild {
   ///
   /// Identical to `wait` in [`std::process::Child`].
   pub fn wait(&mut self) -> io::Result<ExitStatus> {
+    // If stderr hasn't already been consumed by a method like `iter()`,
+    // we need to run it to completion to avoid a deadlock.
+    if let Some(mut stderr) = self.take_stderr() {
+      copy(&mut stderr, &mut sink())?;
+    };
+
     self.inner.wait()
   }
 

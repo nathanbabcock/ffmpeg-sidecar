@@ -1,6 +1,11 @@
+//! Internal utility; `BufRead::read_until` with multiple delimiters.
+
 use std::io::{BufRead, ErrorKind, Result};
 
-/// `BufRead::read_until` with multiple delimiters.
+/// Reads from the provided buffer until any of the delimiter bytes match.
+/// The output buffer will include the ending delimiter.
+/// Also skips over zero-length reads.
+/// See [`BufRead::read_until`](https://doc.rust-lang.org/std/io/trait.BufRead.html#method.read_until).
 pub fn read_until_any<R: BufRead + ?Sized>(
   r: &mut R,
   delims: &[u8],
@@ -15,10 +20,21 @@ pub fn read_until_any<R: BufRead + ?Sized>(
         Err(e) => return Err(e),
       };
 
+      let start_delims = if read == 0 {
+        available
+          .iter()
+          .take_while(|&&b| delims.contains(&b))
+          .count()
+      } else {
+        0
+      };
+
       // NB: `memchr` crate would be faster, but it's unstable and not worth the dependency.
       let first_delim_index = available
         .iter()
-        .position(|b| delims.iter().any(|d| *d == *b));
+        .skip(start_delims)
+        .position(|&b| delims.contains(&b))
+        .map(|i| i + start_delims);
 
       match first_delim_index {
         Some(i) => {
@@ -33,7 +49,17 @@ pub fn read_until_any<R: BufRead + ?Sized>(
     };
     r.consume(used);
     read += used;
-    if done || used == 0 {
+
+    if done {
+      return Ok(read);
+    }
+
+    // Discard final trailing delimiters
+    if used == 0 && buf.iter().all(|&b| delims.contains(&b)) {
+      return Ok(0);
+    }
+
+    if used == 0 {
       return Ok(read);
     }
   }

@@ -1,2 +1,4 @@
 /target
-/Cargo.lock
+
+# git repo cloned by `cargo run --example whisper`:
+whisper.cpp

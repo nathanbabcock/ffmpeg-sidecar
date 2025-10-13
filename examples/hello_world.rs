@@ -1,4 +1,4 @@
-use ffmpeg_sidecar::{command::FfmpegCommand, event::FfmpegEvent};
+use ffmpeg_sidecar::command::FfmpegCommand;
 
 /// Iterates over the frames of a `testsrc`.
 ///
@@ -6,25 +6,18 @@ use ffmpeg_sidecar::{command::FfmpegCommand, event::FfmpegEvent};
 /// cargo run --example hello_world
 /// ```
 fn main() -> anyhow::Result<()> {
-  FfmpegCommand::new() // <- Builder API like `std::process::Command`
-    .testsrc() // <- Discoverable aliases for FFmpeg args
+  // Run an FFmpeg command that generates a test video
+  let iter = FfmpegCommand::new() // <- Builder API like `std::process::Command`
+    .testsrc()  // <- Discoverable aliases for FFmpeg args
     .rawvideo() // <- Convenient argument presets
-    .spawn()? // <- Uses an ordinary `std::process::Child`
-    .iter()? // <- Iterator over all log messages and video output
-    .for_each(|event: FfmpegEvent| {
-      match event {
-        FfmpegEvent::OutputFrame(frame) => {
-          println!("frame: {}x{}", frame.width, frame.height);
-          let _pixels: Vec<u8> = frame.data; // <- raw RGB pixels! 🎨
-        }
-        FfmpegEvent::Progress(progress) => {
-          eprintln!("Current speed: {}x", progress.speed); // <- parsed progress updates
-        }
-        FfmpegEvent::Log(_level, msg) => {
-          eprintln!("[ffmpeg] {}", msg); // <- granular log message from stderr
-        }
-        _ => {}
-      }
-    });
+    .spawn()?   // <- Ordinary `std::process::Child`
+    .iter()?;   // <- Blocking iterator over logs and output
+
+  // Use a regular "for" loop to read decoded video data
+  for frame in iter.filter_frames() {
+    println!("frame: {}x{}", frame.width, frame.height);
+    let _pixels: Vec<u8> = frame.data; // <- raw RGB pixels! 🎨
+  }
+
   Ok(())
 }

@@ -1,19 +1,16 @@
-use std::{
-  fs::{create_dir_all, read_dir, remove_dir_all, remove_file, rename},
-  io::Read,
-  path::{Path, PathBuf},
-  process::{Command, ExitStatus, Stdio},
-};
+//! Utilities for downloading and unpacking FFmpeg binaries.
 
-use anyhow::Context;
+use anyhow::Result;
 
-use crate::{command::ffmpeg_is_installed, paths::sidecar_dir};
+#[cfg(feature = "download_ffmpeg")]
+use std::path::{Path, PathBuf};
 
+/// The default directory name for unpacking a downloaded FFmpeg release archive.
 pub const UNPACK_DIRNAME: &str = "ffmpeg_release_temp";
 
 /// URL of a manifest file containing the latest published build of FFmpeg. The
 /// correct URL for the target platform is baked in at compile time.
-pub fn ffmpeg_manifest_url() -> anyhow::Result<&'static str> {
+pub fn ffmpeg_manifest_url() -> Result<&'static str> {
   if cfg!(not(target_arch = "x86_64")) {
     anyhow::bail!("Downloads must be manually provided for non-x86_64 architectures");
   }
@@ -31,17 +28,19 @@ pub fn ffmpeg_manifest_url() -> anyhow::Result<&'static str> {
 
 /// URL for the latest published FFmpeg release. The correct URL for the target
 /// platform is baked in at compile time.
-pub fn ffmpeg_download_url() -> anyhow::Result<&'static str> {
+pub fn ffmpeg_download_url() -> Result<&'static str> {
   if cfg!(all(target_os = "windows", target_arch = "x86_64")) {
     Ok("https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip")
   } else if cfg!(all(target_os = "windows", target_arch = "aarch64")) {
     Ok("https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip")
   } else if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
     Ok("https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz")
+  } else if cfg!(all(target_os = "linux", target_arch = "aarch64")) {
+    Ok("https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-arm64-static.tar.xz")
   } else if cfg!(all(target_os = "macos", target_arch = "x86_64")) {
-    Ok("https://evermeet.cx/ffmpeg/getrelease")
+    Ok("https://evermeet.cx/ffmpeg/getrelease/zip")
   } else if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
-    Ok("https://www.osxexperts.net/ffmpeg6arm.zip") // Mac M1
+    Ok("https://www.osxexperts.net/ffmpeg80arm.zip") // Mac M1
   } else {
     anyhow::bail!("Unsupported platform; you can provide your own URL instead and call download_ffmpeg_package directly.")
   }
@@ -53,7 +52,10 @@ pub fn ffmpeg_download_url() -> anyhow::Result<&'static str> {
 ///
 /// If FFmpeg is already installed, the method exits early without downloading
 /// anything.
-pub fn auto_download() -> anyhow::Result<()> {
+#[cfg(feature = "download_ffmpeg")]
+pub fn auto_download() -> Result<()> {
+  use crate::{command::ffmpeg_is_installed, paths::sidecar_dir};
+
   if ffmpeg_is_installed() {
     return Ok(());
   }
@@ -72,13 +74,13 @@ pub fn auto_download() -> anyhow::Result<()> {
 
 /// Parse the the MacOS version number from a JSON string manifest file.
 ///
-/// Example input: https://evermeet.cx/ffmpeg/info/ffmpeg/release
+/// Example input: <https://evermeet.cx/ffmpeg/info/ffmpeg/release>
 ///
 /// ```rust
 /// use ffmpeg_sidecar::download::parse_macos_version;
 /// let json_string = "{\"name\":\"ffmpeg\",\"type\":\"release\",\"version\":\"6.0\",...}";
 /// let parsed = parse_macos_version(&json_string).unwrap();
-/// assert!(parsed == "6.0");
+/// assert_eq!(parsed, "6.0");
 /// ```
 pub fn parse_macos_version(version: &str) -> Option<String> {
   version
@@ -92,13 +94,13 @@ pub fn parse_macos_version(version: &str) -> Option<String> {
 
 /// Parse the the Linux version number from a long manifest text file.
 ///
-/// Example input: https://johnvansickle.com/ffmpeg/release-readme.txt
+/// Example input: <https://johnvansickle.com/ffmpeg/release-readme.txt>
 ///
 /// ```rust
 /// use ffmpeg_sidecar::download::parse_linux_version;
 /// let json_string = "build: ffmpeg-5.1.1-amd64-static.tar.xz\nversion: 5.1.1\n\ngcc: 8.3.0";
 /// let parsed = parse_linux_version(&json_string).unwrap();
-/// assert!(parsed == "5.1.1");
+/// assert_eq!(parsed, "5.1.1");
 /// ```
 pub fn parse_linux_version(version: &str) -> Option<String> {
   version
@@ -109,37 +111,24 @@ pub fn parse_linux_version(version: &str) -> Option<String> {
     .map(|s| s.to_string())
 }
 
-/// Invoke cURL on the command line to download a file, returning it as a string.
-pub fn curl(url: &str) -> anyhow::Result<String> {
-  let mut child = Command::new("curl")
-    .args(["-L", url])
-    .stderr(Stdio::null())
-    .stdout(Stdio::piped())
-    .spawn()?;
-
-  let stdout = child
-    .stdout
-    .take()
-    .context("Failed to get stdout")?;
-
-  let mut string = String::new();
-  std::io::BufReader::new(stdout).read_to_string(&mut string)?;
-  Ok(string)
-}
-
-/// Invoke cURL on the command line to download a file, writing to a file.
-pub fn curl_to_file(url: &str, destination: &str) -> anyhow::Result<ExitStatus> {
-  Command::new("curl")
-    .args(["-L", url])
-    .args(["-o", destination])
-    .status()
-    .map_err(Into::into)
-}
-
 /// Makes an HTTP request to obtain the latest version available online,
 /// automatically choosing the correct URL for the current platform.
-pub fn check_latest_version() -> anyhow::Result<String> {
-  let string = curl(ffmpeg_manifest_url()?)?;
+#[cfg(feature = "download_ffmpeg")]
+pub fn check_latest_version() -> Result<String> {
+  use anyhow::Context;
+
+  // Mac M1 doesn't have a manifest URL, so match the version provided in `ffmpeg_download_url`
+  if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
+    return Ok("7.0".to_string());
+  }
+
+  let manifest_url = ffmpeg_manifest_url()?;
+  let string = ureq::get(manifest_url)
+    .call()
+    .context("Failed to GET the latest ffmpeg version")?
+    .body_mut()
+    .read_to_string()
+    .context("Failed to read response text")?;
 
   if cfg!(target_os = "windows") {
     Ok(string)
@@ -152,44 +141,64 @@ pub fn check_latest_version() -> anyhow::Result<String> {
   }
 }
 
-/// Invoke `curl` to download an archive (ZIP on windows, TAR on linux and mac)
-/// from the latest published release online.
-pub fn download_ffmpeg_package(url: &str, download_dir: &Path) -> anyhow::Result<PathBuf> {
+/// Make an HTTP request to download an archive from the latest published release online.
+#[cfg(feature = "download_ffmpeg")]
+pub fn download_ffmpeg_package(url: &str, download_dir: &Path) -> Result<PathBuf> {
+  use anyhow::Context;
+  use std::{fs::File, io::copy, path::Path};
+
   let filename = Path::new(url)
     .file_name()
     .context("Failed to get filename")?;
 
   let archive_path = download_dir.join(filename);
 
-  let archive_filename = archive_path
-    .to_str()
-    .context("invalid download path")?;
+  let mut response = ureq::get(url).call().context("Failed to download ffmpeg")?;
 
-  let exit_status = curl_to_file(url, archive_filename)?;
+  let mut file =
+    File::create(&archive_path).context("Failed to create file for ffmpeg download")?;
 
-  if !exit_status.success() {
-    anyhow::bail!("Failed to download ffmpeg");
-  }
+  copy(&mut response.body_mut().as_reader(), &mut file)
+    .context("Failed to write ffmpeg download to file")?;
 
   Ok(archive_path)
 }
 
 /// After downloading, unpacks the archive to a folder, moves the binaries to
 /// their final location, and deletes the archive and temporary folder.
-pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> anyhow::Result<()> {
+#[cfg(feature = "download_ffmpeg")]
+pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> Result<()> {
+  use anyhow::Context;
+  use std::{
+    fs::{create_dir_all, read_dir, remove_dir_all, remove_file, rename, File},
+    path::Path,
+  };
+
   let temp_dirname = UNPACK_DIRNAME;
   let temp_folder = binary_folder.join(temp_dirname);
   create_dir_all(&temp_folder)?;
 
-  // Extract archive
-  Command::new("tar")
-    .arg("-xf")
-    .arg(from_archive)
-    .current_dir(&temp_folder)
-    .status()?
-    .success()
-    .then_some(())
-    .context("Failed to unpack ffmpeg")?;
+  let file = File::open(from_archive).context("Failed to open archive file")?;
+
+  #[cfg(target_os = "linux")]
+  {
+    // Extracts .tar.xz file
+    let tar_xz = xz2::read::XzDecoder::new(file);
+    let mut archive = tar::Archive::new(tar_xz);
+
+    archive
+      .unpack(&temp_folder)
+      .context("Failed to unpack ffmpeg")?;
+  }
+
+  #[cfg(not(target_os = "linux"))]
+  {
+    // Extracts .zip file
+    let mut archive = zip::ZipArchive::new(file).context("Failed to read ZIP archive")?;
+    archive
+      .extract(&temp_folder)
+      .context("Failed to unpack ffmpeg")?;
+  }
 
   // Move binaries
   let (ffmpeg, ffplay, ffprobe) = if cfg!(target_os = "windows") {

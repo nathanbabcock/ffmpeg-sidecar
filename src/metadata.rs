@@ -1,12 +1,14 @@
-use crate::event::{AVStream, FfmpegEvent, FfmpegInput, FfmpegOutput};
+//! Information about an FFmpeg process and its streams.
+
+use crate::event::{FfmpegEvent, FfmpegInput, FfmpegOutput, Stream};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FfmpegMetadata {
   expected_output_streams: usize,
   pub outputs: Vec<FfmpegOutput>,
-  pub output_streams: Vec<AVStream>,
+  pub output_streams: Vec<Stream>,
   pub inputs: Vec<FfmpegInput>,
-  pub input_streams: Vec<AVStream>,
+  pub input_streams: Vec<Stream>,
 
   /// Whether all metadata from the parent process has been gathered into this struct
   completed: bool,

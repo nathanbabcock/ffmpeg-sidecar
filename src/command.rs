@@ -1,3 +1,5 @@
+//! Builder interface for FFmpeg commands.
+
 use crate::{child::FfmpegChild, paths::ffmpeg_path};
 use std::{
   ffi::OsStr,
@@ -83,9 +85,9 @@ impl FfmpegCommand {
   /// Alias for `-c:v` argument.
   ///
   /// Select an encoder (when used before an output file) or a decoder (when
-  /// used before an input file) for one or more streams. `codec` is the name of
-  /// a decoder/encoder or a special value copy (output only) to indicate that
-  /// the stream is not to be re-encoded.
+  /// used before an input file) for one or more video streams. `codec` is the
+  /// name of a decoder/encoder or a special value `copy`` (output only) to
+  /// indicate that the stream is not to be re-encoded.
   pub fn codec_video<S: AsRef<str>>(&mut self, codec: S) -> &mut Self {
     self.arg("-c:v");
     self.arg(codec.as_ref());
@@ -95,11 +97,23 @@ impl FfmpegCommand {
   /// Alias for `-c:a` argument.
   ///
   /// Select an encoder (when used before an output file) or a decoder (when
-  /// used before an input file) for one or more streams. `codec` is the name of
-  /// a decoder/encoder or a special value `copy` (output only) to indicate that
-  /// the stream is not to be re-encoded.
+  /// used before an input file) for one or more audio streams. `codec` is the
+  /// name of a decoder/encoder or a special value `copy` (output only) to
+  /// indicate that the stream is not to be re-encoded.
   pub fn codec_audio<S: AsRef<str>>(&mut self, codec: S) -> &mut Self {
     self.arg("-c:a");
+    self.arg(codec.as_ref());
+    self
+  }
+
+  /// Alias for `-c:s` argument.
+  ///
+  /// Select an encoder (when used before an output file) or a decoder (when
+  /// used before an input file) for one or more subtitle streams. `codec` is
+  /// the name of a decoder/encoder or a special value `copy` (output only) to
+  /// indicate that the stream is not to be re-encoded.
+  pub fn codec_subtitle<S: AsRef<str>>(&mut self, codec: S) -> &mut Self {
+    self.arg("-c:s");
     self.arg(codec.as_ref());
     self
   }
@@ -214,16 +228,15 @@ impl FfmpegCommand {
   ///
   /// Possible values depend on codec:
   ///   * 0-51 for h264 (default is 23), see [ffmpeg encoding guide for h264
-  /// for more details](https://trac.ffmpeg.org/wiki/Encode/H.264#crf)
+  ///     for more details](https://trac.ffmpeg.org/wiki/Encode/H.264#crf)
   ///   * 0-51 for h265 (default is 28), see [ffmpeg encoding guide for h265
-  /// for more details](https://trac.ffmpeg.org/wiki/Encode/H.265#ConstantRateFactorCRF)
+  ///     for more details](https://trac.ffmpeg.org/wiki/Encode/H.265#ConstantRateFactorCRF)
   ///   * 0-63 for vp9  (no default, 31 is recommended for 1080p HD video),
-  /// see [ffmpeg encoding guide for vp9 for more details](https://trac.ffmpeg.org/wiki/Encode/VP9#constrainedq)
+  ///     see [ffmpeg encoding guide for vp9 for more details](https://trac.ffmpeg.org/wiki/Encode/VP9#constrainedq)
   ///   * 0-63 for av1(libaom-av1) (no default), see [ffmpeg encoding guide
-  /// for libaom for more details](https://trac.ffmpeg.org/wiki/Encode/AV1#ConstantQuality)
+  ///     for libaom for more details](https://trac.ffmpeg.org/wiki/Encode/AV1#ConstantQuality)
   ///   * 0-63 for av1(libsvtav1) (default is 30), see [ffmpeg encoding guide
-  /// for svt-av1 for mode details](https://trac.ffmpeg.org/wiki/Encode/AV1#CRF)
-  ///
+  ///     for svt-av1 for mode details](https://trac.ffmpeg.org/wiki/Encode/AV1#CRF)
   pub fn crf(&mut self, crf: u32) -> &mut Self {
     self.arg("-crf:v");
     self.arg(crf.to_string());
@@ -300,7 +313,7 @@ impl FfmpegCommand {
   /// The format is `'wxh'` (default - same as source).
   pub fn size(&mut self, width: u32, height: u32) -> &mut Self {
     self.arg("-s");
-    self.arg(format!("{}x{}", width, height));
+    self.arg(format!("{width}x{height}"));
     self
   }
 
@@ -345,18 +358,18 @@ impl FfmpegCommand {
   /// - `none`: Do not use any hardware acceleration (the default).
   /// - `auto`: Automatically select the hardware acceleration method.
   /// - `vdpau`: Use VDPAU (Video Decode and Presentation API for Unix) hardware
-  /// acceleration.
+  ///   acceleration.
   /// - `dxva2`: Use DXVA2 (DirectX Video Acceleration) hardware acceleration.
   /// - `d3d11va`: Use D3D11VA (DirectX Video Acceleration) hardware
   ///   acceleration.
   /// - `vaapi`: Use VAAPI (Video Acceleration API) hardware acceleration.
   /// - `qsv`: Use the Intel QuickSync Video acceleration for video transcoding.
   ///   - Unlike most other values, this option does not enable accelerated
-  /// decoding (that is used automatically whenever a qsv decoder is selected),
-  /// but accelerated transcoding, without copying the frames into the system
-  /// memory.
+  ///     decoding (that is used automatically whenever a qsv decoder is selected),
+  ///     but accelerated transcoding, without copying the frames into the system
+  ///     memory.
   ///   - For it to work, both the decoder and the encoder must support QSV
-  /// acceleration and no filters must be used.
+  ///     acceleration and no filters must be used.
   ///
   /// This option has no effect if the selected hwaccel is not available or not
   /// supported by the chosen decoder.
@@ -529,7 +542,8 @@ impl FfmpegCommand {
   //// Preset argument sets for common use cases.
 
   /// Generate a procedural test video. Equivalent to `ffmpeg -f lavfi -i
-  /// testsrc=duration=10`.
+  /// testsrc=duration=10`. It also inherits defaults from the `testsrc` filter
+  /// in FFmpeg: `320x240` size and `25` fps.
   ///
   /// [FFmpeg `testsrc` filter
   /// documentation](https://ffmpeg.org/ffmpeg-filters.html#allrgb_002c-allyuv_002c-color_002c-colorchart_002c-colorspectrum_002c-haldclutsrc_002c-nullsrc_002c-pal75bars_002c-pal100bars_002c-rgbtestsrc_002c-smptebars_002c-smptehdbars_002c-testsrc_002c-testsrc2_002c-yuvtestsrc)
@@ -606,41 +620,70 @@ impl FfmpegCommand {
     self.inner.get_args()
   }
 
+  /// Appends `-n` (no overwrite) to the args list if needed.
+  /// The interactive "Would you like to overwrite?" prompt is problematic,
+  /// since it won't be parsed by the log parser and the process will appear
+  /// to hang indefinitely without any indication of what's happening.
+  fn prevent_overwrite_prompt(&mut self) -> &mut Self {
+    let is_overwrite_arg = |arg| arg == "-y" || arg == "-n" || arg == "-nostdin";
+    if !self.get_args().any(is_overwrite_arg) {
+      self.no_overwrite();
+    }
+    self
+  }
+
   /// Spawn the ffmpeg command as a child process, wrapping it in a
   /// `FfmpegChild` interface.
   ///
-  /// Please note that if the result is not used with [wait()](FfmpegChild::wait)
+  /// Please note that if the result is not used with [`wait()`](FfmpegChild::wait)
   /// the process is not cleaned up correctly resulting in a zombie process
   /// until your main thread exits.
   ///
   /// Identical to `spawn` in [`std::process::Command`].
   pub fn spawn(&mut self) -> io::Result<FfmpegChild> {
+    self.prevent_overwrite_prompt();
     self.inner.spawn().map(FfmpegChild::from_inner)
   }
 
   /// Print a command that can be copy-pasted to run in the terminal. Requires
   /// `&mut self` so that it chains seamlessly with other methods in the
-  /// interface.
+  /// interface. Sample output:
+  ///
+  /// ```sh
+  /// ffmpeg \
+  ///   -f lavfi \
+  ///   -i testsrc=duration=10 output/test.mp4
+  /// ```
   pub fn print_command(&mut self) -> &mut Self {
     let program = self.inner.get_program().to_str();
     let args = self
       .inner
       .get_args()
-      .map(|s| s.to_str())
-      .collect::<Option<Vec<_>>>();
-    if let (Some(program), Some(args)) = (program, args) {
-      println!("Command: {} {}", program, args.join(" "));
+      .filter_map(|s| {
+        s.to_str().map(|s| {
+          if s.starts_with('-') {
+            format!("\\\n  {s}")
+          } else {
+            s.to_owned()
+          }
+        })
+      })
+      .collect::<Vec<_>>();
+    if let Some(program) = program {
+      println!("{} {}", program, args.join(" "));
     }
 
     self
   }
 
   /// Disable creating a new console window for the spawned process on Windows.
-  /// Has no effect on other platforms. This can be useful when spawning FFmpeg
+  /// Has no effect on other platforms. This can be useful when spawning a command
   /// from a GUI program.
+  ///
+  /// This is called automatically in the constructor. To override, use
+  /// `CommandExt::creation_flags()` directly on the inner `Command`.
   pub fn create_no_window(&mut self) -> &mut Self {
-    #[cfg(target_os = "windows")]
-    std::os::windows::process::CommandExt::creation_flags(self.as_inner_mut(), 0x08000000);
+    self.as_inner_mut().create_no_window();
     self
   }
 
@@ -659,6 +702,7 @@ impl FfmpegCommand {
     // Configure `FfmpegCommand`
     let mut ffmpeg_command = Self { inner };
     ffmpeg_command.set_expected_loglevel();
+    ffmpeg_command.create_no_window();
     ffmpeg_command
   }
 
@@ -711,9 +755,25 @@ impl From<FfmpegCommand> for Command {
 pub fn ffmpeg_is_installed() -> bool {
   Command::new(ffmpeg_path())
     .arg("-version")
+    .create_no_window()
     .stderr(Stdio::null())
     .stdout(Stdio::null())
     .status()
     .map(|s| s.success())
     .unwrap_or_else(|_| false)
+}
+
+pub(crate) trait BackgroundCommand {
+  fn create_no_window(&mut self) -> &mut Self;
+}
+
+impl BackgroundCommand for Command {
+  /// Disable creating a new console window for the spawned process on Windows.
+  /// Has no effect on other platforms. This can be useful when spawning a command
+  /// from a GUI program.
+  fn create_no_window(&mut self) -> &mut Self {
+    #[cfg(target_os = "windows")]
+    std::os::windows::process::CommandExt::creation_flags(self, 0x08000000);
+    self
+  }
 }

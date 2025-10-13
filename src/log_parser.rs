@@ -1,13 +1,12 @@
-use std::{
-  io::{BufReader, Read},
-  str::from_utf8,
-};
+//! Internal methods for parsing FFmpeg CLI log output.
+
+use std::io::{BufReader, Read};
 
 use crate::{
   comma_iter::CommaIter,
   event::{
-    AVStream, FfmpegConfiguration, FfmpegDuration, FfmpegEvent, FfmpegInput, FfmpegOutput,
-    FfmpegProgress, FfmpegVersion, LogLevel,
+    AudioStream, FfmpegConfiguration, FfmpegDuration, FfmpegEvent, FfmpegInput, FfmpegOutput,
+    FfmpegProgress, FfmpegVersion, LogLevel, Stream, StreamTypeSpecificData, VideoStream,
   },
   read_until_any::read_until_any,
 };
@@ -39,8 +38,9 @@ impl<R: Read> FfmpegLogParser<R> {
   /// - `\r` (Windows, progress updates which overwrite the previous line)
   pub fn parse_next_event(&mut self) -> anyhow::Result<FfmpegEvent> {
     let mut buf = Vec::<u8>::new();
-    let bytes_read = read_until_any(&mut self.reader, &[b'\r', b'\n'], &mut buf);
-    let line = from_utf8(buf.as_slice())?.trim();
+    let bytes_read = read_until_any(&mut self.reader, b"\r\n", &mut buf);
+    let line_cow = String::from_utf8_lossy(buf.as_slice());
+    let line = line_cow.trim();
     let raw_log_message = line.to_string();
     match bytes_read? {
       0 => Ok(FfmpegEvent::LogEOF),
@@ -87,8 +87,7 @@ impl<R: Read> FfmpegLogParser<R> {
             LogSection::Input(_) => Ok(FfmpegEvent::ParsedInputStream(stream)),
             LogSection::Output(_) => Ok(FfmpegEvent::ParsedOutputStream(stream)),
             LogSection::Other | LogSection::StreamMapping => Err(anyhow::Error::msg(format!(
-              "Unexpected stream specification: {}",
-              line
+              "Unexpected stream specification: {line}"
             ))),
           }
         } else if let Some(progress) = try_parse_progress(line) {
@@ -266,80 +265,218 @@ pub fn try_parse_output(mut string: &str) -> Option<FfmpegOutput> {
   })
 }
 
-/// ## Example
+/// Parses a line that represents a stream.
 ///
-/// ### Input stream:
+/// ## Examples
+///
+/// ### Video
+///
+/// #### Input stream
 ///
 /// ```rust
 /// use ffmpeg_sidecar::log_parser::try_parse_stream;
 /// let line = "[info]   Stream #0:0: Video: wrapped_avframe, rgb24, 320x240 [SAR 1:1 DAR 4:3], 25 fps, 25 tbr, 25 tbn\n";
 /// let stream = try_parse_stream(line).unwrap();
 /// assert!(stream.format == "wrapped_avframe");
-/// assert!(stream.pix_fmt == "rgb24");
-/// assert!(stream.width == 320);
-/// assert!(stream.height == 240);
-/// assert!(stream.fps == 25.0);
+/// assert!(stream.language == "");
 /// assert!(stream.parent_index == 0);
-/// ```
+/// assert!(stream.stream_index == 0);
+/// assert!(stream.is_video());
+/// let video_data = stream.video_data().unwrap();
+/// assert!(video_data.pix_fmt == "rgb24");
+/// assert!(video_data.width == 320);
+/// assert!(video_data.height == 240);
+/// assert!(video_data.fps == 25.0);
+///  ```
 ///
-/// ### Output stream:
+///  #### Output stream
+///
+///  ```rust
+///  use ffmpeg_sidecar::log_parser::try_parse_stream;
+///  let line = "[info]   Stream #1:5(eng): Video: h264 (avc1 / 0x31637661), yuv444p(tv, progressive), 320x240 [SAR 1:1 DAR 4:3], q=2-31, 25 fps, 12800 tbn\n";
+///  let stream = try_parse_stream(line).unwrap();
+///  assert!(stream.format == "h264");
+///  assert!(stream.language == "eng");
+///  assert!(stream.parent_index == 1);
+///  assert!(stream.stream_index == 5);
+///  assert!(stream.is_video());
+///  let video_data = stream.video_data().unwrap();
+///  assert!(video_data.pix_fmt == "yuv444p");
+///  assert!(video_data.width == 320);
+///  assert!(video_data.height == 240);
+///  assert!(video_data.fps == 25.0);
+///  ```
+///
+/// ### Audio
+///
+/// #### Input Stream
 ///
 /// ```rust
 /// use ffmpeg_sidecar::log_parser::try_parse_stream;
-/// let line = "[info]   Stream #1:0: Video: h264 (avc1 / 0x31637661), yuv444p(tv, progressive), 320x240 [SAR 1:1 DAR 4:3], q=2-31, 25 fps, 12800 tbn\n";
+/// let line = "[info]   Stream #0:1(eng): Audio: opus, 48000 Hz, stereo, fltp (default)\n";
 /// let stream = try_parse_stream(line).unwrap();
-/// assert!(stream.format == "h264");
-/// assert!(stream.pix_fmt == "yuv444p");
-/// assert!(stream.width == 320);
-/// assert!(stream.height == 240);
-/// assert!(stream.fps == 25.0);
-/// assert!(stream.parent_index == 1);
+/// assert!(stream.format == "opus");
+/// assert!(stream.language == "eng");
+/// assert!(stream.parent_index == 0);
+/// assert!(stream.stream_index == 1);
+/// assert!(stream.is_audio());
+/// let audio_data = stream.audio_data().unwrap();
+/// assert!(audio_data.sample_rate == 48000);
+/// assert!(audio_data.channels == "stereo");
 /// ```
-///
-/// ### Audio output stream:
 ///
 /// ```rust
 /// use ffmpeg_sidecar::log_parser::try_parse_stream;
-/// let line = "[info]   Stream #0:1: Audio: mp2, 44100 Hz, mono, s16, 384 kb/s\n";
+/// let line = "[info]   Stream #3:10(ger): Audio: dts (DTS-HD MA), 48000 Hz, 7.1, s32p (24 bit)\n";
 /// let stream = try_parse_stream(line).unwrap();
-/// assert!(stream.stream_type == "Audio");
+/// assert!(stream.format == "dts");
+/// assert!(stream.language == "ger");
+/// assert!(stream.parent_index == 3);
+/// assert!(stream.stream_index == 10);
+/// assert!(stream.is_audio());
+/// let audio_data = stream.audio_data().unwrap();
+/// assert!(audio_data.sample_rate == 48000);
+/// assert!(audio_data.channels == "7.1");
 /// ```
 ///
-pub fn try_parse_stream(mut string: &str) -> Option<AVStream> {
+/// ### Output stream
+///
+/// ```rust
+/// use ffmpeg_sidecar::log_parser::try_parse_stream;
+/// let line = "[info]   Stream #10:1: Audio: mp2, 44100 Hz, mono, s16, 384 kb/s\n";
+/// let stream = try_parse_stream(line).unwrap();
+/// assert!(stream.format == "mp2");
+/// assert!(stream.language == "");
+/// assert!(stream.parent_index == 10);
+/// assert!(stream.stream_index == 1);
+/// assert!(stream.is_audio());
+/// let audio_data = stream.audio_data().unwrap();
+/// assert!(audio_data.sample_rate == 44100);
+/// assert!(audio_data.channels == "mono");
+/// ```
+///
+/// ### Subtitle
+///
+/// #### Input Stream
+///
+/// ```rust
+/// use ffmpeg_sidecar::log_parser::try_parse_stream;
+/// let line = "[info]   Stream #0:4(eng): Subtitle: ass (default) (forced)\n";
+/// let stream = try_parse_stream(line).unwrap();
+/// assert!(stream.format == "ass");
+/// assert!(stream.language == "eng");
+/// assert!(stream.parent_index == 0);
+/// assert!(stream.stream_index == 4);
+/// assert!(stream.is_subtitle());
+/// ```
+///
+/// ```rust
+/// use ffmpeg_sidecar::log_parser::try_parse_stream;
+/// let line = "[info]   Stream #0:13(dut): Subtitle: hdmv_pgs_subtitle, 1920x1080\n";
+/// let stream = try_parse_stream(line).unwrap();
+/// assert!(stream.format == "hdmv_pgs_subtitle");
+/// assert!(stream.language == "dut");
+/// assert!(stream.parent_index == 0);
+/// assert!(stream.stream_index == 13);
+/// assert!(stream.is_subtitle());
+/// ```
+/// ### Other
+///
+/// #### Input Stream
+///
+/// ```rust
+/// use ffmpeg_sidecar::log_parser::try_parse_stream;
+/// let line = "[info]   Stream #0:2(und): Data: none (rtp  / 0x20707472), 53 kb/s (default)\n";
+/// let stream = try_parse_stream(line).unwrap();
+/// assert!(stream.format == "none");
+/// assert!(stream.language == "und");
+/// assert!(stream.parent_index == 0);
+/// assert!(stream.stream_index == 2);
+/// assert!(stream.is_other());
+/// ```
+///
+/// ```rust
+/// use ffmpeg_sidecar::log_parser::try_parse_stream;
+/// let line = "[info]   Stream #0:2[0x3](eng): Data: bin_data (text / 0x74786574)\n";
+/// let stream = try_parse_stream(line).unwrap();
+/// assert!(stream.format == "bin_data");
+/// assert!(stream.language == "eng");
+/// assert!(stream.parent_index == 0);
+/// assert!(stream.stream_index == 2);
+/// assert!(stream.is_other());
+/// ```
+pub fn try_parse_stream(string: &str) -> Option<Stream> {
   let raw_log_message = string.to_string();
 
-  string = string
+  let string = string
     .strip_prefix("[info]")
     .unwrap_or(string)
     .trim()
     .strip_prefix("Stream #")?;
+  let mut comma_iter = CommaIter::new(string);
+  let mut colon_iter = comma_iter.next()?.split(':');
 
-  let mut colon_parts = string.split(':');
-  let parent_index = colon_parts.next()?.parse::<usize>().ok()?;
-  let stream_type = colon_parts.nth(1)?.trim().to_string();
-  if stream_type != "Video" {
-    // Audio is not well-supported yet (PRs welcome)
-    return Some(AVStream {
-      stream_type,
-      format: "unknown".into(),
-      pix_fmt: "unknown".into(),
-      width: 0,
-      height: 0,
-      fps: 0.0,
-      parent_index,
-      raw_log_message,
-    });
-  }
-  let comma_string = colon_parts.next()?.trim();
-  let mut comma_iter = CommaIter::new(comma_string);
+  let parent_index = colon_iter.next()?.parse::<u32>().ok()?;
 
-  let format = comma_iter
+  // Here handle pattern such as `2[0x3](eng)`
+  let indices_and_maybe_language = colon_iter
+    .next()?
+    // Remove everything inside and including square brackets
+    .split(['[', ']'])
+    .step_by(2)
+    .collect::<String>();
+  let mut parenthesis_iter = indices_and_maybe_language.split('(');
+  let stream_index = parenthesis_iter.next()?.trim().parse::<u32>().ok()?;
+  let language = parenthesis_iter.next().map_or("".to_string(), |lang| {
+    lang.trim_end_matches(')').to_string()
+  });
+
+  // Here handle pattern such as `Video: av1 (Main)`
+  let stream_type = colon_iter.next()?.trim();
+  let format = colon_iter
     .next()?
     .trim()
-    .split(&[' ', '(']) // trim trailing junk like " (avc1 / 0x31637661)"
+    .split(&[' ', '(']) // trim trailing junk like `(Main)`
     .next()?
     .to_string();
 
+  // For audio and video handle remaining string in specialized functions.
+  let type_specific_data: StreamTypeSpecificData = match stream_type {
+    "Audio" => try_parse_audio_stream(comma_iter)?,
+    "Subtitle" => StreamTypeSpecificData::Subtitle(),
+    "Video" => try_parse_video_stream(comma_iter)?,
+    _ => StreamTypeSpecificData::Other(),
+  };
+
+  Some(Stream {
+    format,
+    language,
+    parent_index,
+    stream_index,
+    raw_log_message,
+    type_specific_data,
+  })
+}
+
+/// Parses the log output part that is specific to audio streams.
+fn try_parse_audio_stream(mut comma_iter: CommaIter) -> Option<StreamTypeSpecificData> {
+  let sample_rate = comma_iter
+    .next()?
+    .split_whitespace()
+    .next()?
+    .parse::<u32>()
+    .ok()?;
+
+  let channels = comma_iter.next()?.trim().to_string();
+
+  Some(StreamTypeSpecificData::Audio(AudioStream {
+    sample_rate,
+    channels,
+  }))
+}
+
+/// Parses the log output part that is specific to video streams.
+fn try_parse_video_stream(mut comma_iter: CommaIter) -> Option<StreamTypeSpecificData> {
   let pix_fmt = comma_iter
     .next()?
     .trim()
@@ -352,27 +489,28 @@ pub fn try_parse_stream(mut string: &str) -> Option<AVStream> {
   let width = dims_iter.next()?.parse::<u32>().ok()?;
   let height = dims_iter.next()?.parse::<u32>().ok()?;
 
-  let fps = string
-    .split("fps,")
-    .next()?
-    .split_whitespace()
-    .last()?
-    .parse()
-    .ok()?;
+  // FPS does not have to be the next part, so we iterate until we find it. There is nothing else we
+  // are interested in at this point, so its OK to skip anything in-between.
+  let fps = comma_iter
+    .find_map(|part| {
+      if part.trim().ends_with("fps") {
+        part.split_whitespace().next()
+      } else {
+        None
+      }
+    })
+    .and_then(|fps_str| fps_str.parse::<f32>().ok())?;
 
-  Some(AVStream {
-    stream_type,
-    parent_index,
-    format,
+  Some(StreamTypeSpecificData::Video(VideoStream {
     pix_fmt,
     width,
     height,
     fps,
-    raw_log_message,
-  })
+  }))
 }
 
 /// Parse a progress update line from ffmpeg.
+/// For audio-only progress events, the `frame`, `fps`, and `q` fields will be `0`.
 ///
 /// ## Example
 /// ```rust
@@ -394,25 +532,22 @@ pub fn try_parse_progress(mut string: &str) -> Option<FfmpegProgress> {
 
   let frame = string
     .split("frame=")
-    .nth(1)?
-    .split_whitespace()
-    .next()?
-    .parse::<u32>()
-    .ok()?;
+    .nth(1)
+    .and_then(|s| s.split_whitespace().next())
+    .and_then(|s| s.parse::<u32>().ok())
+    .unwrap_or(0);
   let fps = string
     .split("fps=")
-    .nth(1)?
-    .split_whitespace()
-    .next()?
-    .parse::<f32>()
-    .ok()?;
+    .nth(1)
+    .and_then(|s| s.split_whitespace().next())
+    .and_then(|s| s.parse::<f32>().ok())
+    .unwrap_or(0.0);
   let q = string
     .split("q=")
-    .nth(1)?
-    .split_whitespace()
-    .next()?
-    .parse::<f32>()
-    .ok()?;
+    .nth(1)
+    .and_then(|s| s.split_whitespace().next())
+    .and_then(|s| s.parse::<f32>().ok())
+    .unwrap_or(0.0);
   let size_kb = string
     .split("size=") // captures "Lsize=" AND "size="
     .nth(1)?
@@ -422,6 +557,7 @@ pub fn try_parse_progress(mut string: &str) -> Option<FfmpegProgress> {
     .and_then(|s| {
       s.strip_suffix("KiB") // FFmpeg v7.0 and later
         .or_else(|| s.strip_suffix("kB")) // FFmpeg v6.0 and prior
+        .or_else(|| s.ends_with("N/A").then_some("0")) // handles "N/A"
     })?
     .parse::<u32>()
     .ok()?;
@@ -437,9 +573,9 @@ pub fn try_parse_progress(mut string: &str) -> Option<FfmpegProgress> {
     .split_whitespace()
     .next()?
     .trim()
-    .strip_suffix("kbits/s")?
+    .replace("kbits/s", "")
     .parse::<f32>()
-    .ok()?;
+    .unwrap_or(0.0); // handles "N/A"
   let speed = string
     .split("speed=")
     .nth(1)?
@@ -499,7 +635,7 @@ pub fn parse_time_str(str: &str) -> Option<f64> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::paths::ffmpeg_path;
+  use crate::{command::BackgroundCommand, paths::ffmpeg_path};
   use std::{
     io::{Cursor, Seek, SeekFrom, Write},
     process::{Command, Stdio},
@@ -508,6 +644,7 @@ mod tests {
   #[test]
   fn test_parse_version() {
     let cmd = Command::new(ffmpeg_path())
+      .create_no_window()
       .arg("-version")
       .stdout(Stdio::piped())
       // ⚠ notice that ffmpeg emits on stdout when `-version` or `-help` is passed!
@@ -527,6 +664,7 @@ mod tests {
   #[test]
   fn test_parse_configuration() {
     let cmd = Command::new(ffmpeg_path())
+      .create_no_window()
       .arg("-version")
       .stdout(Stdio::piped())
       // ⚠ notice that ffmpeg emits on stdout when `-version` or `-help` is passed!
@@ -572,12 +710,73 @@ mod tests {
   fn test_parse_progress_v7() {
     let line = "[info] frame=    5 fps=0.0 q=-1.0 Lsize=      10KiB time=00:00:03.00 bitrate=  27.2kbits/s speed= 283x\n";
     let progress = try_parse_progress(line).unwrap();
-    assert!(progress.frame == 5);
+    assert_eq!(progress.frame, 5);
+    assert_eq!(progress.fps, 0.0);
+    assert_eq!(progress.q, -1.0);
+    assert_eq!(progress.size_kb, 10);
+    assert_eq!(progress.time, "00:00:03.00");
+    assert_eq!(progress.bitrate_kbps, 27.2);
+    assert_eq!(progress.speed, 283.0);
+  }
+
+  /// Check for handling first progress message w/ bitrate=N/A and speed=N/A
+  /// These never appeared on Windows but showed up on Ubuntu and MacOS
+  #[test]
+  fn test_parse_progress_empty() {
+    let line =
+      "[info] frame=    0 fps=0.0 q=-0.0 size=       0kB time=00:00:00.00 bitrate=N/A speed=N/A\n";
+    let progress = try_parse_progress(line).unwrap();
+    assert_eq!(progress.frame, 0);
+    assert_eq!(progress.fps, 0.0);
+    assert_eq!(progress.q, -0.0);
+    assert_eq!(progress.size_kb, 0);
+    assert_eq!(progress.time, "00:00:00.00");
+    assert_eq!(progress.bitrate_kbps, 0.0);
+    assert_eq!(progress.speed, 0.0);
+  }
+
+  /// Check for handling progress message with no size.
+  /// These can occur when exporting frames to image files (i.e. jpeg).
+  #[test]
+  fn test_parse_progress_no_size() {
+    let line = "[info] frame=  163 fps= 13 q=4.4 size=N/A time=00:13:35.00 bitrate=N/A speed=64.7x";
+    let progress = try_parse_progress(line).unwrap();
+    assert_eq!(progress.frame, 163);
+    assert_eq!(progress.fps, 13.0);
+    assert_eq!(progress.q, 4.4);
+    assert_eq!(progress.size_kb, 0);
+    assert_eq!(progress.time, "00:13:35.00");
+    assert_eq!(progress.bitrate_kbps, 0.0);
+    assert_eq!(progress.speed, 64.7);
+  }
+
+  /// Coverage for non-utf-8 bytes: https://github.com/nathanbabcock/ffmpeg-sidecar/issues/67
+  #[test]
+  fn test_non_utf8() -> anyhow::Result<()> {
+    // Create a dummy stderr stream with non-utf8 bytes
+    let mut cursor = Cursor::new(Vec::new());
+    cursor
+      .write_all(b"[info] \x80\x81\x82\x83\x84\x85\x86\x87\x88\x89\n")
+      .unwrap();
+    cursor.seek(SeekFrom::Start(0)).unwrap();
+
+    let event = FfmpegLogParser::new(cursor).parse_next_event()?;
+
+    assert!(matches!(event, FfmpegEvent::Log(LogLevel::Info, _)));
+
+    Ok(())
+  }
+
+  #[test]
+  fn test_audio_progress() {
+    let line = "[info] size=      66kB time=00:00:02.21 bitrate= 245.0kbits/s speed=1.07x\n";
+    let progress = try_parse_progress(line).unwrap();
+    assert!(progress.frame == 0);
     assert!(progress.fps == 0.0);
-    assert!(progress.q == -1.0);
-    assert!(progress.size_kb == 10);
-    assert!(progress.time == "00:00:03.00");
-    assert!(progress.bitrate_kbps == 27.2);
-    assert!(progress.speed == 283.0);
+    assert!(progress.q == 0.0);
+    assert!(progress.size_kb == 66);
+    assert!(progress.time == "00:00:02.21");
+    assert!(progress.bitrate_kbps == 245.0);
+    assert!(progress.speed == 1.07);
   }
 }

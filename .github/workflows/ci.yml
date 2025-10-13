@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - 'main'
+  pull_request:
+    branches:
+      - 'main'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows-latest
+          - ubuntu-latest
+          - ubuntu-24.04-arm
+          - macos-14 # Mac M1 (ARM64)
+          - macos-15-intel # (x86_64)
+
+    env:
+      CARGO_TERM_COLOR: always
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: rustup toolchain install stable --profile minimal
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Download FFmpeg
+        run: cargo run --example download_ffmpeg -- ../deps
+
+      - name: Build
+        run: cargo build --verbose
+
+      - name: Check without default features
+        run: cargo check --no-default-features
+
+      - name: Run tests
+        run: cargo test --all-targets --all-features --examples --verbose

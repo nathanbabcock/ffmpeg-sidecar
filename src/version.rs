@@ -1,10 +1,9 @@
+//! Utilities for checking local FFmpeg version string.
+
 use anyhow::Context;
 
-use crate::{
-  event::FfmpegEvent,
-  log_parser::FfmpegLogParser,
-  paths::ffmpeg_path,
-};
+use crate::command::BackgroundCommand;
+use crate::{event::FfmpegEvent, log_parser::FfmpegLogParser, paths::ffmpeg_path};
 use std::ffi::OsStr;
 use std::process::{Command, Stdio};
 
@@ -13,10 +12,11 @@ pub fn ffmpeg_version() -> anyhow::Result<String> {
   ffmpeg_version_with_path(ffmpeg_path())
 }
 
-/// Lower level variant of `ffmpeg_version` that exposes a customized the path
+/// Lower level variant of `ffmpeg_version` that exposes a customized path
 /// to the ffmpeg binary.
 pub fn ffmpeg_version_with_path<S: AsRef<OsStr>>(path: S) -> anyhow::Result<String> {
   let mut cmd = Command::new(&path)
+    .create_no_window()
     .arg("-version")
     .stdout(Stdio::piped()) // not stderr when calling `-version`
     .spawn()?;

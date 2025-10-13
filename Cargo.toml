@@ -1,7 +1,8 @@
 [package]
 name = "ffmpeg-sidecar"
-version = "1.1.0"
+version = "2.2.0"
 edition = "2021"
+rust-version = "1.79"
 description = "Wrap a standalone FFmpeg binary in an intuitive Iterator interface."
 authors = ["Nathan Babcock <nathan.r.babcock@gmail.com>"]
 categories = ["multimedia"]
@@ -14,4 +15,33 @@ license = "MIT"
 crate-type = ["lib"]
 
 [dependencies]
-anyhow = "1.0.79"
+anyhow = "1.0.99"
+ureq = { version = "3.1.0", optional = true }
+
+[features]
+default = ["download_ffmpeg"]
+download_ffmpeg = ["dep:ureq", "dep:tar", "dep:xz2", "dep:zip"]
+named_pipes = ["dep:winapi", "dep:nix"]
+
+[target.'cfg(target_os = "linux")'.dependencies]
+tar = { version = "0.4.44", optional = true }
+xz2 = { version = "0.1.7", optional = true }
+
+[target.'cfg(not(target_os = "linux"))'.dependencies]
+zip = { version = "4.3.0", optional = true, default-features = false, features = [
+  "deflate",
+] }
+
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3.9", optional = true, features = [
+  "winbase",
+  "handleapi",
+  "namedpipeapi",
+] }
+
+[target.'cfg(unix)'.dependencies]
+nix = { version = "0.30.1", optional = true, features = ["fs"] }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
