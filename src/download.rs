@@ -117,7 +117,10 @@ pub fn curl(url: &str) -> anyhow::Result<String> {
     .stdout(Stdio::piped())
     .spawn()?;
 
-  let stdout = child.stdout.take().context("Failed to get stdout")?;
+  let stdout = child
+    .stdout
+    .take()
+    .context("Failed to get stdout")?;
 
   let mut string = String::new();
   std::io::BufReader::new(stdout).read_to_string(&mut string)?;
@@ -158,7 +161,9 @@ pub fn download_ffmpeg_package(url: &str, download_dir: &Path) -> anyhow::Result
 
   let archive_path = download_dir.join(filename);
 
-  let archive_filename = archive_path.to_str().context("invalid download path")?;
+  let archive_filename = archive_path
+    .to_str()
+    .context("invalid download path")?;
 
   let exit_status = curl_to_file(url, archive_filename)?;
 
@@ -247,3 +252,4 @@ pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> anyhow::Re
 
   Ok(())
 }
+
