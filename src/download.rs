@@ -123,11 +123,9 @@ pub fn check_latest_version() -> Result<String> {
   }
 
   let manifest_url = ffmpeg_manifest_url()?;
-  let string = ureq::get(manifest_url)
-    .call()
+  let string = reqwest::blocking::get(manifest_url)
     .context("Failed to GET the latest ffmpeg version")?
-    .body_mut()
-    .read_to_string()
+    .text()
     .context("Failed to read response text")?;
 
   if cfg!(target_os = "windows") {
@@ -153,12 +151,15 @@ pub fn download_ffmpeg_package(url: &str, download_dir: &Path) -> Result<PathBuf
 
   let archive_path = download_dir.join(filename);
 
-  let mut response = ureq::get(url).call().context("Failed to download ffmpeg")?;
+  let response = reqwest::blocking::get(url)
+    .context("Failed to download ffmpeg")?
+    .bytes()
+    .context("Failed to get response bytes")?;
 
   let mut file =
     File::create(&archive_path).context("Failed to create file for ffmpeg download")?;
 
-  copy(&mut response.body_mut().as_reader(), &mut file)
+  std::io::copy(&mut response.as_ref(), &mut file)
     .context("Failed to write ffmpeg download to file")?;
 
   Ok(archive_path)
