@@ -16,11 +16,11 @@ crate-type = ["lib"]
 
 [dependencies]
 anyhow = "1.0.99"
-reqwest = { version = "0.12", optional = true, default-features = false, features = ["blocking", "rustls-tls"] }
+ureq = { version = "3.1.0", optional = true }
 
 [features]
 default = ["download_ffmpeg"]
-download_ffmpeg = ["dep:reqwest", "dep:tar", "dep:xz2", "dep:zip"]
+download_ffmpeg = ["dep:ureq", "dep:tar", "dep:xz2", "dep:zip"]
 named_pipes = ["dep:winapi", "dep:nix"]
 
 [target.'cfg(target_os = "linux")'.dependencies]
