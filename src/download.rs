@@ -31,6 +31,8 @@ pub fn ffmpeg_manifest_url() -> Result<&'static str> {
 pub fn ffmpeg_download_url() -> Result<&'static str> {
   if cfg!(all(target_os = "windows", target_arch = "x86_64")) {
     Ok("https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip")
+  } else if cfg!(all(target_os = "windows", target_arch = "aarch64")) {
+    Ok("https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip")
   } else if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
     Ok("https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz")
   } else if cfg!(all(target_os = "linux", target_arch = "aarch64")) {
@@ -259,3 +261,4 @@ pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> Result<()>
 
   Ok(())
 }
+
