@@ -10,6 +10,7 @@ use crate::{
   },
   read_until_any::read_until_any,
 };
+use crate::ffmpeg_time_duration::FfmpegTimeDuration;
 
 #[derive(Debug, Clone, PartialEq)]
 enum LogSection {
@@ -217,7 +218,8 @@ pub fn try_parse_duration(string: &str) -> Option<f64> {
     .trim()
     .split(',')
     .next()
-    .and_then(parse_time_str)
+    .and_then(FfmpegTimeDuration::from_str)
+    .map(FfmpegTimeDuration::as_seconds)
 }
 
 /// Parse an output section like the following, extracting the index of the input:
@@ -614,22 +616,7 @@ pub fn try_parse_progress(mut string: &str) -> Option<FfmpegProgress> {
 /// assert!(parse_time_str("N/A") == None);
 /// ```
 pub fn parse_time_str(str: &str) -> Option<f64> {
-  let mut seconds = 0.0;
-
-  let mut smh = str.split(':').rev();
-  if let Some(sec) = smh.next() {
-    seconds += sec.parse::<f64>().ok()?;
-  }
-
-  if let Some(min) = smh.next() {
-    seconds += min.parse::<f64>().ok()? * 60.0;
-  }
-
-  if let Some(hrs) = smh.next() {
-    seconds += hrs.parse::<f64>().ok()? * 60.0 * 60.0;
-  }
-
-  Some(seconds)
+  FfmpegTimeDuration::from_str(str).map(FfmpegTimeDuration::as_seconds)
 }
 
 #[cfg(test)]
