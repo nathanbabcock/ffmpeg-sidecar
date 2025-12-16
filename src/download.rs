@@ -72,6 +72,49 @@ pub fn auto_download() -> Result<()> {
   Ok(())
 }
 
+pub enum FfmpegDownloadProgressEvent {
+  Starting,
+  Downloading {
+    total_bytes: u64,
+    downloaded_bytes: u64,
+  },
+  UnpackingArchive,
+  Done,
+}
+
+/// Check if FFmpeg is installed, and if it's not, download and unpack it.
+/// Automatically selects the correct binaries for Windows, Linux, and MacOS.
+/// The binaries will be placed in the same directory as the Rust executable.
+///
+/// Provides progress tracking via callback.
+///
+/// If FFmpeg is already installed, the method exits early without downloading
+/// anything.
+#[cfg(feature = "download_ffmpeg")]
+pub fn auto_download_with_progress(
+  progress_callback: impl Fn(FfmpegDownloadProgressEvent),
+) -> Result<()> {
+  use crate::{command::ffmpeg_is_installed, paths::sidecar_dir};
+
+  if ffmpeg_is_installed() {
+    return Ok(());
+  }
+
+  progress_callback(FfmpegDownloadProgressEvent::Starting);
+  let download_url = ffmpeg_download_url()?;
+  let destination = sidecar_dir()?;
+  let archive_path = download_ffmpeg_package_with_progress(download_url, &destination, |e| progress_callback(e))?;
+  progress_callback(FfmpegDownloadProgressEvent::UnpackingArchive);
+  unpack_ffmpeg(&archive_path, &destination)?;
+  progress_callback(FfmpegDownloadProgressEvent::Done);
+
+  if !ffmpeg_is_installed() {
+    anyhow::bail!("FFmpeg failed to install, please install manually.");
+  }
+
+  Ok(())
+}
+
 /// Parse the the MacOS version number from a JSON string manifest file.
 ///
 /// Example input: <https://evermeet.cx/ffmpeg/info/ffmpeg/release>
@@ -160,6 +203,70 @@ pub fn download_ffmpeg_package(url: &str, download_dir: &Path) -> Result<PathBuf
 
   copy(&mut response.body_mut().as_reader(), &mut file)
     .context("Failed to write ffmpeg download to file")?;
+
+  Ok(archive_path)
+}
+
+/// Make an HTTP request to download an archive from the latest published release online with progress tracking.
+#[cfg(feature = "download_ffmpeg")]
+pub fn download_ffmpeg_package_with_progress(
+  url: &str,
+  download_dir: &Path,
+  progress_callback: impl Fn(FfmpegDownloadProgressEvent),
+) -> Result<PathBuf> {
+  use anyhow::Context;
+  use std::{
+    fs::File,
+    io::{copy, Read},
+    path::Path,
+  };
+
+  let filename = Path::new(url)
+    .file_name()
+    .context("Failed to get filename")?;
+
+  let archive_path = download_dir.join(filename);
+
+  let mut response = ureq::get(url).call().context("Failed to download ffmpeg")?;
+
+  let total_size = response
+    .headers()
+    .get("Content-Length")
+    .and_then(|s| s.to_str().ok())
+    .and_then(|s| s.parse::<u64>().ok())
+    .unwrap_or(0);
+
+  let mut file =
+    File::create(&archive_path).context("Failed to create file for ffmpeg download")?;
+
+  // Wrapper to track progress during io::copy
+  struct ProgressReader<R, F> {
+    inner: R,
+    progress_callback: F,
+    downloaded: u64,
+    total: u64,
+  }
+
+  impl<R: Read, F: Fn(FfmpegDownloadProgressEvent)> Read for ProgressReader<R, F> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+      let n = self.inner.read(buf)?;
+      self.downloaded += n as u64;
+      (self.progress_callback)(FfmpegDownloadProgressEvent::Downloading {
+        total_bytes: self.total,
+        downloaded_bytes: self.downloaded,
+      });
+      Ok(n)
+    }
+  }
+
+  let mut progress_reader = ProgressReader {
+    inner: response.body_mut().as_reader(),
+    progress_callback,
+    downloaded: 0,
+    total: total_size,
+  };
+
+  copy(&mut progress_reader, &mut file).context("Failed to write ffmpeg download to file")?;
 
   Ok(archive_path)
 }
