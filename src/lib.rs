@@ -40,7 +40,7 @@ pub mod paths;
 pub mod pix_fmt;
 pub mod read_until_any;
 pub mod version;
-
+pub mod ffmpeg_time_duration;
 #[cfg(feature = "named_pipes")]
 #[cfg_attr(docsrs, doc(cfg(feature = "named_pipes")))]
 pub mod named_pipes;
