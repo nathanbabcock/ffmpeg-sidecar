@@ -44,7 +44,7 @@ fn main() -> anyhow::Result<()> {
 
   // Extraction uses `tar` on all platforms (available in Windows since version 1803)
   println!("Extracting...");
-  unpack_ffmpeg(&archive_path, &destination)?;
+  unpack_ffmpeg(&archive_path, &destination, false)?;
 
   // Use the freshly installed FFmpeg to check the version number
   let version = ffmpeg_version_with_path(destination.join("ffmpeg"))?;
