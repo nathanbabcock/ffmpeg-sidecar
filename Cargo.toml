@@ -24,7 +24,7 @@ download_ffmpeg = ["dep:ureq", "dep:tar", "dep:xz2", "dep:zip"]
 named_pipes = ["dep:winapi", "dep:nix"]
 
 [target.'cfg(target_os = "linux")'.dependencies]
-tar = { version = "0.4.44", optional = true }
+tar = { version = "0.4.45", optional = true }
 xz2 = { version = "0.1.7", optional = true }
 
 [target.'cfg(not(target_os = "linux"))'.dependencies]
