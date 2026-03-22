@@ -56,6 +56,10 @@ pub fn ffmpeg_download_url() -> Result<&'static str> {
 pub fn auto_download() -> Result<()> {
   use crate::{command::ffmpeg_is_installed, paths::sidecar_dir};
 
+  let keep_only_ffmpeg = std::env::var("KEEP_ONLY_FFMPEG")
+    .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+    .unwrap_or(false);
+
   if ffmpeg_is_installed() {
     return Ok(());
   }
@@ -63,7 +67,7 @@ pub fn auto_download() -> Result<()> {
   let download_url = ffmpeg_download_url()?;
   let destination = sidecar_dir()?;
   let archive_path = download_ffmpeg_package(download_url, &destination)?;
-  unpack_ffmpeg(&archive_path, &destination)?;
+  unpack_ffmpeg(&archive_path, &destination, keep_only_ffmpeg)?;
 
   if !ffmpeg_is_installed() {
     anyhow::bail!("FFmpeg failed to install, please install manually.");
@@ -96,6 +100,10 @@ pub fn auto_download_with_progress(
 ) -> Result<()> {
   use crate::{command::ffmpeg_is_installed, paths::sidecar_dir};
 
+  let keep_only_ffmpeg = std::env::var("KEEP_ONLY_FFMPEG")
+    .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+    .unwrap_or(false);
+
   if ffmpeg_is_installed() {
     return Ok(());
   }
@@ -105,7 +113,7 @@ pub fn auto_download_with_progress(
   let destination = sidecar_dir()?;
   let archive_path = download_ffmpeg_package_with_progress(download_url, &destination, |e| progress_callback(e))?;
   progress_callback(FfmpegDownloadProgressEvent::UnpackingArchive);
-  unpack_ffmpeg(&archive_path, &destination)?;
+  unpack_ffmpeg(&archive_path, &destination, keep_only_ffmpeg)?;
   progress_callback(FfmpegDownloadProgressEvent::Done);
 
   if !ffmpeg_is_installed() {
@@ -274,7 +282,7 @@ pub fn download_ffmpeg_package_with_progress(
 /// After downloading, unpacks the archive to a folder, moves the binaries to
 /// their final location, and deletes the archive and temporary folder.
 #[cfg(feature = "download_ffmpeg")]
-pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> Result<()> {
+pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path, keep_only_ffmpeg: bool) -> Result<()> {
   use anyhow::Context;
   use std::{
     fs::{create_dir_all, read_dir, remove_dir_all, remove_file, rename, File},
@@ -349,11 +357,11 @@ pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> Result<()>
 
   move_bin(&ffmpeg)?;
 
-  if ffprobe.exists() {
+  if !keep_only_ffmpeg && ffprobe.exists() {
     move_bin(&ffprobe)?;
   }
 
-  if ffplay.exists() {
+  if !keep_only_ffmpeg && ffplay.exists() {
     move_bin(&ffplay)?;
   }
 

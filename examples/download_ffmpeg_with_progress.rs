@@ -59,7 +59,7 @@ pub fn force_download_with_progress(
   let archive_path =
     download_ffmpeg_package_with_progress(download_url, &destination, |e| progress_callback(e))?;
   progress_callback(FfmpegDownloadProgressEvent::UnpackingArchive);
-  unpack_ffmpeg(&archive_path, &destination)?;
+  unpack_ffmpeg(&archive_path, &destination, false)?;
   progress_callback(FfmpegDownloadProgressEvent::Done);
 
   if !ffmpeg_is_installed() {
