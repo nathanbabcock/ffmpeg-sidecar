@@ -2,11 +2,14 @@
 fn main() -> anyhow::Result<()> {
   use ffmpeg_sidecar::{
     command::ffmpeg_is_installed,
-    download::{check_latest_version, download_ffmpeg_package, ffmpeg_download_url, unpack_ffmpeg},
+    download::{
+      check_latest_version, download_ffmpeg_package, ffmpeg_download_url, unpack_ffmpeg,
+      unpack_ffmpeg_without_extras,
+    },
     paths::sidecar_dir,
     version::ffmpeg_version_with_path,
   };
-  use std::env::current_exe;
+  use std::env::{current_exe, var};
 
   if ffmpeg_is_installed() {
     println!("FFmpeg is already installed! 🎉");
@@ -44,7 +47,16 @@ fn main() -> anyhow::Result<()> {
 
   // Extraction uses `tar` on all platforms (available in Windows since version 1803)
   println!("Extracting...");
-  unpack_ffmpeg(&archive_path, &destination)?;
+  let keep_only_ffmpeg = var("KEEP_ONLY_FFMPEG")
+    .map(|value| value == "1" || value.eq_ignore_ascii_case("true"))
+    .unwrap_or(false);
+
+  if keep_only_ffmpeg {
+    println!("KEEP_ONLY_FFMPEG is set, skipping ffplay and ffprobe.");
+    unpack_ffmpeg_without_extras(&archive_path, &destination)?;
+  } else {
+    unpack_ffmpeg(&archive_path, &destination)?;
+  }
 
   // Use the freshly installed FFmpeg to check the version number
   let version = ffmpeg_version_with_path(destination.join("ffmpeg"))?;

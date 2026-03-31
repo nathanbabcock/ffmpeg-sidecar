@@ -81,6 +81,13 @@ ffmpeg_sidecar::download::auto_download().unwrap();
 You can do this once to set up your dev environment, or include it as a feature
 of your client application.
 
+To skip installing `ffplay` and `ffprobe` during autodownload, set the
+`KEEP_ONLY_FFMPEG` environment variable to `1` or `true` before calling
+`auto_download()` or `auto_download_with_progress()`.
+
+If you're handling extraction yourself, use
+`ffmpeg_sidecar::download::unpack_ffmpeg_without_extras(...)`.
+
 > To customize or extend the download, see [`/examples/download_ffmpeg.rs`](/examples/download_ffmpeg.rs).
 
 ## Examples
