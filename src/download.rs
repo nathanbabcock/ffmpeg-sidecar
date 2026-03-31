@@ -7,7 +7,12 @@ use std::path::{Path, PathBuf};
 
 #[cfg(feature = "download_ffmpeg")]
 fn keep_only_ffmpeg_from_env() -> bool {
-  std::env::var("KEEP_ONLY_FFMPEG")
+  keep_only_ffmpeg_from_value(std::env::var("KEEP_ONLY_FFMPEG").ok().as_deref())
+}
+
+#[cfg(feature = "download_ffmpeg")]
+fn keep_only_ffmpeg_from_value(value: Option<&str>) -> bool {
+  value
     .map(|value| value == "1" || value.eq_ignore_ascii_case("true"))
     .unwrap_or(false)
 }
@@ -408,57 +413,24 @@ fn unpack_ffmpeg_internal(
 
 #[cfg(all(test, feature = "download_ffmpeg"))]
 mod tests {
-  use super::keep_only_ffmpeg_from_env;
+  use super::keep_only_ffmpeg_from_value;
 
   #[test]
-  fn keep_only_ffmpeg_env_defaults_to_false() {
-    let previous = std::env::var("KEEP_ONLY_FFMPEG").ok();
-    unsafe {
-      std::env::remove_var("KEEP_ONLY_FFMPEG");
-    }
-
-    assert!(!keep_only_ffmpeg_from_env());
-
-    restore_env(previous);
+  fn keep_only_ffmpeg_value_defaults_to_false() {
+    assert!(!keep_only_ffmpeg_from_value(None));
   }
 
   #[test]
-  fn keep_only_ffmpeg_env_accepts_true_values() {
-    let previous = std::env::var("KEEP_ONLY_FFMPEG").ok();
-
-    unsafe {
-      std::env::set_var("KEEP_ONLY_FFMPEG", "true");
-    }
-    assert!(keep_only_ffmpeg_from_env());
-
-    unsafe {
-      std::env::set_var("KEEP_ONLY_FFMPEG", "1");
-    }
-    assert!(keep_only_ffmpeg_from_env());
-
-    restore_env(previous);
+  fn keep_only_ffmpeg_value_accepts_true_values() {
+    assert!(keep_only_ffmpeg_from_value(Some("true")));
+    assert!(keep_only_ffmpeg_from_value(Some("TRUE")));
+    assert!(keep_only_ffmpeg_from_value(Some("1")));
   }
 
   #[test]
-  fn keep_only_ffmpeg_env_rejects_other_values() {
-    let previous = std::env::var("KEEP_ONLY_FFMPEG").ok();
-    unsafe {
-      std::env::set_var("KEEP_ONLY_FFMPEG", "yes");
-    }
-
-    assert!(!keep_only_ffmpeg_from_env());
-
-    restore_env(previous);
-  }
-
-  fn restore_env(previous: Option<String>) {
-    match previous {
-      Some(value) => unsafe {
-        std::env::set_var("KEEP_ONLY_FFMPEG", value);
-      },
-      None => unsafe {
-        std::env::remove_var("KEEP_ONLY_FFMPEG");
-      },
-    }
+  fn keep_only_ffmpeg_value_rejects_other_values() {
+    assert!(!keep_only_ffmpeg_from_value(Some("false")));
+    assert!(!keep_only_ffmpeg_from_value(Some("0")));
+    assert!(!keep_only_ffmpeg_from_value(Some("yes")));
   }
 }
