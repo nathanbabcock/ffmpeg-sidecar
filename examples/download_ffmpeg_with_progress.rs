@@ -1,6 +1,6 @@
 use ffmpeg_sidecar::download::{
   download_ffmpeg_package_with_progress, ffmpeg_download_url, unpack_ffmpeg,
-  FfmpegDownloadProgressEvent,
+  unpack_ffmpeg_without_extras, FfmpegDownloadProgressEvent,
 };
 use ffmpeg_sidecar::version::ffmpeg_version;
 use std::io::Write;
@@ -52,6 +52,7 @@ pub fn force_download_with_progress(
   progress_callback: impl Fn(FfmpegDownloadProgressEvent),
 ) -> anyhow::Result<()> {
   use ffmpeg_sidecar::{command::ffmpeg_is_installed, paths::sidecar_dir};
+  use std::env::var;
 
   progress_callback(FfmpegDownloadProgressEvent::Starting);
   let download_url = ffmpeg_download_url()?;
@@ -59,7 +60,16 @@ pub fn force_download_with_progress(
   let archive_path =
     download_ffmpeg_package_with_progress(download_url, &destination, |e| progress_callback(e))?;
   progress_callback(FfmpegDownloadProgressEvent::UnpackingArchive);
-  unpack_ffmpeg(&archive_path, &destination)?;
+  let keep_only_ffmpeg = var("KEEP_ONLY_FFMPEG")
+    .map(|value| value == "1" || value.eq_ignore_ascii_case("true"))
+    .unwrap_or(false);
+
+  if keep_only_ffmpeg {
+    println!("KEEP_ONLY_FFMPEG is set, skipping ffplay and ffprobe.");
+    unpack_ffmpeg_without_extras(&archive_path, &destination)?;
+  } else {
+    unpack_ffmpeg(&archive_path, &destination)?;
+  }
   progress_callback(FfmpegDownloadProgressEvent::Done);
 
   if !ffmpeg_is_installed() {

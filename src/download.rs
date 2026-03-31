@@ -5,6 +5,13 @@ use anyhow::Result;
 #[cfg(feature = "download_ffmpeg")]
 use std::path::{Path, PathBuf};
 
+#[cfg(feature = "download_ffmpeg")]
+fn keep_only_ffmpeg_from_env() -> bool {
+  std::env::var("KEEP_ONLY_FFMPEG")
+    .map(|value| value == "1" || value.eq_ignore_ascii_case("true"))
+    .unwrap_or(false)
+}
+
 /// The default directory name for unpacking a downloaded FFmpeg release archive.
 pub const UNPACK_DIRNAME: &str = "ffmpeg_release_temp";
 
@@ -52,6 +59,9 @@ pub fn ffmpeg_download_url() -> Result<&'static str> {
 ///
 /// If FFmpeg is already installed, the method exits early without downloading
 /// anything.
+///
+/// Set the `KEEP_ONLY_FFMPEG` environment variable to `1` or `true` to skip
+/// installing `ffplay` and `ffprobe`.
 #[cfg(feature = "download_ffmpeg")]
 pub fn auto_download() -> Result<()> {
   use crate::{command::ffmpeg_is_installed, paths::sidecar_dir};
@@ -63,7 +73,11 @@ pub fn auto_download() -> Result<()> {
   let download_url = ffmpeg_download_url()?;
   let destination = sidecar_dir()?;
   let archive_path = download_ffmpeg_package(download_url, &destination)?;
-  unpack_ffmpeg(&archive_path, &destination)?;
+  if keep_only_ffmpeg_from_env() {
+    unpack_ffmpeg_without_extras(&archive_path, &destination)?;
+  } else {
+    unpack_ffmpeg(&archive_path, &destination)?;
+  }
 
   if !ffmpeg_is_installed() {
     anyhow::bail!("FFmpeg failed to install, please install manually.");
@@ -90,6 +104,9 @@ pub enum FfmpegDownloadProgressEvent {
 ///
 /// If FFmpeg is already installed, the method exits early without downloading
 /// anything.
+///
+/// Set the `KEEP_ONLY_FFMPEG` environment variable to `1` or `true` to skip
+/// installing `ffplay` and `ffprobe`.
 #[cfg(feature = "download_ffmpeg")]
 pub fn auto_download_with_progress(
   progress_callback: impl Fn(FfmpegDownloadProgressEvent),
@@ -105,7 +122,11 @@ pub fn auto_download_with_progress(
   let destination = sidecar_dir()?;
   let archive_path = download_ffmpeg_package_with_progress(download_url, &destination, |e| progress_callback(e))?;
   progress_callback(FfmpegDownloadProgressEvent::UnpackingArchive);
-  unpack_ffmpeg(&archive_path, &destination)?;
+  if keep_only_ffmpeg_from_env() {
+    unpack_ffmpeg_without_extras(&archive_path, &destination)?;
+  } else {
+    unpack_ffmpeg(&archive_path, &destination)?;
+  }
   progress_callback(FfmpegDownloadProgressEvent::Done);
 
   if !ffmpeg_is_installed() {
@@ -275,6 +296,22 @@ pub fn download_ffmpeg_package_with_progress(
 /// their final location, and deletes the archive and temporary folder.
 #[cfg(feature = "download_ffmpeg")]
 pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> Result<()> {
+  unpack_ffmpeg_internal(from_archive, binary_folder, false)
+}
+
+/// Variant of [`unpack_ffmpeg`] that only installs the main `ffmpeg` binary,
+/// skipping `ffplay` and `ffprobe`.
+#[cfg(feature = "download_ffmpeg")]
+pub fn unpack_ffmpeg_without_extras(from_archive: &PathBuf, binary_folder: &Path) -> Result<()> {
+  unpack_ffmpeg_internal(from_archive, binary_folder, true)
+}
+
+#[cfg(feature = "download_ffmpeg")]
+fn unpack_ffmpeg_internal(
+  from_archive: &PathBuf,
+  binary_folder: &Path,
+  keep_only_ffmpeg: bool,
+) -> Result<()> {
   use anyhow::Context;
   use std::{
     fs::{create_dir_all, read_dir, remove_dir_all, remove_file, rename, File},
@@ -349,11 +386,11 @@ pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> Result<()>
 
   move_bin(&ffmpeg)?;
 
-  if ffprobe.exists() {
+  if !keep_only_ffmpeg && ffprobe.exists() {
     move_bin(&ffprobe)?;
   }
 
-  if ffplay.exists() {
+  if !keep_only_ffmpeg && ffplay.exists() {
     move_bin(&ffplay)?;
   }
 
@@ -369,3 +406,59 @@ pub fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> Result<()>
   Ok(())
 }
 
+#[cfg(all(test, feature = "download_ffmpeg"))]
+mod tests {
+  use super::keep_only_ffmpeg_from_env;
+
+  #[test]
+  fn keep_only_ffmpeg_env_defaults_to_false() {
+    let previous = std::env::var("KEEP_ONLY_FFMPEG").ok();
+    unsafe {
+      std::env::remove_var("KEEP_ONLY_FFMPEG");
+    }
+
+    assert!(!keep_only_ffmpeg_from_env());
+
+    restore_env(previous);
+  }
+
+  #[test]
+  fn keep_only_ffmpeg_env_accepts_true_values() {
+    let previous = std::env::var("KEEP_ONLY_FFMPEG").ok();
+
+    unsafe {
+      std::env::set_var("KEEP_ONLY_FFMPEG", "true");
+    }
+    assert!(keep_only_ffmpeg_from_env());
+
+    unsafe {
+      std::env::set_var("KEEP_ONLY_FFMPEG", "1");
+    }
+    assert!(keep_only_ffmpeg_from_env());
+
+    restore_env(previous);
+  }
+
+  #[test]
+  fn keep_only_ffmpeg_env_rejects_other_values() {
+    let previous = std::env::var("KEEP_ONLY_FFMPEG").ok();
+    unsafe {
+      std::env::set_var("KEEP_ONLY_FFMPEG", "yes");
+    }
+
+    assert!(!keep_only_ffmpeg_from_env());
+
+    restore_env(previous);
+  }
+
+  fn restore_env(previous: Option<String>) {
+    match previous {
+      Some(value) => unsafe {
+        std::env::set_var("KEEP_ONLY_FFMPEG", value);
+      },
+      None => unsafe {
+        std::env::remove_var("KEEP_ONLY_FFMPEG");
+      },
+    }
+  }
+}
