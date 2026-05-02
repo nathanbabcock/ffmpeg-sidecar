@@ -42,7 +42,7 @@ impl FfmpegMetadata {
   /// different streams could have different (or conflicting) durations, but
   /// this handles the common case.
   pub fn duration(&self) -> Option<f64> {
-    self.inputs[0].duration
+    self.inputs.first().and_then(|input| input.duration)
   }
 
   pub fn handle_event(&mut self, item: &Option<FfmpegEvent>) -> anyhow::Result<()> {
@@ -57,7 +57,9 @@ impl FfmpegMetadata {
       Some(FfmpegEvent::ParsedInput(input)) => self.inputs.push(input.clone()),
       Some(FfmpegEvent::ParsedOutput(output)) => self.outputs.push(output.clone()),
       Some(FfmpegEvent::ParsedDuration(duration)) => {
-        self.inputs[duration.input_index as usize].duration = Some(duration.duration)
+        if let Some(input) = self.inputs.get_mut(duration.input_index as usize) {
+          input.duration = Some(duration.duration);
+        }
       }
       Some(FfmpegEvent::ParsedOutputStream(stream)) => self.output_streams.push(stream.clone()),
       Some(FfmpegEvent::ParsedInputStream(stream)) => self.input_streams.push(stream.clone()),
