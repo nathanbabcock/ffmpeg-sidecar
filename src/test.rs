@@ -1,4 +1,10 @@
-use std::{sync::mpsc, thread, time::Duration};
+use std::{
+  ffi::{OsStr, OsString},
+  path::{Path, PathBuf},
+  sync::mpsc,
+  thread,
+  time::Duration,
+};
 
 use crate::{
   command::{ffmpeg_is_installed, FfmpegCommand},
@@ -77,6 +83,38 @@ fn test_installed() {
 #[test]
 fn test_version() {
   assert!(ffmpeg_version().is_ok());
+}
+
+#[test]
+fn test_input() {
+  let _ = FfmpegCommand::new()
+    .input("wibble/wobble.mp4");
+  let _ = FfmpegCommand::new()
+    .input(&"wibble/wobble.mp4".to_string());
+  let _ = FfmpegCommand::new()
+    .input(Path::new("wibble/wobble.mp4"));
+  let _ = FfmpegCommand::new()
+    .input(&PathBuf::from("wibble/wobble.mp4"));
+  let _ = FfmpegCommand::new()
+    .input(OsStr::new("wibble/wobble.mp4"));
+  let _ = FfmpegCommand::new()
+    .input(&OsString::from("wibble/wobble.mp4"));
+}
+
+#[test]
+fn test_output() {
+  let _ = FfmpegCommand::new()
+    .output("wibble/wobble.mp4");
+  let _ = FfmpegCommand::new()
+    .output(&"wibble/wobble.mp4".to_string());
+  let _ = FfmpegCommand::new()
+    .output(Path::new("wibble/wobble.mp4"));
+  let _ = FfmpegCommand::new()
+    .output(&PathBuf::from("wibble/wobble.mp4"));
+  let _ = FfmpegCommand::new()
+    .output(OsStr::new("wibble/wobble.mp4"));
+  let _ = FfmpegCommand::new()
+    .output(&OsString::from("wibble/wobble.mp4"));
 }
 
 #[test]
