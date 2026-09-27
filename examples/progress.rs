@@ -10,9 +10,8 @@ fn main() {
   let fps = 60;
   let duration = 10;
   let total_frames = fps * duration;
-  let arg_string = format!(
-    "-f lavfi -i testsrc=duration={duration}:size=1920x1080:rate={fps} -y output/test.mp4"
-  );
+  let arg_string =
+    format!("-f lavfi -i testsrc=duration={duration}:size=1920x1080:rate={fps} -y output/test.mp4");
   FfmpegCommand::new()
     .args(arg_string.split(' '))
     .spawn()

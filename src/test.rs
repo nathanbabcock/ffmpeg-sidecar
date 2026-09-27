@@ -87,34 +87,22 @@ fn test_version() {
 
 #[test]
 fn test_input() {
-  let _ = FfmpegCommand::new()
-    .input("wibble/wobble.mp4");
-  let _ = FfmpegCommand::new()
-    .input(&"wibble/wobble.mp4".to_string());
-  let _ = FfmpegCommand::new()
-    .input(Path::new("wibble/wobble.mp4"));
-  let _ = FfmpegCommand::new()
-    .input(&PathBuf::from("wibble/wobble.mp4"));
-  let _ = FfmpegCommand::new()
-    .input(OsStr::new("wibble/wobble.mp4"));
-  let _ = FfmpegCommand::new()
-    .input(&OsString::from("wibble/wobble.mp4"));
+  let _ = FfmpegCommand::new().input("wibble/wobble.mp4");
+  let _ = FfmpegCommand::new().input(&"wibble/wobble.mp4".to_string());
+  let _ = FfmpegCommand::new().input(Path::new("wibble/wobble.mp4"));
+  let _ = FfmpegCommand::new().input(&PathBuf::from("wibble/wobble.mp4"));
+  let _ = FfmpegCommand::new().input(OsStr::new("wibble/wobble.mp4"));
+  let _ = FfmpegCommand::new().input(&OsString::from("wibble/wobble.mp4"));
 }
 
 #[test]
 fn test_output() {
-  let _ = FfmpegCommand::new()
-    .output("wibble/wobble.mp4");
-  let _ = FfmpegCommand::new()
-    .output(&"wibble/wobble.mp4".to_string());
-  let _ = FfmpegCommand::new()
-    .output(Path::new("wibble/wobble.mp4"));
-  let _ = FfmpegCommand::new()
-    .output(&PathBuf::from("wibble/wobble.mp4"));
-  let _ = FfmpegCommand::new()
-    .output(OsStr::new("wibble/wobble.mp4"));
-  let _ = FfmpegCommand::new()
-    .output(&OsString::from("wibble/wobble.mp4"));
+  let _ = FfmpegCommand::new().output("wibble/wobble.mp4");
+  let _ = FfmpegCommand::new().output(&"wibble/wobble.mp4".to_string());
+  let _ = FfmpegCommand::new().output(Path::new("wibble/wobble.mp4"));
+  let _ = FfmpegCommand::new().output(&PathBuf::from("wibble/wobble.mp4"));
+  let _ = FfmpegCommand::new().output(OsStr::new("wibble/wobble.mp4"));
+  let _ = FfmpegCommand::new().output(&OsString::from("wibble/wobble.mp4"));
 }
 
 #[test]
@@ -122,9 +110,8 @@ fn test_frame_count() {
   let fps = 1;
   let duration = 5;
   let expected_frame_count = fps * duration;
-  let arg_string = format!(
-    "-f lavfi -i testsrc=duration={duration}:rate={fps} -f rawvideo -pix_fmt rgb24 -"
-  );
+  let arg_string =
+    format!("-f lavfi -i testsrc=duration={duration}:rate={fps} -f rawvideo -pix_fmt rgb24 -");
 
   let iter = FfmpegCommand::new()
     .args(arg_string.split(' '))

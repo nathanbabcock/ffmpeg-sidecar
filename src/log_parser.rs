@@ -2,6 +2,7 @@
 
 use std::io::{BufReader, Read};
 
+use crate::ffmpeg_time_duration::FfmpegTimeDuration;
 use crate::{
   comma_iter::CommaIter,
   event::{
@@ -10,7 +11,6 @@ use crate::{
   },
   read_until_any::read_until_any,
 };
-use crate::ffmpeg_time_duration::FfmpegTimeDuration;
 
 #[derive(Debug, Clone, PartialEq)]
 enum LogSection {

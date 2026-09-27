@@ -32,17 +32,17 @@ pub mod comma_iter;
 pub mod command;
 pub mod download;
 pub mod event;
+pub mod ffmpeg_time_duration;
 pub mod ffprobe;
 pub mod iter;
 pub mod log_parser;
 pub mod metadata;
+#[cfg(feature = "named_pipes")]
+#[cfg_attr(docsrs, doc(cfg(feature = "named_pipes")))]
+pub mod named_pipes;
 pub mod paths;
 pub mod pix_fmt;
 pub mod read_until_any;
 pub mod version;
-pub mod ffmpeg_time_duration;
-#[cfg(feature = "named_pipes")]
-#[cfg_attr(docsrs, doc(cfg(feature = "named_pipes")))]
-pub mod named_pipes;
 
 pub use anyhow::Result;

@@ -1,4 +1,7 @@
-use ffmpeg_sidecar::{command::FfmpegCommand, event::{FfmpegEvent, FfmpegProgress}};
+use ffmpeg_sidecar::{
+  command::FfmpegCommand,
+  event::{FfmpegEvent, FfmpegProgress},
+};
 
 /// Add metadata to a video file, with progress updates and FFmpeg log output.
 fn main() {
@@ -11,16 +14,9 @@ fn main() {
     .spawn()
     .unwrap();
 
-  ffmpeg_runner
-    .iter()
-    .unwrap()
-    .for_each(|e| {
-      match e {
-        FfmpegEvent::Progress(FfmpegProgress { frame, .. }) =>
-          println!("Current frame: {frame}"),
-        FfmpegEvent::Log(_level, msg) =>
-          println!("[ffmpeg] {msg}"),
-        _ => {}
-      }
-    });
+  ffmpeg_runner.iter().unwrap().for_each(|e| match e {
+    FfmpegEvent::Progress(FfmpegProgress { frame, .. }) => println!("Current frame: {frame}"),
+    FfmpegEvent::Log(_level, msg) => println!("[ffmpeg] {msg}"),
+    _ => {}
+  });
 }

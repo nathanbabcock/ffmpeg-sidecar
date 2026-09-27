@@ -125,7 +125,8 @@ pub fn auto_download_with_progress(
   progress_callback(FfmpegDownloadProgressEvent::Starting);
   let download_url = ffmpeg_download_url()?;
   let destination = sidecar_dir()?;
-  let archive_path = download_ffmpeg_package_with_progress(download_url, &destination, |e| progress_callback(e))?;
+  let archive_path =
+    download_ffmpeg_package_with_progress(download_url, &destination, |e| progress_callback(e))?;
   progress_callback(FfmpegDownloadProgressEvent::UnpackingArchive);
   if keep_only_ffmpeg_from_env() {
     unpack_ffmpeg_without_extras(&archive_path, &destination)?;
