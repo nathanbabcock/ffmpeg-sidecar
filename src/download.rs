@@ -32,7 +32,7 @@ pub fn ffmpeg_manifest_url() -> Result<&'static str> {
   } else if cfg!(target_os = "macos") {
     Ok("https://evermeet.cx/ffmpeg/info/ffmpeg/release")
   } else if cfg!(target_os = "linux") {
-    Ok("https://johnvansickle.com/ffmpeg/release-readme.txt")
+    anyhow::bail!("Linux builds have no manifest; the version is pinned in `ffmpeg_download_url`")
   } else {
     anyhow::bail!("Unsupported platform")
   }
@@ -46,9 +46,9 @@ pub fn ffmpeg_download_url() -> Result<&'static str> {
   } else if cfg!(all(target_os = "windows", target_arch = "aarch64")) {
     Ok("https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip")
   } else if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
-    Ok("https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz")
+    Ok("https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n9.0-latest-linux64-gpl-9.0.tar.xz")
   } else if cfg!(all(target_os = "linux", target_arch = "aarch64")) {
-    Ok("https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-arm64-static.tar.xz")
+    Ok("https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n9.0-latest-linuxarm64-gpl-9.0.tar.xz")
   } else if cfg!(all(target_os = "macos", target_arch = "x86_64")) {
     Ok("https://evermeet.cx/ffmpeg/getrelease/zip")
   } else if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
@@ -191,6 +191,11 @@ pub fn check_latest_version() -> Result<String> {
     return Ok("9.0".to_string());
   }
 
+  // Linux builds (BtbN) don't have a manifest URL either; match the pinned version in `ffmpeg_download_url`
+  if cfg!(target_os = "linux") {
+    return Ok("9.0".to_string());
+  }
+
   let manifest_url = ffmpeg_manifest_url()?;
   let string = ureq::get(manifest_url)
     .call()
@@ -203,8 +208,6 @@ pub fn check_latest_version() -> Result<String> {
     Ok(string)
   } else if cfg!(target_os = "macos") {
     parse_macos_version(&string).context("failed to parse version number (macos variant)")
-  } else if cfg!(target_os = "linux") {
-    parse_linux_version(&string).context("failed to parse version number (linux variant)")
   } else {
     Err(anyhow::Error::msg("Unsupported platform"))
   }
@@ -364,9 +367,9 @@ fn unpack_ffmpeg_internal(
       .next()
       .context("Failed to get inner folder")??;
     (
-      inner_folder.path().join("./ffmpeg"),
-      inner_folder.path().join("./ffplay"), // <- no ffplay on linux
-      inner_folder.path().join("./ffprobe"),
+      inner_folder.path().join("bin/ffmpeg"),
+      inner_folder.path().join("bin/ffplay"),
+      inner_folder.path().join("bin/ffprobe"),
     )
   } else if cfg!(target_os = "macos") {
     (
