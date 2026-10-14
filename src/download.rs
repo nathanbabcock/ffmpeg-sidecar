@@ -30,7 +30,7 @@ pub fn ffmpeg_manifest_url() -> Result<&'static str> {
   if cfg!(target_os = "windows") {
     Ok("https://www.gyan.dev/ffmpeg/builds/release-version")
   } else if cfg!(target_os = "macos") {
-    Ok("https://evermeet.cx/ffmpeg/info/ffmpeg/release")
+    anyhow::bail!("MacOS builds have no manifest; the version is pinned in `ffmpeg_download_url`")
   } else if cfg!(target_os = "linux") {
     anyhow::bail!("Linux builds have no manifest; the version is pinned in `ffmpeg_download_url`")
   } else {
@@ -50,7 +50,7 @@ pub fn ffmpeg_download_url() -> Result<&'static str> {
   } else if cfg!(all(target_os = "linux", target_arch = "aarch64")) {
     Ok("https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n9.0-latest-linuxarm64-gpl-9.0.tar.xz")
   } else if cfg!(all(target_os = "macos", target_arch = "x86_64")) {
-    Ok("https://evermeet.cx/ffmpeg/getrelease/zip")
+    Ok("https://ffmpeg.martin-riedl.de/download/macos/amd64/1789931006_9.0.2/ffmpeg.zip")
   } else if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
     Ok("https://www.osxexperts.net/ffmpeg9arm.zip") // Mac M1
   } else {
@@ -145,6 +145,8 @@ pub fn auto_download_with_progress(
 ///
 /// Example input: <https://evermeet.cx/ffmpeg/info/ffmpeg/release>
 ///
+/// No longer used internally since MacOS downloads moved off of evermeet.cx.
+///
 /// ```rust
 /// use ffmpeg_sidecar::download::parse_macos_version;
 /// let json_string = "{\"name\":\"ffmpeg\",\"type\":\"release\",\"version\":\"6.0\",...}";
@@ -191,6 +193,11 @@ pub fn check_latest_version() -> Result<String> {
     return Ok("9.0".to_string());
   }
 
+  // Mac Intel builds (Martin Riedl) are pinned too; match the version in `ffmpeg_download_url`
+  if cfg!(all(target_os = "macos", target_arch = "x86_64")) {
+    return Ok("9.0.2".to_string());
+  }
+
   // Linux builds (BtbN) don't have a manifest URL either; match the pinned version in `ffmpeg_download_url`
   if cfg!(target_os = "linux") {
     return Ok("9.0".to_string());
@@ -206,8 +213,6 @@ pub fn check_latest_version() -> Result<String> {
 
   if cfg!(target_os = "windows") {
     Ok(string)
-  } else if cfg!(target_os = "macos") {
-    parse_macos_version(&string).context("failed to parse version number (macos variant)")
   } else {
     Err(anyhow::Error::msg("Unsupported platform"))
   }
