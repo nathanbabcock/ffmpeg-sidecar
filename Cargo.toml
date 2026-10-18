@@ -2,7 +2,7 @@
 name = "ffmpeg-sidecar"
 version = "2.6.0"
 edition = "2021"
-rust-version = "1.79"
+rust-version = "1.88"
 description = "Wrap a standalone FFmpeg binary in an intuitive Iterator interface."
 authors = ["Nathan Babcock <nathan.r.babcock@gmail.com>"]
 categories = ["multimedia"]
@@ -28,7 +28,7 @@ tar = { version = "0.4.46", optional = true }
 xz2 = { version = "0.1.7", optional = true }
 
 [target.'cfg(not(target_os = "linux"))'.dependencies]
-zip = { version = "4.3.0", optional = true, default-features = false, features = [
+zip = { version = "9.0.4", optional = true, default-features = false, features = [
   "deflate",
 ] }
 
