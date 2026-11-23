@@ -236,6 +236,9 @@ fn test_to_file() {
       FfmpegEvent::OutputFrame(_) => {
         panic!("Should not have received any frames when outputting to file.")
       }
+      FfmpegEvent::Error(e) => {
+        panic!("Should not have received any errors when outputting to file: {e}")
+      }
       _ => {}
     });
 }

@@ -195,10 +195,9 @@ pub fn spawn_stdout_thread(
         .unwrap_or(false)
     });
 
-    // Exit early if nothing is being sent to stdout
+    // Exit early if nothing is being sent to stdout. This is expected (not an
+    // error) when all outputs go to files or other non-stdout destinations.
     if stdout_streams.clone().count() == 0 {
-      tx.send(FfmpegEvent::Error("No streams found".to_owned()))
-        .ok();
       return;
     }
 
